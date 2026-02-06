@@ -1,0 +1,11 @@
+Table name：,audit_log,Unnamed: 2,Unnamed: 3,Unnamed: 4,Unnamed: 5,Unnamed: 6,Unnamed: 7,Unnamed: 8,Unnamed: 9,Unnamed: 10,Unnamed: 11,Unnamed: 12
+No.,Name,Type,PK,FK,Nullable,Unique,Default,Index,FK constraint,Composite Unique,Check Constraint,Description
+1,id,uuid,Y,,N,,gen_random_uuid(),,,,,
+2,user_id,uuid,,Y,N,,,Y,users(id) ON DELETE SET NULL,,,
+3,action,text,,,N,,,,,,,
+4,target_type,text,,,Y,,,,,,,
+5,target_id,uuid,,,Y,,,Y,,,,
+6,detail,jsonb,,,Y,,,,,,,
+7,ip_address,varchar(45),,,N,,,,,,,
+8,user_agent,text,,,N,,,,,,,
+9,created_at,timestamptz,,,N,,now(),,,,,

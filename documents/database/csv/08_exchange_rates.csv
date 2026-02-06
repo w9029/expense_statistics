@@ -1,0 +1,12 @@
+Table name：,exchange_rates,Unnamed: 2,Unnamed: 3,Unnamed: 4,Unnamed: 5,Unnamed: 6,Unnamed: 7,Unnamed: 8,Unnamed: 9,Unnamed: 10,Unnamed: 11,Unnamed: 12
+No.,Name,Type,PK,FK,Nullable,Unique,Default,Index,FK constraint,Composite Unique,Check Constraint,Description
+1,id,uuid,Y,,N,,gen_random_uuid(),,,,,
+2,base_currency,varchar(3),,,N,,,Y,,,base_currency ~ '^[A-Z]{3}$',
+3,target_currency,varchar(3),,,N,,,Y,,,target_currency ~ '^[A-Z]{3}$',
+4,rate,"numeric(12,6)",,,N,,,,,,,rate = base_currency / target_currency
+5,date,DATE,,,N,,now(),Y,,,,
+6,created_at,timestamptz,,,N,,now(),,,,,
+,,,,,,,,,,,,
+,,,,,,,,,,,,
+others:,,,,,,,,,,,,
+"CREATE UNIQUE INDEX idx_rate_unique ON exchange_rates(base_currency, target_currency, date);",,,,,,,,,,,,

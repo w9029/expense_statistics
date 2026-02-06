@@ -1,0 +1,8 @@
+Table name：,auth_refresh_tokens,Unnamed: 2,Unnamed: 3,Unnamed: 4,Unnamed: 5,Unnamed: 6,Unnamed: 7,Unnamed: 8,Unnamed: 9,Unnamed: 10,Unnamed: 11,Unnamed: 12
+No.,Name,Type,PK,FK,Nullable,Unique,Default,Index,FK constraint,Composite Unique,Check Constraint,Description
+1,id,uuid,Y,,N,,gen_random_uuid(),,,,,
+2,user_id,uuid,,Y,N,Y,,Y,users(id) ON DELETE CASCADE,,,
+3,refresh_token,text,,,N,,,,,,,
+4,expires_at,timestamptz,,,N,,,Y,,,,
+5,revoked_at,timestamptz,,,Y,,,,,,,
+6,created_at,timestamptz,,,N,,,,,,,
