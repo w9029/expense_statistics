@@ -1,0 +1,17 @@
+Table name：,expenses,Unnamed: 2,Unnamed: 3,Unnamed: 4,Unnamed: 5,Unnamed: 6,Unnamed: 7,Unnamed: 8,Unnamed: 9,Unnamed: 10,Unnamed: 11,Unnamed: 12
+No.,Name,Type,PK,FK,Nullable,Unique,Default,Index,FK constraint,Composite Unique,Check Constraint,Description
+1,id,uuid,Y,,N,,gen_random_uuid(),Y,,,,
+2,account_book_id,uuid,,Y,N,,,Y,account_books(id) ON DELETE CASCADE,,,
+3,user_id,uuid,,Y,N,,,Y,users(id) ON DELETE SET NULL,,,
+4,category_id,uuid,,Y,N,,,Y,expense_categories(id) ON DELETE RESTRICT,,,
+5,parent_id,uuid,,Y,Y,,,Y,expenses(id) ON DELETE CASCADE,,,
+6,name,text,,,N,,,,,,,
+7,description,text,,,Y,,,,,,,
+8,original_amount,"numeric(12,2)	",,,N,,,,,,,
+9,original_currency,varchar(3),,,N,,,,,,original_currency ~ '^[A-Z]{3}$',
+10,exchange_rate_used,"numeric(12,6)	",,,N,,,,,,,
+11,converted_amount,"numeric(12,2)	",,,N,,,,,,,
+12,spent_at,DATE,,,N,,now(),,,,,
+13,created_at,timestamptz,,,N,,now(),,,,,
+14,updated_at,timestamptz,,,N,,now(),,,,,
+15,deleted_at,timestamptz,,,Y,,NULL,,,,,

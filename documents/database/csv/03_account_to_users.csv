@@ -1,0 +1,11 @@
+Table name：,account_to_users,Unnamed: 2,Unnamed: 3,Unnamed: 4,Unnamed: 5,Unnamed: 6,Unnamed: 7,Unnamed: 8,Unnamed: 9,Unnamed: 10,Unnamed: 11,Unnamed: 12
+No.,Name,Type,PK,FK,Nullable,Unique,Default,Index,FK constraint,Composite Unique,Check Constraint,Description
+1,id,uuid,Y,,N,,gen_random_uuid(),,,,,
+2,account_book_id,uuid,,Y,N,Y,,Y,account_books(id) ON DELETE CASCADE,cuq_account_user,,
+3,user_id,uuid,,Y,N,Y,,Y,users(id) ON DELETE CASCADE,cuq_account_user,,
+4,account_role,text,,,N,,"""editor""",,,,"account_role IN (""viewer"",""editor"",""admin"",""owner"")",
+5,created_at,timestamptz,,,N,,now(),,,,,
+,,,,,,,,,,,,
+,,,,,,,,,,,,
+other:,,,,,,,,,,,,
+"ADD CONSTRAINT unique_account_user UNIQUE (account_book_id, user_id);",,,,,,,,,,,,

@@ -1,0 +1,16 @@
+Table name：,users,Unnamed: 2,Unnamed: 3,Unnamed: 4,Unnamed: 5,Unnamed: 6,Unnamed: 7,Unnamed: 8,Unnamed: 9,Unnamed: 10,Unnamed: 11,Unnamed: 12
+No.,Name,Type,PK,FK,Nullable,Unique,Default,Index,FK constraint,Composite Unique,Check Constraint,Description
+1,id,uuid,Y,,N,,gen_random_uuid(),Y,,,,
+2,email,text,,,N,Y,,Y,,,,
+3,password_hash,text,,,N,,,,,,,
+4,name,text,,,N,,,,,,,
+5,preferred_currency,varchar(3),,,N,,"""CNY""",,,,preferred_currency ~ '^[A-Z]{3}$',
+6,user_role,text,,,N,,"""user""",,,,"user_role IN (""user"", ""admin"")",
+7,default_account_book_id,uuid,,Y,Y,,,Y,account_books(id) ON DELETE SET NULL,,,
+8,is_active,boolean,,,N,,True,,,,,
+9,created_at,timestamptz,,,N,,now(),,,,,
+10,updated_at,timestamptz,,,N,,now(),,,,,
+11,deleted_at,timestamptz,,,Y,,NULL,,,,,
+,,,,,,,,,,,,
+,,,,,,,,,,,,
+UNIQUE INDEX users_email_unique (email); ,,,,,,,,,,,,

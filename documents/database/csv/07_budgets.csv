@@ -1,0 +1,14 @@
+Table name：,budgets,Unnamed: 2,Unnamed: 3,Unnamed: 4,Unnamed: 5,Unnamed: 6,Unnamed: 7,Unnamed: 8,Unnamed: 9,Unnamed: 10,Unnamed: 11,Unnamed: 12
+No.,Name,Type,PK,FK,Nullable,Unique,Default,Index,FK constraint,Composite Unique,Check Constraint,Description
+1,id,uuid,Y,,N,,gen_random_uuid(),,,,,
+2,account_book_id,uuid,,Y,N,,,Y,account_books(id) ON DELETE CASCADE,,,
+3,category_id,uuid,,Y,Y,,,Y,expense_categories(id) ON DELETE CASCADE,,,NULL for all categories
+4,cycle_type,text,,,N,,,,,,"cycle_type IN (""week"", ""month"")","""week"" or ""month"""
+5,cycle_start_day,int,,,N,,1,,,,,"if cycle is ""week"", it can be 1-7. if cycle is ""month"", 1-28"
+6,amount,"numeric(12,2)	",,,N,,,,,,,
+7,currency,varchar(3),,,N,,,,,,currency ~ '^[A-Z]{3}$',
+8,is_active,boolean,,,N,,TRUE,,,,,
+9,start_date,timestamptz,,,N,,,,,,,
+10,end_date,timestamptz,,,N,,,,,,,
+11,created_at,timestamptz,,,N,,now(),,,,,
+12,updated_at,timestamptz,,,N,,now(),,,,,

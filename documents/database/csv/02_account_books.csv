@@ -1,0 +1,11 @@
+Table name：,account_books,Unnamed: 2,Unnamed: 3,Unnamed: 4,Unnamed: 5,Unnamed: 6,Unnamed: 7,Unnamed: 8,Unnamed: 9,Unnamed: 10,Unnamed: 11,Unnamed: 12
+No.,Name,Type,PK,FK,Nullable,Unique,Default,Index,FK constraint,Composite Unique,Check Constraint,Description
+1,id,uuid,Y,,N,,gen_random_uuid(),Y,,,,
+2,name,text,,,N,,,,,,,
+3,own_user_id,uuid,,Y,N,,,Y,users(id) ON DELETE RESTRICT,,,
+4,base_currency,varchar(3),,,N,,"""CNY""",,,,base_currency ~ '^[A-Z]{3}$',
+5,description,text,,,N,,,,,,,
+6,is_active,boolean,,,N,,True,,,,,
+7,created_at,timestamptz,,,N,,now(),,,,,
+8,updated_at,timestamptz,,,N,,now(),,,,,
+9,deleted_at,timestamptz,,,Y,,NULL,,,,,

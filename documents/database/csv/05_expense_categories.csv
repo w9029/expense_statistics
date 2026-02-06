@@ -1,0 +1,10 @@
+Table name：,expense_categories,Unnamed: 2,Unnamed: 3,Unnamed: 4,Unnamed: 5,Unnamed: 6,Unnamed: 7,Unnamed: 8,Unnamed: 9,Unnamed: 10,Unnamed: 11,Unnamed: 12
+No.,Name,Type,PK,FK,Nullable,Unique,Default,Index,FK constraint,Composite Unique,Check Constraint,Description
+1,id,uuid,Y,,N,,gen_random_uuid(),Y,,,,
+2,account_book_id,uuid,,Y,Y,,,Y,account_books(id) ON DELETE CASCADE,,,NULL for system default categories
+3,name,text,,,N,,,,,,,
+4,description,text,,,Y,,,,,,,
+5,is_merge_category,boolean,,,N,,False,,,,,
+6,created_at,timestamptz,,,N,,now(),,,,,
+7,updated_at,timestamptz,,,N,,now(),,,,,
+8,deleted_at,timestamptz,,,Y,,NULL,,,,,
