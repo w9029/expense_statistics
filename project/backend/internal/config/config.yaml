@@ -1,0 +1,9 @@
+server_port: "8080"
+jwt_secret: "my_super_secret"
+
+db:
+  host: "localhost"
+  port: 5432
+  user: "postgres"
+  password: "191969"
+  name: "expense_statistics_proj"
