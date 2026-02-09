@@ -70,7 +70,7 @@ def generate_sql(file_path):
             nullable = "NOT NULL" if row["Nullable"] == "N" else ""
             default = f"DEFAULT {row['Default']}" if row["Default"] else ""
             default = default.replace('"', "'")
-            if row["Unique"] and row["Composite Unique"] == "":
+            if row["Unique"] == "Y":
                 unique = "UNIQUE"
             else:
                 unique = ""

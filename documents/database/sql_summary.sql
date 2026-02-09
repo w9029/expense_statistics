@@ -3,7 +3,7 @@ CREATE TABLE users (
     email text NOT NULL  UNIQUE,
     password_hash text NOT NULL,
     name text NOT NULL,
-    preferred_currency varchar(3) NOT NULL DEFAULT 'CNY',
+    preferred_currency varchar(3) NOT NULL,
     user_role text NOT NULL DEFAULT 'user',
     default_account_book_id uuid,
     is_active boolean NOT NULL DEFAULT True,
@@ -13,9 +13,6 @@ CREATE TABLE users (
 
     PRIMARY KEY (id)
 );
-CREATE INDEX idx_users_id ON users(id);
-CREATE INDEX idx_users_email ON users(email);
-CREATE INDEX idx_users_default_account_book_id ON users(default_account_book_id);
 ALTER TABLE users ADD CONSTRAINT chk_users_preferred_currency 
     CHECK (preferred_currency ~ '^[A-Z]{3}$');
 ALTER TABLE users ADD CONSTRAINT chk_users_user_role 
@@ -25,8 +22,8 @@ ALTER TABLE users ADD CONSTRAINT chk_users_user_role
 CREATE TABLE account_books (
     id uuid NOT NULL DEFAULT gen_random_uuid(),
     name text NOT NULL,
-    own_user_id uuid NOT NULL,
-    base_currency varchar(3) NOT NULL DEFAULT 'CNY',
+    owner_user_id uuid NOT NULL,
+    base_currency varchar(3) NOT NULL,
     description text NOT NULL,
     is_active boolean NOT NULL DEFAULT True,
     created_at timestamptz NOT NULL DEFAULT now(),
@@ -35,13 +32,12 @@ CREATE TABLE account_books (
 
     PRIMARY KEY (id)
 );
-CREATE INDEX idx_account_books_id ON account_books(id);
-CREATE INDEX idx_account_books_own_user_id ON account_books(own_user_id);
+CREATE INDEX idx_account_books_owner_user_id ON account_books(owner_user_id);
 ALTER TABLE account_books ADD CONSTRAINT chk_account_books_base_currency 
     CHECK (base_currency ~ '^[A-Z]{3}$');
 
 
-CREATE TABLE account_to_users (
+CREATE TABLE accountbook_user_permissions (
     id uuid NOT NULL DEFAULT gen_random_uuid(),
     account_book_id uuid NOT NULL,
     user_id uuid NOT NULL,
@@ -51,9 +47,9 @@ CREATE TABLE account_to_users (
     PRIMARY KEY (id),
     CONSTRAINT cuq_account_user UNIQUE (account_book_id, user_id)
 );
-CREATE INDEX idx_account_to_users_account_book_id ON account_to_users(account_book_id);
-CREATE INDEX idx_account_to_users_user_id ON account_to_users(user_id);
-ALTER TABLE account_to_users ADD CONSTRAINT chk_account_to_users_account_role 
+CREATE INDEX idx_accountbook_user_permissions_account_book_id ON accountbook_user_permissions(account_book_id);
+CREATE INDEX idx_accountbook_user_permissions_user_id ON accountbook_user_permissions(user_id);
+ALTER TABLE accountbook_user_permissions ADD CONSTRAINT chk_accountbook_user_permissions_account_role 
     CHECK (account_role IN ('viewer','editor','admin','owner'));
 
 
@@ -71,8 +67,6 @@ CREATE TABLE account_invitations (
 
     PRIMARY KEY (id)
 );
-CREATE INDEX idx_account_invitations_account_book_id ON account_invitations(account_book_id);
-CREATE INDEX idx_account_invitations_inviter_user_id ON account_invitations(inviter_user_id);
 CREATE INDEX idx_account_invitations_expires_at ON account_invitations(expires_at);
 ALTER TABLE account_invitations ADD CONSTRAINT chk_account_invitations_account_role 
     CHECK (account_role IN ('viewer','editor','admin','owner'));
@@ -92,7 +86,6 @@ CREATE TABLE expense_categories (
 
     PRIMARY KEY (id)
 );
-CREATE INDEX idx_expense_categories_id ON expense_categories(id);
 CREATE INDEX idx_expense_categories_account_book_id ON expense_categories(account_book_id);
 
 
@@ -115,9 +108,7 @@ CREATE TABLE expenses (
 
     PRIMARY KEY (id)
 );
-CREATE INDEX idx_expenses_id ON expenses(id);
 CREATE INDEX idx_expenses_account_book_id ON expenses(account_book_id);
-CREATE INDEX idx_expenses_user_id ON expenses(user_id);
 CREATE INDEX idx_expenses_category_id ON expenses(category_id);
 CREATE INDEX idx_expenses_parent_id ON expenses(parent_id);
 ALTER TABLE expenses ADD CONSTRAINT chk_expenses_original_currency 
@@ -141,7 +132,6 @@ CREATE TABLE budgets (
     PRIMARY KEY (id)
 );
 CREATE INDEX idx_budgets_account_book_id ON budgets(account_book_id);
-CREATE INDEX idx_budgets_category_id ON budgets(category_id);
 ALTER TABLE budgets ADD CONSTRAINT chk_budgets_cycle_type 
     CHECK (cycle_type IN ('week', 'month'));
 ALTER TABLE budgets ADD CONSTRAINT chk_budgets_currency 
@@ -179,8 +169,6 @@ CREATE TABLE notifications (
     PRIMARY KEY (id)
 );
 CREATE INDEX idx_notifications_user_id ON notifications(user_id);
-CREATE INDEX idx_notifications_type ON notifications(type);
-CREATE INDEX idx_notifications_status ON notifications(status);
 ALTER TABLE notifications ADD CONSTRAINT chk_notifications_type 
     CHECK (type IN ('invitation','budget_exceeded','transaction_reminder','report','system'));
 ALTER TABLE notifications ADD CONSTRAINT chk_notifications_status 
@@ -193,11 +181,11 @@ CREATE TABLE auth_refresh_tokens (
     refresh_token text NOT NULL,
     expires_at timestamptz NOT NULL,
     revoked_at timestamptz,
-    created_at timestamptz NOT NULL,
+    created_at timestamptz NOT NULL DEFAULT now(),
 
     PRIMARY KEY (id)
 );
-CREATE INDEX idx_auth_refresh_tokens_user_id ON auth_refresh_tokens(user_id);
+CREATE INDEX idx_auth_refresh_tokens_refresh_token ON auth_refresh_tokens(refresh_token);
 CREATE INDEX idx_auth_refresh_tokens_expires_at ON auth_refresh_tokens(expires_at);
 
 
@@ -222,13 +210,13 @@ ALTER TABLE users ADD CONSTRAINT fk_users_default_account_book_id
 	FOREIGN KEY (default_account_book_id) REFERENCES account_books(id) ON DELETE SET NULL;
 
 
-ALTER TABLE account_books ADD CONSTRAINT fk_account_books_own_user_id 
-	FOREIGN KEY (own_user_id) REFERENCES users(id) ON DELETE RESTRICT;
+ALTER TABLE account_books ADD CONSTRAINT fk_account_books_owner_user_id 
+	FOREIGN KEY (owner_user_id) REFERENCES users(id) ON DELETE RESTRICT;
 
 
-ALTER TABLE account_to_users ADD CONSTRAINT fk_account_to_users_account_book_id 
+ALTER TABLE accountbook_user_permissions ADD CONSTRAINT fk_accountbook_user_permissions_account_book_id 
 	FOREIGN KEY (account_book_id) REFERENCES account_books(id) ON DELETE CASCADE;
-ALTER TABLE account_to_users ADD CONSTRAINT fk_account_to_users_user_id 
+ALTER TABLE accountbook_user_permissions ADD CONSTRAINT fk_accountbook_user_permissions_user_id 
 	FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
 
 

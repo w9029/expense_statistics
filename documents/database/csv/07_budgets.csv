@@ -2,7 +2,7 @@ Table name：,budgets,Unnamed: 2,Unnamed: 3,Unnamed: 4,Unnamed: 5,Unnamed: 6,Unn
 No.,Name,Type,PK,FK,Nullable,Unique,Default,Index,FK constraint,Composite Unique,Check Constraint,Description
 1,id,uuid,Y,,N,,gen_random_uuid(),,,,,
 2,account_book_id,uuid,,Y,N,,,Y,account_books(id) ON DELETE CASCADE,,,
-3,category_id,uuid,,Y,Y,,,Y,expense_categories(id) ON DELETE CASCADE,,,NULL for all categories
+3,category_id,uuid,,Y,Y,,,,expense_categories(id) ON DELETE CASCADE,,,NULL for all categories
 4,cycle_type,text,,,N,,,,,,"cycle_type IN (""week"", ""month"")","""week"" or ""month"""
 5,cycle_start_day,int,,,N,,1,,,,,"if cycle is ""week"", it can be 1-7. if cycle is ""month"", 1-28"
 6,amount,"numeric(12,2)	",,,N,,,,,,,

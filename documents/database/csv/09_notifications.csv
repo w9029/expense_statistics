@@ -2,8 +2,8 @@ Table name：,notifications,Unnamed: 2,Unnamed: 3,Unnamed: 4,Unnamed: 5,Unnamed:
 No.,Name,Type,PK,FK,Nullable,Unique,Default,Index,FK constraint,Composite Unique,Check Constraint,Description
 1,id,uuid,Y,,N,,gen_random_uuid(),,,,,
 2,user_id,uuid,,Y,N,,,Y,users(id) ON DELETE CASCADE,,,index on users(id)
-3,type,varchar(30),,,N,,,Y,,,"type IN (""invitation"",""budget_exceeded"",""transaction_reminder"",""report"",""system"")",
+3,type,varchar(30),,,N,,,,,,"type IN (""invitation"",""budget_exceeded"",""transaction_reminder"",""report"",""system"")",maybe we can add index.
 4,title,text,,,N,,,,,,,
 5,message,text,,,Y,,,,,,,
-6,status,varchar(10),,,N,,"""unread""",Y,,,"status IN (""unread"", ""read"", ""archived"", ""deleted"")",
+6,status,varchar(10),,,N,,"""unread""",,,,"status IN (""unread"", ""read"", ""archived"", ""deleted"")",maybe we can add index.
 7,created_at,timestamptz,,,N,,now(),,,,,
