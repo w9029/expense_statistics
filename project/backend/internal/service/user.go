@@ -4,6 +4,7 @@ import (
     "expense-statistics-server/internal/model"
     "expense-statistics-server/internal/repository"
     "errors"
+    "github.com/google/uuid"
 )
 
 type UserService struct {
@@ -24,6 +25,6 @@ func (s *UserService) RegisterUser(user *model.User) error {
     return s.repo.Create(user)
 }
 
-func (s *UserService) GetUserByID(id string) (*model.User, error) {
+func (s *UserService) GetUserByID(id uuid.UUID) (*model.User, error) {
     return s.repo.GetByID(id)
 }

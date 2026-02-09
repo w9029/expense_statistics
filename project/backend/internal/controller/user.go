@@ -7,6 +7,7 @@ import (
     "expense-statistics-server/internal/service"
 
     "github.com/gin-gonic/gin"
+    "github.com/google/uuid"
 )
 type UserController struct {
     service *service.UserService
@@ -33,7 +34,12 @@ func (uc *UserController) Register(c *gin.Context) {
 
 func (uc *UserController) GetUserByID(c *gin.Context) {
     id := c.Param("id")
-    user, err := uc.service.GetUserByID(id) 
+    userUUID, err := uuid.Parse(id)
+    if err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user ID"})
+        return
+    }
+    user, err := uc.service.GetUserByID(userUUID) 
     if err != nil {
         c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
         return

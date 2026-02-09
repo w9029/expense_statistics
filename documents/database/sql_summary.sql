@@ -143,14 +143,12 @@ CREATE TABLE exchange_rates (
     base_currency varchar(3) NOT NULL,
     target_currency varchar(3) NOT NULL,
     rate numeric(12,6) NOT NULL,
-    date DATE NOT NULL DEFAULT now(),
+    rate_date DATE NOT NULL DEFAULT now(),
     created_at timestamptz NOT NULL DEFAULT now(),
 
-    PRIMARY KEY (id)
+    PRIMARY KEY (id),
+    CONSTRAINT cuq_exchange_rate UNIQUE (base_currency, target_currency, rate_date)
 );
-CREATE INDEX idx_exchange_rates_base_currency ON exchange_rates(base_currency);
-CREATE INDEX idx_exchange_rates_target_currency ON exchange_rates(target_currency);
-CREATE INDEX idx_exchange_rates_date ON exchange_rates(date);
 ALTER TABLE exchange_rates ADD CONSTRAINT chk_exchange_rates_base_currency 
     CHECK (base_currency ~ '^[A-Z]{3}$');
 ALTER TABLE exchange_rates ADD CONSTRAINT chk_exchange_rates_target_currency 
