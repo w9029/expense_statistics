@@ -11,7 +11,7 @@ No.,Name,Type,PK,FK,Nullable,Unique,Default,Index,FK constraint,Composite Unique
 9,original_currency,varchar(3),,,N,,,,,,original_currency ~ '^[A-Z]{3}$',
 10,exchange_rate_used,"numeric(12,6)	",,,N,,,,,,,
 11,converted_amount,"numeric(12,2)	",,,N,,,,,,,
-12,spent_at,DATE,,,N,,now(),,,,,
+12,spent_at,DATE,,,N,,now(),Y,,,,
 13,created_at,timestamptz,,,N,,now(),,,,,
 14,updated_at,timestamptz,,,N,,now(),,,,,
 15,deleted_at,timestamptz,,,Y,,NULL,,,,,

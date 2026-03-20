@@ -1,0 +1,10 @@
+Table name：,email_verification,Unnamed: 2,Unnamed: 3,Unnamed: 4,Unnamed: 5,Unnamed: 6,Unnamed: 7,Unnamed: 8,Unnamed: 9,Unnamed: 10,Unnamed: 11,Unnamed: 12
+No.,Name,Type,PK,FK,Nullable,Unique,Default,Index,FK constraint,Composite Unique,Check Constraint,Description
+1,id,uuid,Y,,N,,gen_random_uuid(),,,,,
+2,email,text,,,N,,,Y,,cuq_email_purpose,,
+3,code,varchar(6),,,N,,,,,,,
+4,purpose,varchar(30),,,N,,,Y,,cuq_email_purpose,"purpose IN (""login"", ""register"", ""reset password"", ""change email"")",
+5,token,text,,,Y,,,,,,,
+6,verified,boolean,,,N,,false,,,,,
+7,expires_at,timestamptz,,,N,,now() + interval '5 minutes',,,,,"if verified = false, expires_at is for code, else it is for token"
+8,created_at,timestamptz,,,N,,now(),,,,,

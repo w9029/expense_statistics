@@ -16,7 +16,7 @@ func NewUserService(repo *repository.UserRepository) *UserService {
 }
 
 func (s *UserService) RegisterUser(user *model.User) error {
-    // 这里可以加业务逻辑，比如邮箱是否存在
+    
     existing, _ := s.repo.GetByEmail(user.Email)
     if existing != nil {
         return errors.New("email already registered")

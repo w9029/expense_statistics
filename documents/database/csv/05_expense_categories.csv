@@ -5,6 +5,7 @@ No.,Name,Type,PK,FK,Nullable,Unique,Default,Index,FK constraint,Composite Unique
 3,name,text,,,N,,,,,,,
 4,description,text,,,Y,,,,,,,
 5,is_merge_category,boolean,,,N,,False,,,,,
-6,created_at,timestamptz,,,N,,now(),,,,,
-7,updated_at,timestamptz,,,N,,now(),,,,,
-8,deleted_at,timestamptz,,,Y,,NULL,,,,,
+6,color,varchar(7),,,N,,,,,,color IN (color ~ '^#[0-9A-Fa-f]{6}$'),example: #4CAF50
+7,created_at,timestamptz,,,N,,now(),,,,,
+8,updated_at,timestamptz,,,N,,now(),,,,,
+9,deleted_at,timestamptz,,,Y,,NULL,,,,,

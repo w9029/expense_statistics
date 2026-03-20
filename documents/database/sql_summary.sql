@@ -6,6 +6,7 @@ CREATE TABLE users (
     preferred_currency varchar(3) NOT NULL,
     user_role text NOT NULL DEFAULT 'user',
     default_account_book_id uuid,
+    avatar_path  text  DEFAULT NULL,
     is_active boolean NOT NULL DEFAULT True,
     created_at timestamptz NOT NULL DEFAULT now(),
     updated_at timestamptz NOT NULL DEFAULT now(),
@@ -80,6 +81,7 @@ CREATE TABLE expense_categories (
     name text NOT NULL,
     description text,
     is_merge_category boolean NOT NULL DEFAULT False,
+    color varchar(7) NOT NULL,
     created_at timestamptz NOT NULL DEFAULT now(),
     updated_at timestamptz NOT NULL DEFAULT now(),
     deleted_at timestamptz  DEFAULT NULL,
@@ -87,6 +89,8 @@ CREATE TABLE expense_categories (
     PRIMARY KEY (id)
 );
 CREATE INDEX idx_expense_categories_account_book_id ON expense_categories(account_book_id);
+ALTER TABLE expense_categories ADD CONSTRAINT chk_expense_categories_color 
+    CHECK (color IN (color ~ '^#[0-9A-Fa-f]{6}$'));
 
 
 CREATE TABLE expenses (
@@ -111,6 +115,7 @@ CREATE TABLE expenses (
 CREATE INDEX idx_expenses_account_book_id ON expenses(account_book_id);
 CREATE INDEX idx_expenses_category_id ON expenses(category_id);
 CREATE INDEX idx_expenses_parent_id ON expenses(parent_id);
+CREATE INDEX idx_expenses_spent_at ON expenses(spent_at);
 ALTER TABLE expenses ADD CONSTRAINT chk_expenses_original_currency 
     CHECK (original_currency ~ '^[A-Z]{3}$');
 
@@ -124,8 +129,8 @@ CREATE TABLE budgets (
     amount numeric(12,2)	 NOT NULL,
     currency varchar(3) NOT NULL,
     is_active boolean NOT NULL DEFAULT TRUE,
-    start_date timestamptz NOT NULL,
-    end_date timestamptz NOT NULL,
+    start_date timestamptz,
+    end_date timestamptz,
     created_at timestamptz NOT NULL DEFAULT now(),
     updated_at timestamptz NOT NULL DEFAULT now(),
 
@@ -189,19 +194,39 @@ CREATE INDEX idx_auth_refresh_tokens_expires_at ON auth_refresh_tokens(expires_a
 
 CREATE TABLE audit_log (
     id uuid NOT NULL DEFAULT gen_random_uuid(),
-    user_id uuid NOT NULL,
-    action text NOT NULL,
-    target_type text,
-    target_id uuid,
-    detail jsonb,
-    ip_address varchar(45) NOT NULL,
+    req_id uuid NOT NULL  UNIQUE,
+    user_id uuid,
+    status int NOT NULL,
+    method text NOT NULL,
+    path text NOT NULL,
+    query text NOT NULL,
+    ip_add varchar(45) NOT NULL,
     user_agent text NOT NULL,
+    errors text,
     created_at timestamptz NOT NULL DEFAULT now(),
 
     PRIMARY KEY (id)
 );
 CREATE INDEX idx_audit_log_user_id ON audit_log(user_id);
-CREATE INDEX idx_audit_log_target_id ON audit_log(target_id);
+
+
+CREATE TABLE email_verification (
+    id uuid NOT NULL DEFAULT gen_random_uuid(),
+    email text NOT NULL,
+    code varchar(6) NOT NULL,
+    purpose varchar(30) NOT NULL,
+    token text,
+    verified boolean NOT NULL DEFAULT false,
+    expires_at timestamptz NOT NULL DEFAULT now() + interval '5 minutes',
+    created_at timestamptz NOT NULL DEFAULT now(),
+
+    PRIMARY KEY (id),
+    CONSTRAINT cuq_email_purpose UNIQUE (email, purpose)
+);
+CREATE INDEX idx_email_verification_email ON email_verification(email);
+CREATE INDEX idx_email_verification_purpose ON email_verification(purpose);
+ALTER TABLE email_verification ADD CONSTRAINT chk_email_verification_purpose 
+    CHECK (purpose IN ('login', 'register', 'reset password', 'change email'));
 
 
 ALTER TABLE users ADD CONSTRAINT fk_users_default_account_book_id 
