@@ -46,3 +46,8 @@ type AcceptInvitationResponse struct {
 	AccountRole   string    `json:"account_role"`
 	Joined        bool      `json:"joined"`
 }
+
+type DeleteInvitationResponse struct {
+	InvitationID uuid.UUID `json:"invitation_id"`
+	Deleted      bool      `json:"deleted"`
+}

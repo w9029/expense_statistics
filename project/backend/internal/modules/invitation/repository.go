@@ -118,6 +118,17 @@ func (r *Repository) RevokeInvitation(ctx context.Context, invitationID uuid.UUI
 	return r.db.WithContext(ctx).Exec(`UPDATE account_invitations SET status = 'revoked' WHERE id = ?`, invitationID).Error
 }
 
+func (r *Repository) DeleteInvitation(ctx context.Context, invitationID uuid.UUID) error {
+	result := r.db.WithContext(ctx).Exec(`DELETE FROM account_invitations WHERE id = ?`, invitationID)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
+}
+
 func (r *Repository) GetPermission(ctx context.Context, accountBookID uuid.UUID, userID uuid.UUID) (string, error) {
 	var role string
 	err := r.db.WithContext(ctx).Raw(`SELECT account_role FROM accountbook_user_permissions WHERE account_book_id = ? AND user_id = ? LIMIT 1`, accountBookID, userID).Scan(&role).Error

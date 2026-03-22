@@ -13,6 +13,10 @@ type CreateAccountBookRequest struct {
 	Description  *string `json:"description"`
 }
 
+type TransferOwnerRequest struct {
+	TargetUserID uuid.UUID `json:"target_user_id" binding:"required"`
+}
+
 type AccountBookSummaryResponse struct {
 	ID           uuid.UUID `json:"id"`
 	Name         string    `json:"name"`
@@ -41,17 +45,36 @@ type AccountBookAccessResponse struct {
 	AllowedActions []string  `json:"allowed_actions"`
 }
 
-type AccountBookRecord struct {
-	ID                   uuid.UUID
-	Name                 string
-	OwnerUserID          uuid.UUID
-	BaseCurrency         string
-	Description          *string
-	IsActive             bool
-	CreatedAt            time.Time
-	UpdatedAt            time.Time
-	DefaultAccountBookID *uuid.UUID
-	MyRole               string
+type AccountBookMemberResponse struct {
+	UserID      uuid.UUID `json:"user_id"`
+	Name        string    `json:"name"`
+	Email       string    `json:"email"`
+	AccountRole string    `json:"account_role"`
+	JoinedAt    time.Time `json:"joined_at"`
+	IsMe        bool      `json:"is_me"`
+}
+
+type AccountBookOwnerTransferResponse struct {
+	AccountBookID       uuid.UUID `json:"account_book_id"`
+	PreviousOwnerUserID uuid.UUID `json:"previous_owner_user_id"`
+	NewOwnerUserID      uuid.UUID `json:"new_owner_user_id"`
+	Transferred         bool      `json:"transferred"`
+}
+
+type AccountBookMemberRemovalResponse struct {
+	AccountBookID uuid.UUID `json:"account_book_id"`
+	UserID        uuid.UUID `json:"user_id"`
+	Removed       bool      `json:"removed"`
+}
+
+type AccountBookLeaveResponse struct {
+	AccountBookID uuid.UUID `json:"account_book_id"`
+	Left          bool      `json:"left"`
+}
+
+type AccountBookDeleteResponse struct {
+	AccountBookID uuid.UUID `json:"account_book_id"`
+	Deleted       bool      `json:"deleted"`
 }
 
 func toSummaryResponse(record AccountBookRecord) AccountBookSummaryResponse {
@@ -61,6 +84,10 @@ func toSummaryResponse(record AccountBookRecord) AccountBookSummaryResponse {
 
 func toDetailResponse(record AccountBookRecord) *AccountBookDetailResponse {
 	return &AccountBookDetailResponse{ID: record.ID, Name: record.Name, OwnerUserID: record.OwnerUserID, BaseCurrency: record.BaseCurrency, Description: record.Description, IsActive: record.IsActive, MyRole: record.MyRole, CreatedAt: record.CreatedAt, UpdatedAt: record.UpdatedAt}
+}
+
+func toMemberResponse(record AccountBookMemberRecord, currentUserID uuid.UUID) AccountBookMemberResponse {
+	return AccountBookMemberResponse{UserID: record.UserID, Name: record.Name, Email: record.Email, AccountRole: record.AccountRole, JoinedAt: record.JoinedAt, IsMe: record.UserID == currentUserID}
 }
 
 func fromAuthorizationAccess(access *authorization.AccountBookAccessResponse) *AccountBookAccessResponse {

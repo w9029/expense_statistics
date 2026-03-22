@@ -46,6 +46,37 @@ func (s *Service) ListByAccountBook(ctx context.Context, userID uuid.UUID, accou
 	return result, nil
 }
 
+func (s *Service) DeleteByAccountBook(ctx context.Context, userID uuid.UUID, accountBookID uuid.UUID, invitationID uuid.UUID) (*DeleteInvitationResponse, error) {
+	role, err := s.authorization.GetAccountBookRole(ctx, userID, accountBookID)
+	if err != nil {
+		if appErr, ok := err.(*authorization.AppError); ok {
+			return nil, &AppError{Status: appErr.Status, Code: appErr.Code, Message: appErr.Message}
+		}
+		return nil, internalError(err.Error())
+	}
+	if !authorization.CanAccessRole(role, "admin") {
+		return nil, forbidden("you cannot delete invitations for this account book")
+	}
+
+	invitation, err := s.repo.GetInvitationByID(ctx, invitationID)
+	if err != nil {
+		if isNotFound(err) {
+			return nil, notFound("invitation not found")
+		}
+		return nil, wrapRepoError("get invitation by id", err)
+	}
+	if invitation.AccountBookID != accountBookID {
+		return nil, notFound("invitation not found")
+	}
+	if err := s.repo.DeleteInvitation(ctx, invitationID); err != nil {
+		if isNotFound(err) {
+			return nil, notFound("invitation not found")
+		}
+		return nil, wrapRepoError("delete invitation", err)
+	}
+	return &DeleteInvitationResponse{InvitationID: invitationID, Deleted: true}, nil
+}
+
 func (s *Service) Create(ctx context.Context, userID uuid.UUID, req CreateInvitationRequest) (*InvitationResponse, error) {
 	role, err := s.authorization.GetAccountBookRole(ctx, userID, req.AccountBookID)
 	if err != nil {
