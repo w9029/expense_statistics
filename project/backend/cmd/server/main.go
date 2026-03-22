@@ -1,29 +1,45 @@
 package main
 
 import (
-    "log"
-    "expense-statistics-server/internal/config"
-    "expense-statistics-server/internal/router"
+	"log"
+
+	httpRouter "expense-statistics-server/internal/http/router"
+	"expense-statistics-server/internal/platform/clock"
+	"expense-statistics-server/internal/platform/config"
+	"expense-statistics-server/internal/platform/db"
+	platformLogger "expense-statistics-server/internal/platform/logger"
 )
 
 func main() {
-    // 1. 加载配置
-    cfg, err := config.LoadConfig()
-    if err != nil {
-        log.Fatalf("failed to load config: %v", err)
-    }
+	cfg, err := config.Load("internal/platform/config/config.yaml")
+	if err != nil {
+		log.Fatalf("load config: %v", err)
+	}
 
-    // 2. 初始化数据库
-    if err := config.InitDB(cfg); err != nil {
-        log.Fatalf("failed to init db: %v", err)
-    }
+	logger := platformLogger.New(cfg.Env)
+	database, err := db.Open(cfg.DB)
+	if err != nil {
+		logger.Error("open database failed", "error", err)
+		log.Fatalf("open database: %v", err)
+	}
+	defer func() {
+		if closeErr := database.Close(); closeErr != nil {
+			logger.Error("close database failed", "error", closeErr)
+		}
+	}()
 
-    // 3. 初始化路由
-    r := router.SetupRouter()
+	engine := httpRouter.New(httpRouter.Deps{
+		Config: cfg,
+		Logger: logger,
+		DB:     database,
+		Clock:  clock.NewRealClock(),
+	})
 
-    // 4. 启动服务器
-    log.Printf("server running on port %s", cfg.ServerPort)
-    if err := r.Run(":" + cfg.ServerPort); err != nil {
-        log.Fatalf("failed to run server: %v", err)
-    }
+	addr := ":" + cfg.ServerPort
+	logger.Info("server starting", "addr", addr, "env", cfg.Env)
+
+	if err := engine.Run(addr); err != nil {
+		logger.Error("server stopped", "error", err)
+		log.Fatalf("run server: %v", err)
+	}
 }

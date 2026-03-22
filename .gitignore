@@ -1,0 +1,25 @@
+# binaries
+*.exe
+*.dll
+*.so
+*.dylib
+
+# test binary
+*.test
+
+# coverage
+*.out
+
+# go workspace
+go.work
+
+# build output
+# bin/
+# dist/
+
+# Go cache
+.gocache/
+
+# IDE
+.vscode/
+.idea/

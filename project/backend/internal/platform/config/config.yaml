@@ -1,0 +1,20 @@
+app_name: "expense-statistics-server"
+env: "development"
+server_port: "8080"
+jwt_secret: "my_super_secret"
+
+db:
+  host: "localhost"
+  port: 5432
+  user: "postgres"
+  password: "191969"
+  name: "expense_statistics_proj"
+  sslmode: "disable"
+  timezone: "Asia/Tokyo"
+
+mail:
+  from: ""
+  host: ""
+  port: 0
+  username: ""
+  password: ""
