@@ -13,8 +13,8 @@ db:
   timezone: "Asia/Tokyo"
 
 mail:
-  from: ""
-  host: ""
-  port: 0
-  username: ""
-  password: ""
+  from: "joshua_wjh@foxmail.com"
+  host: "smtp.qq.com"
+  port: 465
+  username: "joshua_wjh@foxmail.com"
+  password: "fahosasurjadbffj"

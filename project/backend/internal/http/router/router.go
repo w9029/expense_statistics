@@ -8,10 +8,13 @@ import (
 
 	"expense-statistics-server/internal/http/middleware"
 	"expense-statistics-server/internal/http/response"
+	"expense-statistics-server/internal/modules/authorization"
 	"expense-statistics-server/internal/modules/identity"
 	"expense-statistics-server/internal/platform/clock"
 	"expense-statistics-server/internal/platform/config"
 	"expense-statistics-server/internal/platform/db"
+	"expense-statistics-server/internal/platform/jwt"
+	"expense-statistics-server/internal/platform/mail"
 
 	"github.com/gin-gonic/gin"
 )
@@ -25,53 +28,45 @@ type Deps struct {
 
 func New(deps Deps) *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
-
 	r := gin.New()
 	r.Use(middleware.RequestID())
 	r.Use(middleware.Logger(deps.Logger))
 	r.Use(middleware.Recovery(deps.Logger))
-
 	registerSystemRoutes(r, deps)
 	registerModuleRoutes(r, deps)
-
 	return r
 }
 
 func registerSystemRoutes(r *gin.Engine, deps Deps) {
 	r.GET("/healthz", func(c *gin.Context) {
-		response.OK(c, gin.H{
-			"app": deps.Config.AppName,
-			"env": deps.Config.Env,
-			"now": deps.Clock.Now().Format(time.RFC3339),
-		})
+		response.OK(c, gin.H{"app": deps.Config.AppName, "env": deps.Config.Env, "now": deps.Clock.Now().Format(time.RFC3339)})
 	})
-
 	r.GET("/readyz", func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(c.Request.Context(), 3*time.Second)
 		defer cancel()
-
 		if err := deps.DB.Ping(ctx); err != nil {
 			response.Error(c, http.StatusServiceUnavailable, "database_unavailable", err.Error())
 			return
 		}
-
 		currentDate, err := deps.DB.CurrentDate(ctx)
 		if err != nil {
 			response.Error(c, http.StatusServiceUnavailable, "database_query_failed", err.Error())
 			return
 		}
-
-		response.OK(c, gin.H{
-			"database":        "ok",
-			"database_date":   currentDate.Format("2006-01-02"),
-			"server_time_utc": deps.Clock.Now().UTC().Format(time.RFC3339),
-		})
+		response.OK(c, gin.H{"database": "ok", "database_date": currentDate.Format("2006-01-02"), "server_time_utc": deps.Clock.Now().UTC().Format(time.RFC3339)})
 	})
 }
 
 func registerModuleRoutes(r *gin.Engine, deps Deps) {
 	v1 := r.Group("/api/v1")
+	jwtService := jwt.New(deps.Config.JWTSecret)
 
-	identityService := identity.NewService(deps.Clock)
+	identityService := identity.NewService(identity.Deps{DB: deps.DB, Logger: deps.Logger, Clock: deps.Clock, JWT: jwtService, Mail: mail.NewSender(deps.Config.Mail)})
 	identity.RegisterRoutes(v1.Group("/identity"), identityService)
+
+	protected := v1.Group("")
+	protected.Use(middleware.Authenticate(jwtService))
+
+	authorizationService := authorization.NewService(authorization.Deps{DB: deps.DB, Logger: deps.Logger})
+	authorization.RegisterRoutes(protected.Group("/authorization"), authorizationService)
 }
