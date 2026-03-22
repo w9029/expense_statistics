@@ -11,8 +11,6 @@ import (
 )
 
 func RegisterRoutes(group *gin.RouterGroup, service *Service) {
-
-	// 创建accountbook
 	group.POST("", func(c *gin.Context) {
 		userID, ok := middleware.CurrentUserID(c)
 		if !ok {
@@ -32,7 +30,6 @@ func RegisterRoutes(group *gin.RouterGroup, service *Service) {
 		response.Success(c, http.StatusCreated, result)
 	})
 
-	// 获取用户的accountbook列表
 	group.GET("", func(c *gin.Context) {
 		userID, ok := middleware.CurrentUserID(c)
 		if !ok {
@@ -47,7 +44,6 @@ func RegisterRoutes(group *gin.RouterGroup, service *Service) {
 		response.OK(c, result)
 	})
 
-	// 获取accountbook详情
 	group.GET("/:accountBookID", func(c *gin.Context) {
 		userID, ok := middleware.CurrentUserID(c)
 		if !ok {
@@ -67,7 +63,6 @@ func RegisterRoutes(group *gin.RouterGroup, service *Service) {
 		response.OK(c, result)
 	})
 
-	// 获取当前用户对accountbook的访问权限和可以做的actions
 	group.GET("/:accountBookID/access", func(c *gin.Context) {
 		userID, ok := middleware.CurrentUserID(c)
 		if !ok {
@@ -80,6 +75,25 @@ func RegisterRoutes(group *gin.RouterGroup, service *Service) {
 			return
 		}
 		result, err := service.GetAccess(c.Request.Context(), userID, accountBookID)
+		if err != nil {
+			renderError(c, err)
+			return
+		}
+		response.OK(c, result)
+	})
+
+	group.GET("/:accountBookID/invitations", func(c *gin.Context) {
+		userID, ok := middleware.CurrentUserID(c)
+		if !ok {
+			response.Error(c, http.StatusUnauthorized, "unauthorized", "missing authenticated user")
+			return
+		}
+		accountBookID, err := uuid.Parse(c.Param("accountBookID"))
+		if err != nil {
+			response.Error(c, http.StatusBadRequest, "invalid_request", "invalid accountBookID")
+			return
+		}
+		result, err := service.ListInvitations(c.Request.Context(), userID, accountBookID)
 		if err != nil {
 			renderError(c, err)
 			return

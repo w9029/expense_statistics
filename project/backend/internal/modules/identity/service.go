@@ -41,7 +41,7 @@ func (s *Service) SendVerificationCode(ctx context.Context, req SendVerification
 		return wrapRepoError("create verification", err)
 	}
 	subject := fmt.Sprintf("[%s] verification code", strings.ToUpper(strings.ReplaceAll(purpose, " ", "_")))
-	body := fmt.Sprintf("Your verification code is: %s\n\nIt expires at %s.", code, expiresAt.Format(time.RFC3339))
+	body := fmt.Sprintf("Your verification code is: %s \n\nIt expires at %s.", code, expiresAt.Format(time.RFC3339))
 	if err := s.mail.Send(ctx, mail.Message{To: email, Subject: subject, Body: body}); err != nil {
 		if s.logger != nil {
 			s.logger.Error("send verification email failed", "email", email, "purpose", purpose, "error", err)

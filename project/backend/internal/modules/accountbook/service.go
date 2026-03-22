@@ -6,17 +6,24 @@ import (
 	"strings"
 
 	"expense-statistics-server/internal/modules/authorization"
+	"expense-statistics-server/internal/modules/invitation"
 
 	"github.com/google/uuid"
 )
 
+//为了不依赖整个invitation模块，我们在这里定义一个接口，accountbook模块只依赖这个接口来获取invitation相关的数据
+type InvitationLister interface {
+	ListByAccountBook(ctx context.Context, userID uuid.UUID, accountBookID uuid.UUID) ([]invitation.InvitationResponse, error)
+}
+
 type Service struct {
 	repo          *Repository
 	authorization *authorization.Service
+	invitations   InvitationLister
 }
 
-func NewService(repo *Repository, authorizationService *authorization.Service) *Service {
-	return &Service{repo: repo, authorization: authorizationService}
+func NewService(repo *Repository, authorizationService *authorization.Service, invitationLister InvitationLister) *Service {
+	return &Service{repo: repo, authorization: authorizationService, invitations: invitationLister}
 }
 
 func (s *Service) Create(ctx context.Context, userID uuid.UUID, req CreateAccountBookRequest) (*AccountBookDetailResponse, error) {
@@ -89,6 +96,20 @@ func (s *Service) GetAccess(ctx context.Context, userID uuid.UUID, accountBookID
 		return nil, internalError(err.Error())
 	}
 	return fromAuthorizationAccess(access), nil
+}
+
+func (s *Service) ListInvitations(ctx context.Context, userID uuid.UUID, accountBookID uuid.UUID) ([]invitation.InvitationResponse, error) {
+	if s.invitations == nil {
+		return nil, internalError("invitation service is not configured")
+	}
+	result, err := s.invitations.ListByAccountBook(ctx, userID, accountBookID)
+	if err != nil {
+		if appErr, ok := err.(*invitation.AppError); ok {
+			return nil, &AppError{Status: appErr.Status, Code: appErr.Code, Message: appErr.Message}
+		}
+		return nil, internalError(err.Error())
+	}
+	return result, nil
 }
 
 func isCurrencyCode(code string) bool {
