@@ -2,9 +2,9 @@ Table name：,account_books,Unnamed: 2,Unnamed: 3,Unnamed: 4,Unnamed: 5,Unnamed:
 No.,Name,Type,PK,FK,Nullable,Unique,Default,Index,FK constraint,Composite Unique,Check Constraint,Description
 1,id,uuid,Y,,N,,gen_random_uuid(),,,,,
 2,name,text,,,N,,,,,,,
-3,owner_user_id,uuid,,Y,N,,,Y,users(id) ON DELETE RESTRICT,,,
+3,owner_user_id,uuid,,Y,N,,,Y,users(id) ON DELETE RESTRICT,,,not the only source truth
 4,base_currency,varchar(3),,,N,,,,,,base_currency ~ '^[A-Z]{3}$',
-5,description,text,,,N,,,,,,,
+5,description,text,,,Y,,,,,,,
 6,is_active,boolean,,,N,,True,,,,,
 7,created_at,timestamptz,,,N,,now(),,,,,
 8,updated_at,timestamptz,,,N,,now(),,,,,

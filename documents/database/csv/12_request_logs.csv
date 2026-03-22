@@ -1,0 +1,14 @@
+Table name：,request_logs,Unnamed: 2,Unnamed: 3,Unnamed: 4,Unnamed: 5,Unnamed: 6,Unnamed: 7,Unnamed: 8,Unnamed: 9,Unnamed: 10,Unnamed: 11,Unnamed: 12
+No.,Name,Type,PK,FK,Nullable,Unique,Default,Index,FK constraint,Composite Unique,Check Constraint,Description
+1,id,uuid,Y,,N,,gen_random_uuid(),,,,,
+2,req_id,uuid,,,N,Y,,,,,,
+3,user_id,uuid,,,Y,,,Y,,,,
+4,status,int,,,N,,,,,,,
+5,method,text,,,N,,,,,,,"GET,POST,DELETE,etc"
+6,path,text,,,N,,,,,,,"router path, ""/api/user/***"""
+7,query,text,,,Y,,,,,,,
+8,ip_address,varchar(45),,,N,,,,,,,
+9,user_agent,text,,,N,,,,,,,
+10,latency_ms,"numeric(10,3)",,,N,,,,,,,
+11,errors,text,,,Y,,,,,,,
+12,created_at,timestamptz,,,N,,now(),Y,,,,

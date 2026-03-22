@@ -4,9 +4,5 @@ No.,Name,Type,PK,FK,Nullable,Unique,Default,Index,FK constraint,Composite Unique
 2,base_currency,varchar(3),,,N,,,,,cuq_exchange_rate,base_currency ~ '^[A-Z]{3}$',
 3,target_currency,varchar(3),,,N,,,,,cuq_exchange_rate,target_currency ~ '^[A-Z]{3}$',
 4,rate,"numeric(12,6)",,,N,,,,,,,rate = base_currency / target_currency
-5,rate_date,DATE,,,N,,now(),,,cuq_exchange_rate,,
+5,rate_date,DATE,,,N,,CURRENT_DATE,,,cuq_exchange_rate,,
 6,created_at,timestamptz,,,N,,now(),,,,,
-,,,,,,,,,,,,
-,,,,,,,,,,,,
-others:,,,,,,,,,,,,
-"CREATE UNIQUE INDEX idx_rate_unique ON exchange_rates(base_currency, target_currency, date);",,,,,,,,,,,,

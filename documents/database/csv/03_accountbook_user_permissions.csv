@@ -3,9 +3,9 @@ No.,Name,Type,PK,FK,Nullable,Unique,Default,Index,FK constraint,Composite Unique
 1,id,uuid,Y,,N,,gen_random_uuid(),,,,,
 2,account_book_id,uuid,,Y,N,,,Y,account_books(id) ON DELETE CASCADE,cuq_account_user,,
 3,user_id,uuid,,Y,N,,,Y,users(id) ON DELETE CASCADE,cuq_account_user,,
-4,account_role,text,,,N,,"""editor""",,,,"account_role IN (""viewer"",""editor"",""admin"",""owner"")",
+4,account_role,text,,,N,,"""editor""",,,,"account_role IN (""viewer"",""editor"",""admin"",""owner"")",the only source truth
 5,created_at,timestamptz,,,N,,now(),,,,,
 ,,,,,,,,,,,,
 ,,,,,,,,,,,,
 other:,,,,,,,,,,,,
-"ADD CONSTRAINT unique_account_user UNIQUE (account_book_id, user_id);",,,,,,,,,,,,
+CREATE UNIQUE INDEX cuq_accountbook_owner ON accountbook_user_permissions(account_book_id) WHERE account_role = 'owner';    ,,,,,,,,,,,,

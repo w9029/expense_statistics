@@ -12,6 +12,3 @@ No.,Name,Type,PK,FK,Nullable,Unique,Default,Index,FK constraint,Composite Unique
 10,created_at,timestamptz,,,N,,now(),,,,,
 11,updated_at,timestamptz,,,N,,now(),,,,,
 12,deleted_at,timestamptz,,,Y,,NULL,,,,,
-,,,,,,,,,,,,
-,,,,,,,,,,,,
-UNIQUE INDEX users_email_unique (email); ,,,,,,,,,,,,

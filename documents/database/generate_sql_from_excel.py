@@ -2,6 +2,23 @@ import pandas as pd
 import csv
 import os
 
+
+def get_first_non_empty_value(row, preferred_keys=None):
+    if preferred_keys is None:
+        preferred_keys = []
+
+    for key in preferred_keys:
+        value = row.get(key, "")
+        if value and value.strip():
+            return value.strip()
+
+    for value in row.values():
+        if value and value.strip():
+            return value.strip()
+
+    return ""
+
+
 def generate_csv(excel_file, output_dir):
 
     os.makedirs(output_dir, exist_ok=True)
@@ -58,11 +75,24 @@ def generate_sql(file_path):
         fks = []
         composite_uniques = {}
         checks = []
+        other_sqls = []
+        in_other_section = False
 
 
         for row in dict_reader:
-            name = row["Name"]
-            col_type = row["Type"]
+            marker = row.get("No.", "").strip()
+            name = row.get("Name", "").strip()
+            col_type = row.get("Type", "").strip()
+
+            if marker.lower() == "other:":
+                in_other_section = True
+                continue
+
+            if in_other_section:
+                custom_sql = get_first_non_empty_value(row, preferred_keys=["No.", "Name"])
+                if custom_sql:
+                    other_sqls.append(custom_sql)
+                continue
 
             if not name:
                 continue
@@ -133,6 +163,9 @@ def generate_sql(file_path):
 
     for chk in checks:
         sql += chk + "\n"
+
+    for custom_sql in other_sqls:
+        sql += custom_sql + "\n"
 
     print(sql)
 

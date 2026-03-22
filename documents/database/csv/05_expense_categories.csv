@@ -1,11 +1,12 @@
 Table name：,expense_categories,Unnamed: 2,Unnamed: 3,Unnamed: 4,Unnamed: 5,Unnamed: 6,Unnamed: 7,Unnamed: 8,Unnamed: 9,Unnamed: 10,Unnamed: 11,Unnamed: 12
 No.,Name,Type,PK,FK,Nullable,Unique,Default,Index,FK constraint,Composite Unique,Check Constraint,Description
 1,id,uuid,Y,,N,,gen_random_uuid(),,,,,
-2,account_book_id,uuid,,Y,Y,,,Y,account_books(id) ON DELETE CASCADE,,,NULL for system default categories
-3,name,text,,,N,,,,,,,
+2,account_book_id,uuid,,Y,N,,,Y,account_books(id) ON DELETE CASCADE,cuq_expense_categories_accountbook_name,,
+3,name,text,,,N,,,,,cuq_expense_categories_accountbook_name,,
 4,description,text,,,Y,,,,,,,
 5,is_merge_category,boolean,,,N,,False,,,,,
-6,color,varchar(7),,,N,,,,,,color IN (color ~ '^#[0-9A-Fa-f]{6}$'),example: #4CAF50
-7,created_at,timestamptz,,,N,,now(),,,,,
-8,updated_at,timestamptz,,,N,,now(),,,,,
-9,deleted_at,timestamptz,,,Y,,NULL,,,,,
+6,color,varchar(7),,,N,,,,,,color ~ '^#[0-9A-Fa-f]{6}$',example: #4CAF50
+7,is_system_seed,boolean,,,N,,FALSE,,,,,
+8,created_at,timestamptz,,,N,,now(),,,,,
+9,updated_at,timestamptz,,,N,,now(),,,,,
+10,deleted_at,timestamptz,,,Y,,NULL,,,,,

@@ -6,7 +6,7 @@ CREATE TABLE users (
     preferred_currency varchar(3) NOT NULL,
     user_role text NOT NULL DEFAULT 'user',
     default_account_book_id uuid,
-    avatar_path  text  DEFAULT NULL,
+    avatar_path text  DEFAULT NULL,
     is_active boolean NOT NULL DEFAULT True,
     created_at timestamptz NOT NULL DEFAULT now(),
     updated_at timestamptz NOT NULL DEFAULT now(),
@@ -25,7 +25,7 @@ CREATE TABLE account_books (
     name text NOT NULL,
     owner_user_id uuid NOT NULL,
     base_currency varchar(3) NOT NULL,
-    description text NOT NULL,
+    description text,
     is_active boolean NOT NULL DEFAULT True,
     created_at timestamptz NOT NULL DEFAULT now(),
     updated_at timestamptz NOT NULL DEFAULT now(),
@@ -52,6 +52,7 @@ CREATE INDEX idx_accountbook_user_permissions_account_book_id ON accountbook_use
 CREATE INDEX idx_accountbook_user_permissions_user_id ON accountbook_user_permissions(user_id);
 ALTER TABLE accountbook_user_permissions ADD CONSTRAINT chk_accountbook_user_permissions_account_role 
     CHECK (account_role IN ('viewer','editor','admin','owner'));
+CREATE UNIQUE INDEX cuq_accountbook_owner ON accountbook_user_permissions(account_book_id) WHERE account_role = 'owner';
 
 
 CREATE TABLE account_invitations (
@@ -61,51 +62,72 @@ CREATE TABLE account_invitations (
     account_role text NOT NULL DEFAULT 'editor',
     token text NOT NULL  UNIQUE,
     expires_at timestamptz NOT NULL,
-    max_usage int2 NOT NULL,
-    used_count int2 NOT NULL,
-    status varchar(10) NOT NULL DEFAULT 'pending',
+    max_usage int2 NOT NULL DEFAULT 1,
+    used_count int2 NOT NULL DEFAULT 0,
+    status varchar(10) NOT NULL DEFAULT 'active',
     created_at timestamptz NOT NULL DEFAULT now(),
 
     PRIMARY KEY (id)
 );
+CREATE INDEX idx_account_invitations_account_book_id ON account_invitations(account_book_id);
 CREATE INDEX idx_account_invitations_expires_at ON account_invitations(expires_at);
 ALTER TABLE account_invitations ADD CONSTRAINT chk_account_invitations_account_role 
-    CHECK (account_role IN ('viewer','editor','admin','owner'));
+    CHECK (account_role IN ('viewer','editor','admin'));
+ALTER TABLE account_invitations ADD CONSTRAINT chk_account_invitations_max_usage 
+    CHECK (max_usage > 0 AND used_count >= 0 AND used_count <= max_usage);
 ALTER TABLE account_invitations ADD CONSTRAINT chk_account_invitations_status 
-    CHECK (status IN ('pending','accepted','revoked','expired'));
+    CHECK (status IN ('active','revoked','expired'));
 
 
 CREATE TABLE expense_categories (
     id uuid NOT NULL DEFAULT gen_random_uuid(),
-    account_book_id uuid,
+    account_book_id uuid NOT NULL,
     name text NOT NULL,
     description text,
     is_merge_category boolean NOT NULL DEFAULT False,
     color varchar(7) NOT NULL,
+    is_system_seed boolean NOT NULL DEFAULT FALSE,
     created_at timestamptz NOT NULL DEFAULT now(),
     updated_at timestamptz NOT NULL DEFAULT now(),
     deleted_at timestamptz  DEFAULT NULL,
 
-    PRIMARY KEY (id)
+    PRIMARY KEY (id),
+    CONSTRAINT cuq_expense_categories_accountbook_name UNIQUE (account_book_id, name)
 );
 CREATE INDEX idx_expense_categories_account_book_id ON expense_categories(account_book_id);
 ALTER TABLE expense_categories ADD CONSTRAINT chk_expense_categories_color 
-    CHECK (color IN (color ~ '^#[0-9A-Fa-f]{6}$'));
+    CHECK (color ~ '^#[0-9A-Fa-f]{6}$');
+
+
+CREATE TABLE category_templates (
+    id uuid NOT NULL DEFAULT gen_random_uuid(),
+    name text NOT NULL  UNIQUE,
+    description text,
+    is_merge_category boolean NOT NULL DEFAULT False,
+    color varchar(7) NOT NULL,
+    is_active boolean NOT NULL DEFAULT TRUE,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now(),
+
+    PRIMARY KEY (id)
+);
+ALTER TABLE category_templates ADD CONSTRAINT chk_category_templates_color 
+    CHECK (color ~ '^#[0-9A-Fa-f]{6}$');
 
 
 CREATE TABLE expenses (
     id uuid NOT NULL DEFAULT gen_random_uuid(),
     account_book_id uuid NOT NULL,
-    user_id uuid NOT NULL,
+    user_id uuid,
     category_id uuid NOT NULL,
     parent_id uuid,
     name text NOT NULL,
     description text,
-    original_amount numeric(12,2)	 NOT NULL,
+    original_amount numeric(12,2) NOT NULL,
     original_currency varchar(3) NOT NULL,
-    exchange_rate_used numeric(12,6)	 NOT NULL,
-    converted_amount numeric(12,2)	 NOT NULL,
-    spent_at DATE NOT NULL DEFAULT now(),
+    exchange_rate_used numeric(12,6) NOT NULL,
+    converted_amount numeric(12,2) NOT NULL,
+    spent_at DATE NOT NULL DEFAULT CURRENT_DATE,
     created_at timestamptz NOT NULL DEFAULT now(),
     updated_at timestamptz NOT NULL DEFAULT now(),
     deleted_at timestamptz  DEFAULT NULL,
@@ -113,11 +135,12 @@ CREATE TABLE expenses (
     PRIMARY KEY (id)
 );
 CREATE INDEX idx_expenses_account_book_id ON expenses(account_book_id);
+CREATE INDEX idx_expenses_user_id ON expenses(user_id);
 CREATE INDEX idx_expenses_category_id ON expenses(category_id);
 CREATE INDEX idx_expenses_parent_id ON expenses(parent_id);
-CREATE INDEX idx_expenses_spent_at ON expenses(spent_at);
 ALTER TABLE expenses ADD CONSTRAINT chk_expenses_original_currency 
     CHECK (original_currency ~ '^[A-Z]{3}$');
+CREATE INDEX idx_expenses_account_book_id_spent_at ON expenses(account_book_id, spent_at);
 
 
 CREATE TABLE budgets (
@@ -126,7 +149,7 @@ CREATE TABLE budgets (
     category_id uuid,
     cycle_type text NOT NULL,
     cycle_start_day int NOT NULL DEFAULT 1,
-    amount numeric(12,2)	 NOT NULL,
+    amount numeric(12,2) NOT NULL,
     currency varchar(3) NOT NULL,
     is_active boolean NOT NULL DEFAULT TRUE,
     start_date timestamptz,
@@ -139,6 +162,8 @@ CREATE TABLE budgets (
 CREATE INDEX idx_budgets_account_book_id ON budgets(account_book_id);
 ALTER TABLE budgets ADD CONSTRAINT chk_budgets_cycle_type 
     CHECK (cycle_type IN ('week', 'month'));
+ALTER TABLE budgets ADD CONSTRAINT chk_budgets_cycle_start_day 
+    CHECK ((cycle_type = 'week' AND cycle_start_day BETWEEN 1 AND 7) OR (cycle_type = 'month' AND cycle_start_day BETWEEN 1 AND 28));
 ALTER TABLE budgets ADD CONSTRAINT chk_budgets_currency 
     CHECK (currency ~ '^[A-Z]{3}$');
 
@@ -148,7 +173,7 @@ CREATE TABLE exchange_rates (
     base_currency varchar(3) NOT NULL,
     target_currency varchar(3) NOT NULL,
     rate numeric(12,6) NOT NULL,
-    rate_date DATE NOT NULL DEFAULT now(),
+    rate_date DATE NOT NULL DEFAULT CURRENT_DATE,
     created_at timestamptz NOT NULL DEFAULT now(),
 
     PRIMARY KEY (id),
@@ -180,34 +205,55 @@ ALTER TABLE notifications ADD CONSTRAINT chk_notifications_status
 
 CREATE TABLE auth_refresh_tokens (
     id uuid NOT NULL DEFAULT gen_random_uuid(),
-    user_id uuid NOT NULL  UNIQUE,
-    refresh_token text NOT NULL,
+    user_id uuid NOT NULL,
+    refresh_token text NOT NULL  UNIQUE,
     expires_at timestamptz NOT NULL,
     revoked_at timestamptz,
     created_at timestamptz NOT NULL DEFAULT now(),
 
     PRIMARY KEY (id)
 );
-CREATE INDEX idx_auth_refresh_tokens_refresh_token ON auth_refresh_tokens(refresh_token);
+CREATE INDEX idx_auth_refresh_tokens_user_id ON auth_refresh_tokens(user_id);
 CREATE INDEX idx_auth_refresh_tokens_expires_at ON auth_refresh_tokens(expires_at);
 
 
-CREATE TABLE audit_log (
+CREATE TABLE request_logs (
     id uuid NOT NULL DEFAULT gen_random_uuid(),
     req_id uuid NOT NULL  UNIQUE,
     user_id uuid,
     status int NOT NULL,
     method text NOT NULL,
     path text NOT NULL,
-    query text NOT NULL,
-    ip_add varchar(45) NOT NULL,
+    query text,
+    ip_address varchar(45) NOT NULL,
     user_agent text NOT NULL,
+    latency_ms numeric(10,3) NOT NULL,
     errors text,
     created_at timestamptz NOT NULL DEFAULT now(),
 
     PRIMARY KEY (id)
 );
-CREATE INDEX idx_audit_log_user_id ON audit_log(user_id);
+CREATE INDEX idx_request_logs_user_id ON request_logs(user_id);
+CREATE INDEX idx_request_logs_created_at ON request_logs(created_at);
+
+
+CREATE TABLE audit_events (
+    id uuid NOT NULL DEFAULT gen_random_uuid(),
+    req_id uuid,
+    user_id uuid,
+    account_book_id uuid,
+    action text NOT NULL,
+    target_type text,
+    target_id uuid,
+    detail jsonb,
+    created_at timestamptz NOT NULL DEFAULT now(),
+
+    PRIMARY KEY (id)
+);
+CREATE INDEX idx_audit_events_req_id ON audit_events(req_id);
+CREATE INDEX idx_audit_events_user_id ON audit_events(user_id);
+CREATE INDEX idx_audit_events_account_book_id ON audit_events(account_book_id);
+CREATE INDEX idx_audit_events_created_at ON audit_events(created_at);
 
 
 CREATE TABLE email_verification (
@@ -275,9 +321,5 @@ ALTER TABLE notifications ADD CONSTRAINT fk_notifications_user_id
 
 ALTER TABLE auth_refresh_tokens ADD CONSTRAINT fk_auth_refresh_tokens_user_id 
 	FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
-
-
-ALTER TABLE audit_log ADD CONSTRAINT fk_audit_log_user_id 
-	FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL;
 
 
