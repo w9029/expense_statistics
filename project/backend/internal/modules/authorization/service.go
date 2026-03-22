@@ -21,6 +21,17 @@ func (s *Service) GetAccountBookAccess(ctx context.Context, userID uuid.UUID, ac
 	return &AccountBookAccessResponse{AccountBookID: permission.AccountBookID, AccountRole: permission.AccountRole, AllowedActions: allowedActions(permission.AccountRole)}, nil
 }
 
+func (s *Service) GetAccountBookRole(ctx context.Context, userID uuid.UUID, accountBookID uuid.UUID) (string, error) {
+	permission, err := s.repo.GetAccountBookPermission(ctx, userID, accountBookID)
+	if err != nil {
+		if isNotFound(err) {
+			return "", forbidden("you do not have access to this account book")
+		}
+		return "", wrapRepoError("get account book permission", err)
+	}
+	return permission.AccountRole, nil
+}
+
 func CanAccessRole(actualRole string, requiredRole string) bool {
 	return roleRank(actualRole) >= roleRank(requiredRole)
 }

@@ -9,7 +9,6 @@ import (
 	"expense-statistics-server/internal/platform/db"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 )
 
 type Deps struct {
@@ -36,32 +35,4 @@ func RegisterRoutes(group *gin.RouterGroup, service *Service) {
 		userRole, _ := middleware.CurrentUserRole(c)
 		response.OK(c, service.CurrentPrincipal(userID, userRole))
 	})
-
-	group.GET("/account-books/:accountBookID/access", func(c *gin.Context) {
-		userID, ok := middleware.CurrentUserID(c)
-		if !ok {
-			response.Error(c, http.StatusUnauthorized, "unauthorized", "missing authenticated user")
-			return
-		}
-		accountBookID, err := uuid.Parse(c.Param("accountBookID"))
-		if err != nil {
-			response.Error(c, http.StatusBadRequest, "invalid_request", "invalid accountBookID")
-			return
-		}
-		result, err := service.GetAccountBookAccess(c.Request.Context(), userID, accountBookID)
-		if err != nil {
-			renderError(c, err)
-			return
-		}
-		response.OK(c, result)
-	})
-}
-
-func renderError(c *gin.Context, err error) {
-	appErr, ok := err.(*AppError)
-	if !ok {
-		response.Error(c, http.StatusInternalServerError, "internal_error", "internal server error")
-		return
-	}
-	response.Error(c, appErr.Status, appErr.Code, appErr.Message)
 }

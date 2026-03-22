@@ -8,6 +8,7 @@ import (
 
 	"expense-statistics-server/internal/http/middleware"
 	"expense-statistics-server/internal/http/response"
+	"expense-statistics-server/internal/modules/accountbook"
 	"expense-statistics-server/internal/modules/authorization"
 	"expense-statistics-server/internal/modules/identity"
 	"expense-statistics-server/internal/platform/clock"
@@ -61,12 +62,20 @@ func registerModuleRoutes(r *gin.Engine, deps Deps) {
 	v1 := r.Group("/api/v1")
 	jwtService := jwt.New(deps.Config.JWTSecret)
 
+	// 注册identity模块的路由
 	identityService := identity.NewService(identity.Deps{DB: deps.DB, Logger: deps.Logger, Clock: deps.Clock, JWT: jwtService, Mail: mail.NewSender(deps.Config.Mail)})
 	identity.RegisterRoutes(v1.Group("/identity"), identityService)
 
+	// 设置需要认证的路由组
 	protected := v1.Group("")
 	protected.Use(middleware.Authenticate(jwtService))
 
+	// 注册authorization模块的路由
 	authorizationService := authorization.NewService(authorization.Deps{DB: deps.DB, Logger: deps.Logger})
 	authorization.RegisterRoutes(protected.Group("/authorization"), authorizationService)
+
+	// 注册accountbook模块的路由
+	accountbookRepo := accountbook.NewRepository(deps.DB)
+	accountbookService := accountbook.NewService(accountbookRepo, authorizationService)
+	accountbook.RegisterRoutes(protected.Group("/account-books"), accountbookService)
 }
