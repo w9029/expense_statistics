@@ -86,6 +86,35 @@ func (s *Service) GetByID(ctx context.Context, userID uuid.UUID, accountBookID u
 	return toDetailResponse(*record), nil
 }
 
+func (s *Service) Update(ctx context.Context, userID uuid.UUID, accountBookID uuid.UUID, req UpdateAccountBookRequest) (*AccountBookDetailResponse, error) {
+	role, err := s.authorization.GetAccountBookRole(ctx, userID, accountBookID)
+	if err != nil {
+		return nil, mapAuthorizationError(err)
+	}
+	if !authorization.CanAccessRole(role, "admin") {
+		return nil, forbidden("only account book admins or owners can update the account book")
+	}
+	name := strings.TrimSpace(req.Name)
+	if name == "" {
+		return nil, invalidRequest("name is required")
+	}
+	description := normalizeDescription(req.Description)
+	if err := s.repo.UpdateAccountBook(ctx, accountBookID, name, description); err != nil {
+		if isRepoNotFound(err) {
+			return nil, notFound("account book not found")
+		}
+		return nil, wrapRepoError("update account book", err)
+	}
+	record, err := s.repo.GetAccessibleByID(ctx, userID, accountBookID)
+	if err != nil {
+		if isRepoNotFound(err) {
+			return nil, notFound("account book not found")
+		}
+		return nil, wrapRepoError("get account book", err)
+	}
+	return toDetailResponse(*record), nil
+}
+
 func (s *Service) GetAccess(ctx context.Context, userID uuid.UUID, accountBookID uuid.UUID) (*AccountBookAccessResponse, error) {
 	access, err := s.authorization.GetAccountBookAccess(ctx, userID, accountBookID)
 	if err != nil {

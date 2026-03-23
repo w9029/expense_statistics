@@ -79,6 +79,8 @@ func registerModuleRoutes(r *gin.Engine, deps Deps) {
 	protected := v1.Group("")
 	protected.Use(middleware.Authenticate(jwtService))
 
+	identity.RegisterProtectedRoutes(protected.Group("/identity"), identityService)
+
 	authorization.RegisterRoutes(protected.Group("/authorization"), authorizationService)
 
 	accountbookRepo := accountbook.NewRepository(deps.DB)

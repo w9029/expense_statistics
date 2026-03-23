@@ -56,7 +56,7 @@ func (r *Repository) DeleteVerificationByID(ctx context.Context, id uuid.UUID) e
 }
 func (r *Repository) GetUserByEmail(ctx context.Context, email string) (*UserRecord, error) {
 	var record UserRecord
-	err := r.db.WithContext(ctx).Raw(`SELECT id, email, password_hash, name, preferred_currency, user_role, default_account_book_id, is_active FROM users WHERE email = ? AND deleted_at IS NULL LIMIT 1`, email).Scan(&record).Error
+	err := r.db.WithContext(ctx).Raw(`SELECT id, email, password_hash, name, preferred_currency, user_role, default_account_book_id, avatar_path, is_active FROM users WHERE email = ? AND deleted_at IS NULL LIMIT 1`, email).Scan(&record).Error
 	if err != nil {
 		return nil, err
 	}
@@ -67,7 +67,7 @@ func (r *Repository) GetUserByEmail(ctx context.Context, email string) (*UserRec
 }
 func (r *Repository) CreateUser(ctx context.Context, email string, passwordHash string, name string, preferredCurrency string) (*UserRecord, error) {
 	var record UserRecord
-	err := r.db.WithContext(ctx).Raw(`INSERT INTO users (email, password_hash, name, preferred_currency) VALUES (?, ?, ?, ?) RETURNING id, email, password_hash, name, preferred_currency, user_role, default_account_book_id, is_active`, email, passwordHash, name, preferredCurrency).Scan(&record).Error
+	err := r.db.WithContext(ctx).Raw(`INSERT INTO users (email, password_hash, name, preferred_currency) VALUES (?, ?, ?, ?) RETURNING id, email, password_hash, name, preferred_currency, user_role, default_account_book_id, avatar_path, is_active`, email, passwordHash, name, preferredCurrency).Scan(&record).Error
 	if err != nil {
 		return nil, err
 	}
@@ -92,7 +92,7 @@ func (r *Repository) RevokeRefreshToken(ctx context.Context, id uuid.UUID, revok
 }
 func (r *Repository) MustGetUserByID(ctx context.Context, id uuid.UUID) (*UserRecord, error) {
 	var record UserRecord
-	err := r.db.WithContext(ctx).Raw(`SELECT id, email, password_hash, name, preferred_currency, user_role, default_account_book_id, is_active FROM users WHERE id = ? AND deleted_at IS NULL LIMIT 1`, id).Scan(&record).Error
+	err := r.db.WithContext(ctx).Raw(`SELECT id, email, password_hash, name, preferred_currency, user_role, default_account_book_id, avatar_path, is_active FROM users WHERE id = ? AND deleted_at IS NULL LIMIT 1`, id).Scan(&record).Error
 	if err != nil {
 		return nil, err
 	}
@@ -100,6 +100,58 @@ func (r *Repository) MustGetUserByID(ctx context.Context, id uuid.UUID) (*UserRe
 		return nil, gorm.ErrRecordNotFound
 	}
 	return &record, nil
+}
+
+func (r *Repository) UpdateUserProfile(ctx context.Context, userID uuid.UUID, name string, preferredCurrency string, avatarPath *string) (*UserRecord, error) {
+	var record UserRecord
+	err := r.db.WithContext(ctx).Raw(`
+        UPDATE users
+        SET name = ?,
+            preferred_currency = ?,
+            avatar_path = ?,
+            updated_at = now()
+        WHERE id = ? AND deleted_at IS NULL
+        RETURNING id, email, password_hash, name, preferred_currency, user_role, default_account_book_id, avatar_path, is_active
+    `, name, preferredCurrency, avatarPath, userID).Scan(&record).Error
+	if err != nil {
+		return nil, err
+	}
+	if record.ID == uuid.Nil {
+		return nil, gorm.ErrRecordNotFound
+	}
+	return &record, nil
+}
+
+func (r *Repository) UpdateDefaultAccountBook(ctx context.Context, userID uuid.UUID, accountBookID *uuid.UUID) (*UserRecord, error) {
+	var record UserRecord
+	err := r.db.WithContext(ctx).Raw(`
+        UPDATE users
+        SET default_account_book_id = ?,
+            updated_at = now()
+        WHERE id = ? AND deleted_at IS NULL
+        RETURNING id, email, password_hash, name, preferred_currency, user_role, default_account_book_id, avatar_path, is_active
+    `, accountBookID, userID).Scan(&record).Error
+	if err != nil {
+		return nil, err
+	}
+	if record.ID == uuid.Nil {
+		return nil, gorm.ErrRecordNotFound
+	}
+	return &record, nil
+}
+
+func (r *Repository) UserHasAccountBookAccess(ctx context.Context, userID uuid.UUID, accountBookID uuid.UUID) (bool, error) {
+	var count int64
+	err := r.db.WithContext(ctx).Raw(`
+        SELECT COUNT(*)
+        FROM accountbook_user_permissions p
+        INNER JOIN account_books ab ON ab.id = p.account_book_id
+        WHERE p.user_id = ? AND p.account_book_id = ? AND ab.deleted_at IS NULL
+    `, userID, accountBookID).Scan(&count).Error
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
 }
 
 func isNotFound(err error) bool { return errors.Is(err, gorm.ErrRecordNotFound) }

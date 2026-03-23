@@ -24,8 +24,16 @@ func unauthorized(message string) *AppError {
 	return newAppError(http.StatusUnauthorized, "unauthorized", message)
 }
 
+func forbidden(message string) *AppError {
+	return newAppError(http.StatusForbidden, "forbidden", message)
+}
+
 func conflict(message string) *AppError {
 	return newAppError(http.StatusConflict, "conflict", message)
+}
+
+func notFound(message string) *AppError {
+	return newAppError(http.StatusNotFound, "not_found", message)
 }
 
 func internalError(message string) *AppError {

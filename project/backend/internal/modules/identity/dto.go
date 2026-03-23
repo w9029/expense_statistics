@@ -41,6 +41,16 @@ type RefreshRequest struct {
 	RefreshToken string `json:"refresh_token" binding:"required"`
 }
 
+type UpdateProfileRequest struct {
+	Name              string  `json:"name" binding:"required,min=1,max=100"`
+	PreferredCurrency string  `json:"preferred_currency" binding:"required,len=3"`
+	AvatarPath        *string `json:"avatar_path"`
+}
+
+type UpdateDefaultAccountBookRequest struct {
+	DefaultAccountBookID *uuid.UUID `json:"default_account_book_id"`
+}
+
 type VerifyCodeResponse struct {
 	VerificationToken string    `json:"verification_token"`
 	ExpiresAt         time.Time `json:"expires_at"`
@@ -59,4 +69,5 @@ type UserResponse struct {
 	PreferredCurrency string     `json:"preferred_currency"`
 	UserRole          string     `json:"user_role"`
 	DefaultAccountID  *uuid.UUID `json:"default_account_book_id"`
+	AvatarPath        *string    `json:"avatar_path"`
 }

@@ -31,6 +31,21 @@ func (r *Repository) CreateAccountBook(ctx context.Context, ownerUserID uuid.UUI
 	return &record, nil
 }
 
+func (r *Repository) UpdateAccountBook(ctx context.Context, accountBookID uuid.UUID, name string, description *string) error {
+	result := r.db.WithContext(ctx).Exec(`
+        UPDATE account_books
+        SET name = ?, description = ?, updated_at = now()
+        WHERE id = ? AND deleted_at IS NULL
+    `, name, description, accountBookID)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
+}
+
 func (r *Repository) AddPermission(ctx context.Context, accountBookID uuid.UUID, userID uuid.UUID, role string) error {
 	return r.db.WithContext(ctx).Exec(`INSERT INTO accountbook_user_permissions (account_book_id, user_id, account_role) VALUES (?, ?, ?)`, accountBookID, userID, role).Error
 }

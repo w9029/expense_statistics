@@ -63,6 +63,30 @@ func RegisterRoutes(group *gin.RouterGroup, service *Service) {
 		response.OK(c, result)
 	})
 
+	group.PUT("/:accountBookID", func(c *gin.Context) {
+		userID, ok := middleware.CurrentUserID(c)
+		if !ok {
+			response.Error(c, http.StatusUnauthorized, "unauthorized", "missing authenticated user")
+			return
+		}
+		accountBookID, err := uuid.Parse(c.Param("accountBookID"))
+		if err != nil {
+			response.Error(c, http.StatusBadRequest, "invalid_request", "invalid accountBookID")
+			return
+		}
+		var req UpdateAccountBookRequest
+		if err := c.ShouldBindJSON(&req); err != nil {
+			response.Error(c, http.StatusBadRequest, "invalid_request", err.Error())
+			return
+		}
+		result, err := service.Update(c.Request.Context(), userID, accountBookID, req)
+		if err != nil {
+			renderError(c, err)
+			return
+		}
+		response.OK(c, result)
+	})
+
 	group.GET("/:accountBookID/access", func(c *gin.Context) {
 		userID, ok := middleware.CurrentUserID(c)
 		if !ok {

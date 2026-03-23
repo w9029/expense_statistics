@@ -10,12 +10,14 @@ import (
 	"time"
 
 	"expense-statistics-server/internal/platform/mail"
+
+	"github.com/google/uuid"
 )
 
 // 定义token有效期
 const (
-	accessTokenTTL  = 15 * time.Minute
-	refreshTokenTTL = 30 * 24 * time.Hour
+	accessTokenTTL      = 15 * time.Minute
+	refreshTokenTTL     = 30 * 24 * time.Hour
 	verificationCodeTTL = 5 * time.Minute
 )
 
@@ -169,9 +171,52 @@ func (s *Service) Refresh(ctx context.Context, req RefreshRequest) (*AuthRespons
 }
 
 // 生成token的默认入口，使用默认的repo
+func (s *Service) UpdateProfile(ctx context.Context, userID uuid.UUID, req UpdateProfileRequest) (*UserResponse, error) {
+	name := strings.TrimSpace(req.Name)
+	if name == "" {
+		return nil, invalidRequest("name is required")
+	}
+	preferredCurrency := strings.ToUpper(strings.TrimSpace(req.PreferredCurrency))
+	if !isCurrencyCode(preferredCurrency) {
+		return nil, invalidRequest("preferred_currency must be 3 uppercase letters")
+	}
+	avatarPath := normalizeOptionalText(req.AvatarPath)
+	user, err := s.repo.UpdateUserProfile(ctx, userID, name, preferredCurrency, avatarPath)
+	if err != nil {
+		if isNotFound(err) {
+			return nil, notFound("user not found")
+		}
+		return nil, wrapRepoError("update user profile", err)
+	}
+	response := toUserResponse(user)
+	return &response, nil
+}
+
+func (s *Service) UpdateDefaultAccountBook(ctx context.Context, userID uuid.UUID, req UpdateDefaultAccountBookRequest) (*UserResponse, error) {
+	if req.DefaultAccountBookID != nil {
+		hasAccess, err := s.repo.UserHasAccountBookAccess(ctx, userID, *req.DefaultAccountBookID)
+		if err != nil {
+			return nil, wrapRepoError("check account book access", err)
+		}
+		if !hasAccess {
+			return nil, forbidden("default account book must be an accessible account book")
+		}
+	}
+	user, err := s.repo.UpdateDefaultAccountBook(ctx, userID, req.DefaultAccountBookID)
+	if err != nil {
+		if isNotFound(err) {
+			return nil, notFound("user not found")
+		}
+		return nil, wrapRepoError("update default account book", err)
+	}
+	response := toUserResponse(user)
+	return &response, nil
+}
+
 func (s *Service) issueAuthTokens(ctx context.Context, user *UserRecord) (*AuthResponse, error) {
 	return s.issueAuthTokensWithRepo(ctx, s.repo, user)
 }
+
 // 底层版本，允许显式传入一个“事务中的repo”，为了一些需要在同一个事务中执行的场景
 func (s *Service) issueAuthTokensWithRepo(ctx context.Context, repo *Repository, user *UserRecord) (*AuthResponse, error) {
 	accessToken, err := s.jwt.GenerateAccessToken(user.ID.String(), user.UserRole, accessTokenTTL)
@@ -186,11 +231,11 @@ func (s *Service) issueAuthTokensWithRepo(ctx context.Context, repo *Repository,
 	if err := repo.CreateRefreshToken(ctx, user.ID, refreshToken, expiresAt); err != nil {
 		return nil, wrapRepoError("create refresh token", err)
 	}
-	return &AuthResponse{AccessToken: accessToken, RefreshToken: refreshToken, User: UserResponse{ID: user.ID, Email: user.Email, Name: user.Name, PreferredCurrency: user.PreferredCurrency, UserRole: user.UserRole, DefaultAccountID: user.DefaultAccountBookID}}, nil
+	return &AuthResponse{AccessToken: accessToken, RefreshToken: refreshToken, User: toUserResponse(user)}, nil
 }
 
 func normalizePurpose(purpose string) string {
-	 return strings.TrimSpace(strings.ToLower(purpose)) 
+	return strings.TrimSpace(strings.ToLower(purpose))
 }
 
 func isAllowedPurpose(purpose string) bool {
@@ -226,4 +271,27 @@ func generateRandomToken(size int) (string, error) {
 		return "", err
 	}
 	return hex.EncodeToString(bytes), nil
+}
+
+func toUserResponse(user *UserRecord) UserResponse {
+	return UserResponse{
+		ID:                user.ID,
+		Email:             user.Email,
+		Name:              user.Name,
+		PreferredCurrency: user.PreferredCurrency,
+		UserRole:          user.UserRole,
+		DefaultAccountID:  user.DefaultAccountBookID,
+		AvatarPath:        user.AvatarPath,
+	}
+}
+
+func normalizeOptionalText(value *string) *string {
+	if value == nil {
+		return nil
+	}
+	trimmed := strings.TrimSpace(*value)
+	if trimmed == "" {
+		return nil
+	}
+	return &trimmed
 }

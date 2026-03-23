@@ -16,6 +16,7 @@ type UserRecord struct {
 	PreferredCurrency    string
 	UserRole             string
 	DefaultAccountBookID *uuid.UUID
+	AvatarPath           *string
 	IsActive             bool
 }
 

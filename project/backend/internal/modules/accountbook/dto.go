@@ -13,6 +13,11 @@ type CreateAccountBookRequest struct {
 	Description  *string `json:"description"`
 }
 
+type UpdateAccountBookRequest struct {
+	Name        string  `json:"name" binding:"required,min=1,max=100"`
+	Description *string `json:"description"`
+}
+
 type TransferOwnerRequest struct {
 	TargetUserID uuid.UUID `json:"target_user_id" binding:"required"`
 }
