@@ -142,6 +142,19 @@ func normalizeCurrency(value string) string {
 	return strings.ToUpper(strings.TrimSpace(value))
 }
 
+func isCurrencyCode(value string) bool {
+	code := normalizeCurrency(value)
+	if len(code) != 3 {
+		return false
+	}
+	for _, ch := range code {
+		if ch < 'A' || ch > 'Z' {
+			return false
+		}
+	}
+	return true
+}
+
 func validateColor(value string) bool {
 	return colorPattern.MatchString(strings.TrimSpace(value))
 }

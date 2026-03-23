@@ -146,6 +146,7 @@ func RegisterRoutes(group *gin.RouterGroup, service *Service) {
 			response.Error(c, http.StatusBadRequest, "invalid_request", err.Error())
 			return
 		}
+		assignOptionalExpenseListQueryStrings(c, &query)
 		result, err := service.ListExpenses(c.Request.Context(), userID, accountBookID, query)
 		if err != nil {
 			renderError(c, err)
@@ -171,6 +172,88 @@ func RegisterRoutes(group *gin.RouterGroup, service *Service) {
 			return
 		}
 		result, err := service.GetExpenseDetail(c.Request.Context(), userID, accountBookID, expenseID)
+		if err != nil {
+			renderError(c, err)
+			return
+		}
+		response.OK(c, result)
+	})
+
+	group.PUT("/:accountBookID/expenses/:expenseID/normal", func(c *gin.Context) {
+		userID, ok := middleware.CurrentUserID(c)
+		if !ok {
+			response.Error(c, http.StatusUnauthorized, "unauthorized", "missing authenticated user")
+			return
+		}
+		accountBookID, err := uuid.Parse(c.Param("accountBookID"))
+		if err != nil {
+			response.Error(c, http.StatusBadRequest, "invalid_request", "invalid accountBookID")
+			return
+		}
+		expenseID, err := uuid.Parse(c.Param("expenseID"))
+		if err != nil {
+			response.Error(c, http.StatusBadRequest, "invalid_request", "invalid expenseID")
+			return
+		}
+		var req UpdateNormalExpenseRequest
+		if err := c.ShouldBindJSON(&req); err != nil {
+			response.Error(c, http.StatusBadRequest, "invalid_request", err.Error())
+			return
+		}
+		result, err := service.UpdateNormalExpense(c.Request.Context(), userID, accountBookID, expenseID, req)
+		if err != nil {
+			renderError(c, err)
+			return
+		}
+		response.OK(c, result)
+	})
+
+	group.PUT("/:accountBookID/expenses/:expenseID/merged", func(c *gin.Context) {
+		userID, ok := middleware.CurrentUserID(c)
+		if !ok {
+			response.Error(c, http.StatusUnauthorized, "unauthorized", "missing authenticated user")
+			return
+		}
+		accountBookID, err := uuid.Parse(c.Param("accountBookID"))
+		if err != nil {
+			response.Error(c, http.StatusBadRequest, "invalid_request", "invalid accountBookID")
+			return
+		}
+		expenseID, err := uuid.Parse(c.Param("expenseID"))
+		if err != nil {
+			response.Error(c, http.StatusBadRequest, "invalid_request", "invalid expenseID")
+			return
+		}
+		var req UpdateMergedExpenseRequest
+		if err := c.ShouldBindJSON(&req); err != nil {
+			response.Error(c, http.StatusBadRequest, "invalid_request", err.Error())
+			return
+		}
+		result, err := service.UpdateMergedExpense(c.Request.Context(), userID, accountBookID, expenseID, req)
+		if err != nil {
+			renderError(c, err)
+			return
+		}
+		response.OK(c, result)
+	})
+
+	group.DELETE("/:accountBookID/expenses/:expenseID", func(c *gin.Context) {
+		userID, ok := middleware.CurrentUserID(c)
+		if !ok {
+			response.Error(c, http.StatusUnauthorized, "unauthorized", "missing authenticated user")
+			return
+		}
+		accountBookID, err := uuid.Parse(c.Param("accountBookID"))
+		if err != nil {
+			response.Error(c, http.StatusBadRequest, "invalid_request", "invalid accountBookID")
+			return
+		}
+		expenseID, err := uuid.Parse(c.Param("expenseID"))
+		if err != nil {
+			response.Error(c, http.StatusBadRequest, "invalid_request", "invalid expenseID")
+			return
+		}
+		result, err := service.DeleteExpense(c.Request.Context(), userID, accountBookID, expenseID)
 		if err != nil {
 			renderError(c, err)
 			return
@@ -234,4 +317,24 @@ func renderError(c *gin.Context, err error) {
 		return
 	}
 	response.Error(c, appErr.Status, appErr.Code, appErr.Message)
+}
+
+func assignOptionalExpenseListQueryStrings(c *gin.Context, query *ListExpensesQuery) {
+	assignOptionalQueryString(c, "date_from", &query.DateFrom)
+	assignOptionalQueryString(c, "date_to", &query.DateTo)
+	assignOptionalQueryString(c, "category_id", &query.CategoryID)
+	assignOptionalQueryString(c, "category_ids", &query.CategoryIDs)
+	assignOptionalQueryString(c, "user_id", &query.UserID)
+	assignOptionalQueryString(c, "min_amount", &query.MinAmount)
+	assignOptionalQueryString(c, "max_amount", &query.MaxAmount)
+	assignOptionalQueryString(c, "original_currency", &query.OriginalCurrency)
+	assignOptionalQueryString(c, "keyword", &query.Keyword)
+	assignOptionalQueryString(c, "spent_at_order", &query.SpentAtOrder)
+}
+
+func assignOptionalQueryString(c *gin.Context, key string, target **string) {
+	if value, ok := c.GetQuery(key); ok {
+		copied := value
+		*target = &copied
+	}
 }

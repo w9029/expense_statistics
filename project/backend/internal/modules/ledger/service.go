@@ -17,6 +17,27 @@ type Service struct {
 	exchange      *exchange.Service
 }
 
+type preparedMergedExpense struct {
+	mode                 string
+	parentCategoryID     uuid.UUID
+	parentName           string
+	parentDescription    *string
+	parentTotalCents     int64
+	parentCurrency       string
+	parentExchangeRate   string
+	parentConvertedCents int64
+	spentAt              time.Time
+	rateMicros           int64
+	children             []preparedMergedChild
+}
+
+type preparedMergedChild struct {
+	categoryID  uuid.UUID
+	name        string
+	description *string
+	finalCents  int64
+}
+
 func NewService(repo *Repository, authorizationService *authorization.Service, exchangeService *exchange.Service) *Service {
 	return &Service{repo: repo, authorization: authorizationService, exchange: exchangeService}
 }
@@ -143,6 +164,10 @@ func (s *Service) CreateNormalExpense(ctx context.Context, userID uuid.UUID, acc
 	if err := s.requireRole(ctx, userID, accountBookID, "editor"); err != nil {
 		return nil, err
 	}
+	name, err := normalizeRequiredName(req.Name)
+	if err != nil {
+		return nil, err
+	}
 	category, amountCents, rate, convertedCents, spentAt, err := s.prepareExpenseInput(ctx, accountBookID, req.CategoryID, req.OriginalAmount, req.OriginalCurrency, req.SpentAt)
 	if err != nil {
 		return nil, err
@@ -156,7 +181,7 @@ func (s *Service) CreateNormalExpense(ctx context.Context, userID uuid.UUID, acc
 		CategoryID:       req.CategoryID,
 		ExpenseType:      "normal",
 		ParentID:         nil,
-		Name:             strings.TrimSpace(req.Name),
+		Name:             name,
 		Description:      normalizeDescription(req.Description),
 		OriginalAmount:   formatCents(amountCents),
 		OriginalCurrency: normalizeCurrency(req.OriginalCurrency),
@@ -171,101 +196,100 @@ func (s *Service) CreateNormalExpense(ctx context.Context, userID uuid.UUID, acc
 	return &response, nil
 }
 
+func (s *Service) UpdateNormalExpense(ctx context.Context, userID uuid.UUID, accountBookID uuid.UUID, expenseID uuid.UUID, req UpdateNormalExpenseRequest) (*ExpenseResponse, error) {
+	if err := s.requireRole(ctx, userID, accountBookID, "editor"); err != nil {
+		return nil, err
+	}
+	existing, err := s.repo.GetExpenseByID(ctx, accountBookID, expenseID)
+	if err != nil {
+		if isNotFound(err) {
+			return nil, notFound("expense not found")
+		}
+		return nil, wrapRepoError("get expense", err)
+	}
+	if existing.ParentID != nil {
+		return nil, invalidRequest("merged child expenses cannot be updated directly")
+	}
+	if existing.ExpenseType != "normal" {
+		return nil, invalidRequest("expense is not a normal expense")
+	}
+	name, err := normalizeRequiredName(req.Name)
+	if err != nil {
+		return nil, err
+	}
+	category, amountCents, rate, convertedCents, spentAt, err := s.prepareExpenseInput(ctx, accountBookID, req.CategoryID, req.OriginalAmount, req.OriginalCurrency, req.SpentAt)
+	if err != nil {
+		return nil, err
+	}
+	if category.IsMergeCategory {
+		return nil, invalidRequest("normal expenses cannot use a merge category")
+	}
+	record, err := s.repo.UpdateExpense(ctx, UpdateExpenseParams{
+		AccountBookID:    accountBookID,
+		ExpenseID:        expenseID,
+		CategoryID:       req.CategoryID,
+		Name:             name,
+		Description:      normalizeDescription(req.Description),
+		OriginalAmount:   formatCents(amountCents),
+		OriginalCurrency: normalizeCurrency(req.OriginalCurrency),
+		ExchangeRateUsed: rate,
+		ConvertedAmount:  formatCents(convertedCents),
+		SpentAt:          spentAt,
+	})
+	if err != nil {
+		if isNotFound(err) {
+			return nil, notFound("expense not found")
+		}
+		return nil, wrapRepoError("update normal expense", err)
+	}
+	response := toExpenseResponse(*record)
+	return &response, nil
+}
+
 func (s *Service) CreateMergedExpense(ctx context.Context, userID uuid.UUID, accountBookID uuid.UUID, req CreateMergedExpenseRequest) (*CreateMergedExpenseResponse, error) {
 	if err := s.requireRole(ctx, userID, accountBookID, "editor"); err != nil {
 		return nil, err
 	}
-	mode := strings.ToLower(strings.TrimSpace(req.ChildrenAmountInputMode))
-	if mode != "pretax" && mode != "posttax" {
-		return nil, invalidRequest("children_amount_input_mode must be pretax or posttax")
-	}
-	if len(req.Children) == 0 {
-		return nil, invalidRequest("children are required")
-	}
-
-	parentCategory, parentTotalCents, rate, parentConvertedCents, spentAt, err := s.prepareExpenseInput(ctx, accountBookID, req.Parent.CategoryID, req.Parent.TotalOriginalAmount, req.Parent.OriginalCurrency, req.Parent.SpentAt)
+	prepared, err := s.prepareMergedExpensePayload(ctx, accountBookID, req.Parent, req.ChildrenAmountInputMode, req.Children)
 	if err != nil {
 		return nil, err
 	}
-	if !parentCategory.IsMergeCategory {
-		return nil, invalidRequest("merged expenses must use a merge category for the parent expense")
-	}
-
-	childInputCents := make([]int64, 0, len(req.Children))
-	for _, child := range req.Children {
-		category, err := s.repo.GetCategoryByID(ctx, accountBookID, child.CategoryID)
-		if err != nil {
-			if isNotFound(err) {
-				return nil, notFound("child expense category not found")
-			}
-			return nil, wrapRepoError("get child expense category", err)
-		}
-		if category.IsMergeCategory {
-			return nil, invalidRequest("merged expense children cannot use merge categories")
-		}
-		amountCents, err := parseAmountToCents(child.AmountInput)
-		if err != nil {
-			return nil, invalidRequest(err.Error())
-		}
-		childInputCents = append(childInputCents, amountCents)
-	}
-
-	childFinalCents := make([]int64, len(childInputCents))
-	switch mode {
-	case "pretax":
-		allocated, err := allocateMergedChildrenFromPretax(parentTotalCents, childInputCents)
-		if err != nil {
-			return nil, invalidRequest(err.Error())
-		}
-		copy(childFinalCents, allocated)
-	case "posttax":
-		copy(childFinalCents, childInputCents)
-		sum := int64(0)
-		for _, cents := range childFinalCents {
-			sum += cents
-		}
-		if sum != parentTotalCents {
-			return nil, invalidRequest("children total must equal the merged parent total in posttax mode")
-		}
-	}
-
-	rateMicros := mustParseRateMicros(rate)
 	var createdParent *ExpenseRecord
-	createdChildren := make([]ExpenseRecord, 0, len(req.Children))
+	createdChildren := make([]ExpenseRecord, 0, len(prepared.children))
 	err = s.repo.Transaction(ctx, func(repo *Repository) error {
 		parent, err := repo.CreateExpense(ctx, CreateExpenseParams{
 			AccountBookID:    accountBookID,
 			UserID:           userID,
-			CategoryID:       req.Parent.CategoryID,
+			CategoryID:       prepared.parentCategoryID,
 			ExpenseType:      "merged_parent",
 			ParentID:         nil,
-			Name:             strings.TrimSpace(req.Parent.Name),
-			Description:      normalizeDescription(req.Parent.Description),
-			OriginalAmount:   formatCents(parentTotalCents),
-			OriginalCurrency: normalizeCurrency(req.Parent.OriginalCurrency),
-			ExchangeRateUsed: rate,
-			ConvertedAmount:  formatCents(parentConvertedCents),
-			SpentAt:          spentAt,
+			Name:             prepared.parentName,
+			Description:      prepared.parentDescription,
+			OriginalAmount:   formatCents(prepared.parentTotalCents),
+			OriginalCurrency: prepared.parentCurrency,
+			ExchangeRateUsed: prepared.parentExchangeRate,
+			ConvertedAmount:  formatCents(prepared.parentConvertedCents),
+			SpentAt:          prepared.spentAt,
 		})
 		if err != nil {
 			return err
 		}
 		createdParent = parent
-		for i, child := range req.Children {
-			convertedCents := convertCentsByRate(childFinalCents[i], rateMicros)
+		for _, child := range prepared.children {
+			convertedCents := convertCentsByRate(child.finalCents, prepared.rateMicros)
 			childRecord, err := repo.CreateExpense(ctx, CreateExpenseParams{
 				AccountBookID:    accountBookID,
 				UserID:           userID,
-				CategoryID:       child.CategoryID,
+				CategoryID:       child.categoryID,
 				ExpenseType:      "merged_child",
 				ParentID:         &parent.ID,
-				Name:             strings.TrimSpace(child.Name),
-				Description:      normalizeDescription(child.Description),
-				OriginalAmount:   formatCents(childFinalCents[i]),
-				OriginalCurrency: normalizeCurrency(req.Parent.OriginalCurrency),
-				ExchangeRateUsed: rate,
+				Name:             child.name,
+				Description:      child.description,
+				OriginalAmount:   formatCents(child.finalCents),
+				OriginalCurrency: prepared.parentCurrency,
+				ExchangeRateUsed: prepared.parentExchangeRate,
 				ConvertedAmount:  formatCents(convertedCents),
-				SpentAt:          spentAt,
+				SpentAt:          prepared.spentAt,
 			})
 			if err != nil {
 				return err
@@ -282,7 +306,87 @@ func (s *Service) CreateMergedExpense(ctx context.Context, userID uuid.UUID, acc
 	for _, record := range createdChildren {
 		children = append(children, toExpenseResponse(record))
 	}
-	response := &CreateMergedExpenseResponse{Parent: toExpenseResponse(*createdParent), Children: children, ChildrenAmountInputMode: mode}
+	response := &CreateMergedExpenseResponse{Parent: toExpenseResponse(*createdParent), Children: children, ChildrenAmountInputMode: prepared.mode}
+	return response, nil
+}
+
+func (s *Service) UpdateMergedExpense(ctx context.Context, userID uuid.UUID, accountBookID uuid.UUID, expenseID uuid.UUID, req UpdateMergedExpenseRequest) (*CreateMergedExpenseResponse, error) {
+	if err := s.requireRole(ctx, userID, accountBookID, "editor"); err != nil {
+		return nil, err
+	}
+	existing, err := s.repo.GetExpenseByID(ctx, accountBookID, expenseID)
+	if err != nil {
+		if isNotFound(err) {
+			return nil, notFound("expense not found")
+		}
+		return nil, wrapRepoError("get expense", err)
+	}
+	if existing.ParentID != nil {
+		return nil, invalidRequest("merged child expenses cannot be updated directly")
+	}
+	if existing.ExpenseType != "merged_parent" {
+		return nil, invalidRequest("expense is not a merged parent expense")
+	}
+	prepared, err := s.prepareMergedExpensePayload(ctx, accountBookID, req.Parent, req.ChildrenAmountInputMode, req.Children)
+	if err != nil {
+		return nil, err
+	}
+	var updatedParent *ExpenseRecord
+	updatedChildren := make([]ExpenseRecord, 0, len(prepared.children))
+	err = s.repo.Transaction(ctx, func(repo *Repository) error {
+		parent, err := repo.UpdateExpense(ctx, UpdateExpenseParams{
+			AccountBookID:    accountBookID,
+			ExpenseID:        expenseID,
+			CategoryID:       prepared.parentCategoryID,
+			Name:             prepared.parentName,
+			Description:      prepared.parentDescription,
+			OriginalAmount:   formatCents(prepared.parentTotalCents),
+			OriginalCurrency: prepared.parentCurrency,
+			ExchangeRateUsed: prepared.parentExchangeRate,
+			ConvertedAmount:  formatCents(prepared.parentConvertedCents),
+			SpentAt:          prepared.spentAt,
+		})
+		if err != nil {
+			return err
+		}
+		updatedParent = parent
+		if err := repo.SoftDeleteChildrenByParentID(ctx, accountBookID, expenseID); err != nil {
+			return err
+		}
+		for _, child := range prepared.children {
+			convertedCents := convertCentsByRate(child.finalCents, prepared.rateMicros)
+			childRecord, err := repo.CreateExpense(ctx, CreateExpenseParams{
+				AccountBookID:    accountBookID,
+				UserID:           userID,
+				CategoryID:       child.categoryID,
+				ExpenseType:      "merged_child",
+				ParentID:         &expenseID,
+				Name:             child.name,
+				Description:      child.description,
+				OriginalAmount:   formatCents(child.finalCents),
+				OriginalCurrency: prepared.parentCurrency,
+				ExchangeRateUsed: prepared.parentExchangeRate,
+				ConvertedAmount:  formatCents(convertedCents),
+				SpentAt:          prepared.spentAt,
+			})
+			if err != nil {
+				return err
+			}
+			updatedChildren = append(updatedChildren, *childRecord)
+		}
+		return nil
+	})
+	if err != nil {
+		if isNotFound(err) {
+			return nil, notFound("expense not found")
+		}
+		return nil, wrapRepoError("update merged expense", err)
+	}
+	children := make([]ExpenseResponse, 0, len(updatedChildren))
+	for _, record := range updatedChildren {
+		children = append(children, toExpenseResponse(record))
+	}
+	response := &CreateMergedExpenseResponse{Parent: toExpenseResponse(*updatedParent), Children: children, ChildrenAmountInputMode: prepared.mode}
 	return response, nil
 }
 
@@ -348,6 +452,36 @@ func (s *Service) GetExpenseDetail(ctx context.Context, userID uuid.UUID, accoun
 	return response, nil
 }
 
+func (s *Service) DeleteExpense(ctx context.Context, userID uuid.UUID, accountBookID uuid.UUID, expenseID uuid.UUID) (*DeleteExpenseResponse, error) {
+	if err := s.requireRole(ctx, userID, accountBookID, "editor"); err != nil {
+		return nil, err
+	}
+	record, err := s.repo.GetExpenseByID(ctx, accountBookID, expenseID)
+	if err != nil {
+		if isNotFound(err) {
+			return nil, notFound("expense not found")
+		}
+		return nil, wrapRepoError("get expense", err)
+	}
+	if record.ParentID != nil {
+		return nil, invalidRequest("merged child expenses cannot be deleted directly")
+	}
+	if err := s.repo.Transaction(ctx, func(repo *Repository) error {
+		if record.ExpenseType == "merged_parent" {
+			if err := repo.SoftDeleteChildrenByParentID(ctx, accountBookID, expenseID); err != nil {
+				return err
+			}
+		}
+		return repo.SoftDeleteExpenseByID(ctx, accountBookID, expenseID)
+	}); err != nil {
+		if isNotFound(err) {
+			return nil, notFound("expense not found")
+		}
+		return nil, wrapRepoError("delete expense", err)
+	}
+	return &DeleteExpenseResponse{ExpenseID: expenseID, RootID: expenseID, Deleted: true}, nil
+}
+
 func (s *Service) prepareExpenseInput(ctx context.Context, accountBookID uuid.UUID, categoryID uuid.UUID, originalAmount string, originalCurrency string, spentAt string) (*ExpenseCategoryRecord, int64, string, int64, time.Time, error) {
 	category, err := s.repo.GetCategoryByID(ctx, accountBookID, categoryID)
 	if err != nil {
@@ -383,6 +517,90 @@ func (s *Service) prepareExpenseInput(ctx context.Context, accountBookID uuid.UU
 	return category, amountCents, rate, convertedCents, date, nil
 }
 
+func (s *Service) prepareMergedExpensePayload(ctx context.Context, accountBookID uuid.UUID, parent MergedExpenseParentInput, modeInput string, children []MergedExpenseChildInput) (*preparedMergedExpense, error) {
+	mode := strings.ToLower(strings.TrimSpace(modeInput))
+	if mode != "pretax" && mode != "posttax" {
+		return nil, invalidRequest("children_amount_input_mode must be pretax or posttax")
+	}
+	if len(children) == 0 {
+		return nil, invalidRequest("children are required")
+	}
+	parentName, err := normalizeRequiredName(parent.Name)
+	if err != nil {
+		return nil, err
+	}
+	parentCategory, parentTotalCents, rate, parentConvertedCents, spentAt, err := s.prepareExpenseInput(ctx, accountBookID, parent.CategoryID, parent.TotalOriginalAmount, parent.OriginalCurrency, parent.SpentAt)
+	if err != nil {
+		return nil, err
+	}
+	if !parentCategory.IsMergeCategory {
+		return nil, invalidRequest("merged expenses must use a merge category for the parent expense")
+	}
+	childInputCents := make([]int64, 0, len(children))
+	preparedChildren := make([]preparedMergedChild, 0, len(children))
+	for _, child := range children {
+		category, err := s.repo.GetCategoryByID(ctx, accountBookID, child.CategoryID)
+		if err != nil {
+			if isNotFound(err) {
+				return nil, notFound("child expense category not found")
+			}
+			return nil, wrapRepoError("get child expense category", err)
+		}
+		if category.IsMergeCategory {
+			return nil, invalidRequest("merged expense children cannot use merge categories")
+		}
+		name, err := normalizeRequiredName(child.Name)
+		if err != nil {
+			return nil, err
+		}
+		amountCents, err := parseAmountToCents(child.AmountInput)
+		if err != nil {
+			return nil, invalidRequest(err.Error())
+		}
+		childInputCents = append(childInputCents, amountCents)
+		preparedChildren = append(preparedChildren, preparedMergedChild{
+			categoryID:  child.CategoryID,
+			name:        name,
+			description: normalizeDescription(child.Description),
+		})
+	}
+	childFinalCents := make([]int64, len(childInputCents))
+	switch mode {
+	case "pretax":
+		allocated, err := allocateMergedChildrenFromPretax(parentTotalCents, childInputCents)
+		if err != nil {
+			return nil, invalidRequest(err.Error())
+		}
+		copy(childFinalCents, allocated)
+	case "posttax":
+		copy(childFinalCents, childInputCents)
+		sum := int64(0)
+		for _, cents := range childFinalCents {
+			sum += cents
+		}
+		if sum != parentTotalCents {
+			return nil, invalidRequest("children total must equal the merged parent total in posttax mode")
+		}
+	}
+	for i := range preparedChildren {
+		preparedChildren[i].finalCents = childFinalCents[i]
+	}
+	rateMicros := mustParseRateMicros(rate)
+	return &preparedMergedExpense{
+		mode:                 mode,
+		parentCategoryID:     parent.CategoryID,
+		parentName:           parentName,
+		parentDescription:    normalizeDescription(parent.Description),
+		parentTotalCents:     parentTotalCents,
+		parentCurrency:       normalizeCurrency(parent.OriginalCurrency),
+		parentExchangeRate:   rate,
+		parentConvertedCents: parentConvertedCents,
+		spentAt:              spentAt,
+		rateMicros:           rateMicros,
+		children:             preparedChildren,
+	}, nil
+}
+
 func (s *Service) normalizeListExpensesParams(accountBookID uuid.UUID, query ListExpensesQuery) (ListExpensesParams, int, int, error) {
 	page := query.Page
 	if page <= 0 {
@@ -395,7 +613,12 @@ func (s *Service) normalizeListExpensesParams(accountBookID uuid.UUID, query Lis
 	if pageSize > 100 {
 		pageSize = 100
 	}
-	params := ListExpensesParams{AccountBookID: accountBookID, Limit: pageSize, Offset: (page - 1) * pageSize}
+	params := ListExpensesParams{
+		AccountBookID: accountBookID,
+		SortAscending: false,
+		Limit:         pageSize,
+		Offset:        (page - 1) * pageSize,
+	}
 	if query.DateFrom != nil && strings.TrimSpace(*query.DateFrom) != "" {
 		date, err := parseSpentAt(*query.DateFrom)
 		if err != nil {
@@ -413,16 +636,63 @@ func (s *Service) normalizeListExpensesParams(accountBookID uuid.UUID, query Lis
 	if params.DateFrom != nil && params.DateTo != nil && params.DateFrom.After(*params.DateTo) {
 		return ListExpensesParams{}, 0, 0, invalidRequest("date_from cannot be after date_to")
 	}
-	if query.CategoryID != nil && strings.TrimSpace(*query.CategoryID) != "" {
-		categoryID, err := uuid.Parse(strings.TrimSpace(*query.CategoryID))
+	categoryIDs, err := parseCategoryFilters(query.CategoryID, query.CategoryIDs)
+	if err != nil {
+		return ListExpensesParams{}, 0, 0, err
+	}
+	if len(categoryIDs) > 0 {
+		params.CategoryIDs = categoryIDs
+	}
+	if query.UserID != nil && strings.TrimSpace(*query.UserID) != "" {
+		filterUserID, err := uuid.Parse(strings.TrimSpace(*query.UserID))
 		if err != nil {
-			return ListExpensesParams{}, 0, 0, invalidRequest("invalid category_id")
+			return ListExpensesParams{}, 0, 0, invalidRequest("invalid user_id")
 		}
-		params.CategoryID = &categoryID
+		params.UserID = &filterUserID
+	}
+	if query.MinAmount != nil && strings.TrimSpace(*query.MinAmount) != "" {
+		minAmountCents, err := parseAmountToCents(*query.MinAmount)
+		if err != nil {
+			return ListExpensesParams{}, 0, 0, invalidRequest("invalid min_amount")
+		}
+		minAmount := formatCents(minAmountCents)
+		params.MinAmount = &minAmount
+	}
+	if query.MaxAmount != nil && strings.TrimSpace(*query.MaxAmount) != "" {
+		maxAmountCents, err := parseAmountToCents(*query.MaxAmount)
+		if err != nil {
+			return ListExpensesParams{}, 0, 0, invalidRequest("invalid max_amount")
+		}
+		maxAmount := formatCents(maxAmountCents)
+		params.MaxAmount = &maxAmount
+	}
+	if params.MinAmount != nil && params.MaxAmount != nil {
+		minAmountCents, _ := parseAmountToCents(*params.MinAmount)
+		maxAmountCents, _ := parseAmountToCents(*params.MaxAmount)
+		if minAmountCents > maxAmountCents {
+			return ListExpensesParams{}, 0, 0, invalidRequest("min_amount cannot be greater than max_amount")
+		}
+	}
+	if query.OriginalCurrency != nil && strings.TrimSpace(*query.OriginalCurrency) != "" {
+		currency := normalizeCurrency(*query.OriginalCurrency)
+		if !isCurrencyCode(currency) {
+			return ListExpensesParams{}, 0, 0, invalidRequest("original_currency must be 3 uppercase letters")
+		}
+		params.OriginalCurrency = &currency
 	}
 	if query.Keyword != nil && strings.TrimSpace(*query.Keyword) != "" {
 		keyword := strings.TrimSpace(*query.Keyword)
 		params.Keyword = &keyword
+	}
+	if query.SpentAtOrder != nil && strings.TrimSpace(*query.SpentAtOrder) != "" {
+		switch strings.ToLower(strings.TrimSpace(*query.SpentAtOrder)) {
+		case "asc":
+			params.SortAscending = true
+		case "desc":
+			params.SortAscending = false
+		default:
+			return ListExpensesParams{}, 0, 0, invalidRequest("spent_at_order must be asc or desc")
+		}
 	}
 	return params, page, pageSize, nil
 }
@@ -458,4 +728,43 @@ func mustParseRateMicros(rate string) int64 {
 		panic(err)
 	}
 	return micros
+}
+
+func normalizeRequiredName(value string) (string, error) {
+	name := strings.TrimSpace(value)
+	if name == "" {
+		return "", invalidRequest("name is required")
+	}
+	return name, nil
+}
+
+func parseCategoryFilters(singleCategoryID *string, multipleCategoryIDs *string) ([]uuid.UUID, error) {
+	values := make([]string, 0, 2)
+	if singleCategoryID != nil && strings.TrimSpace(*singleCategoryID) != "" {
+		values = append(values, strings.TrimSpace(*singleCategoryID))
+	}
+	if multipleCategoryIDs != nil && strings.TrimSpace(*multipleCategoryIDs) != "" {
+		values = append(values, strings.Split(strings.TrimSpace(*multipleCategoryIDs), ",")...)
+	}
+	if len(values) == 0 {
+		return nil, nil
+	}
+	seen := make(map[uuid.UUID]struct{}, len(values))
+	categoryIDs := make([]uuid.UUID, 0, len(values))
+	for _, value := range values {
+		trimmed := strings.TrimSpace(value)
+		if trimmed == "" {
+			continue
+		}
+		categoryID, err := uuid.Parse(trimmed)
+		if err != nil {
+			return nil, invalidRequest("invalid category_ids")
+		}
+		if _, exists := seen[categoryID]; exists {
+			continue
+		}
+		seen[categoryID] = struct{}{}
+		categoryIDs = append(categoryIDs, categoryID)
+	}
+	return categoryIDs, nil
 }

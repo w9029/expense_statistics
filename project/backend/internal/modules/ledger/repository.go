@@ -46,14 +46,32 @@ type CreateExpenseParams struct {
 	SpentAt          time.Time
 }
 
+type UpdateExpenseParams struct {
+	AccountBookID    uuid.UUID
+	ExpenseID        uuid.UUID
+	CategoryID       uuid.UUID
+	Name             string
+	Description      *string
+	OriginalAmount   string
+	OriginalCurrency string
+	ExchangeRateUsed string
+	ConvertedAmount  string
+	SpentAt          time.Time
+}
+
 type ListExpensesParams struct {
-	AccountBookID uuid.UUID
-	DateFrom      *time.Time
-	DateTo        *time.Time
-	CategoryID    *uuid.UUID
-	Keyword       *string
-	Limit         int
-	Offset        int
+	AccountBookID    uuid.UUID
+	DateFrom         *time.Time
+	DateTo           *time.Time
+	CategoryIDs      []uuid.UUID
+	UserID           *uuid.UUID
+	MinAmount        *string
+	MaxAmount        *string
+	OriginalCurrency *string
+	Keyword          *string
+	SortAscending    bool
+	Limit            int
+	Offset           int
 }
 
 type Repository struct{ db *gorm.DB }
@@ -175,6 +193,36 @@ func (r *Repository) CreateExpense(ctx context.Context, params CreateExpensePara
 	return &record, nil
 }
 
+func (r *Repository) UpdateExpense(ctx context.Context, params UpdateExpenseParams) (*ExpenseRecord, error) {
+	var record ExpenseRecord
+	err := r.db.WithContext(ctx).Raw(`
+        UPDATE expenses
+        SET category_id = ?,
+            name = ?,
+            description = ?,
+            original_amount = CAST(? AS numeric(12,2)),
+            original_currency = ?,
+            exchange_rate_used = CAST(? AS numeric(12,6)),
+            converted_amount = CAST(? AS numeric(12,2)),
+            spent_at = ?,
+            updated_at = now()
+        WHERE account_book_id = ? AND id = ? AND deleted_at IS NULL
+        RETURNING id, account_book_id, user_id, category_id, expense_type, parent_id, name, description,
+                  original_amount::text AS original_amount, original_currency,
+                  exchange_rate_used::text AS exchange_rate_used, converted_amount::text AS converted_amount,
+                  spent_at, created_at, updated_at
+    `, params.CategoryID, params.Name, params.Description, params.OriginalAmount, params.OriginalCurrency,
+		params.ExchangeRateUsed, params.ConvertedAmount, params.SpentAt.Format("2006-01-02"), params.AccountBookID, params.ExpenseID).
+		Scan(&record).Error
+	if err != nil {
+		return nil, err
+	}
+	if record.ID == uuid.Nil {
+		return nil, gorm.ErrRecordNotFound
+	}
+	return &record, nil
+}
+
 func (r *Repository) CountRootExpenses(ctx context.Context, params ListExpensesParams) (int64, error) {
 	query := r.rootExpenseBaseQuery(ctx, params)
 	var count int64
@@ -184,6 +232,14 @@ func (r *Repository) CountRootExpenses(ctx context.Context, params ListExpensesP
 
 func (r *Repository) ListRootExpenses(ctx context.Context, params ListExpensesParams) ([]ExpenseRecord, error) {
 	records := make([]ExpenseRecord, 0)
+	spentAtOrder := "DESC"
+	createdAtOrder := "DESC"
+	idOrder := "DESC"
+	if params.SortAscending {
+		spentAtOrder = "ASC"
+		createdAtOrder = "ASC"
+		idOrder = "ASC"
+	}
 	query := r.rootExpenseBaseQuery(ctx, params).
 		Select(`
             e.id,
@@ -203,9 +259,9 @@ func (r *Repository) ListRootExpenses(ctx context.Context, params ListExpensesPa
             e.updated_at,
             COALESCE(child_counts.children_count, 0) AS children_count
         `).
-		Order("e.spent_at DESC").
-		Order("e.created_at DESC").
-		Order("e.id DESC").
+		Order("e.spent_at " + spentAtOrder).
+		Order("e.created_at " + createdAtOrder).
+		Order("e.id " + idOrder).
 		Limit(params.Limit).
 		Offset(params.Offset)
 	err := query.Scan(&records).Error
@@ -250,8 +306,31 @@ func (r *Repository) ListChildrenByParentID(ctx context.Context, accountBookID u
         FROM expenses
         WHERE account_book_id = ? AND parent_id = ? AND deleted_at IS NULL
         ORDER BY created_at ASC, id ASC
-    `, accountBookID, parentID).Scan(&records).Error
+	`, accountBookID, parentID).Scan(&records).Error
 	return records, err
+}
+
+func (r *Repository) SoftDeleteExpenseByID(ctx context.Context, accountBookID uuid.UUID, expenseID uuid.UUID) error {
+	result := r.db.WithContext(ctx).Exec(`
+        UPDATE expenses
+        SET deleted_at = now(), updated_at = now()
+        WHERE account_book_id = ? AND id = ? AND deleted_at IS NULL
+    `, accountBookID, expenseID)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
+}
+
+func (r *Repository) SoftDeleteChildrenByParentID(ctx context.Context, accountBookID uuid.UUID, parentID uuid.UUID) error {
+	return r.db.WithContext(ctx).Exec(`
+        UPDATE expenses
+        SET deleted_at = now(), updated_at = now()
+        WHERE account_book_id = ? AND parent_id = ? AND deleted_at IS NULL
+    `, accountBookID, parentID).Error
 }
 
 func (r *Repository) rootExpenseBaseQuery(ctx context.Context, params ListExpensesParams) *gorm.DB {
@@ -271,8 +350,20 @@ func (r *Repository) rootExpenseBaseQuery(ctx context.Context, params ListExpens
 	if params.DateTo != nil {
 		query = query.Where("e.spent_at <= ?", params.DateTo.Format("2006-01-02"))
 	}
-	if params.CategoryID != nil {
-		query = query.Where("e.category_id = ?", *params.CategoryID)
+	if len(params.CategoryIDs) > 0 {
+		query = query.Where("e.category_id IN ?", params.CategoryIDs)
+	}
+	if params.UserID != nil {
+		query = query.Where("e.user_id = ?", *params.UserID)
+	}
+	if params.MinAmount != nil {
+		query = query.Where("e.converted_amount >= CAST(? AS numeric(12,2))", *params.MinAmount)
+	}
+	if params.MaxAmount != nil {
+		query = query.Where("e.converted_amount <= CAST(? AS numeric(12,2))", *params.MaxAmount)
+	}
+	if params.OriginalCurrency != nil {
+		query = query.Where("e.original_currency = ?", *params.OriginalCurrency)
 	}
 	if params.Keyword != nil && strings.TrimSpace(*params.Keyword) != "" {
 		keyword := "%" + strings.TrimSpace(*params.Keyword) + "%"

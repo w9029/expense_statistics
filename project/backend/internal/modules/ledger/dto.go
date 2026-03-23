@@ -44,7 +44,22 @@ type CreateNormalExpenseRequest struct {
 	SpentAt          string    `json:"spent_at" binding:"required,len=10"`
 }
 
+type UpdateNormalExpenseRequest struct {
+	CategoryID       uuid.UUID `json:"category_id" binding:"required"`
+	Name             string    `json:"name" binding:"required,min=1,max=200"`
+	Description      *string   `json:"description"`
+	OriginalAmount   string    `json:"original_amount" binding:"required"`
+	OriginalCurrency string    `json:"original_currency" binding:"required,len=3"`
+	SpentAt          string    `json:"spent_at" binding:"required,len=10"`
+}
+
 type CreateMergedExpenseRequest struct {
+	Parent                  MergedExpenseParentInput  `json:"parent" binding:"required"`
+	ChildrenAmountInputMode string                    `json:"children_amount_input_mode" binding:"required"`
+	Children                []MergedExpenseChildInput `json:"children" binding:"required,min=1,dive"`
+}
+
+type UpdateMergedExpenseRequest struct {
 	Parent                  MergedExpenseParentInput  `json:"parent" binding:"required"`
 	ChildrenAmountInputMode string                    `json:"children_amount_input_mode" binding:"required"`
 	Children                []MergedExpenseChildInput `json:"children" binding:"required,min=1,dive"`
@@ -67,13 +82,19 @@ type MergedExpenseChildInput struct {
 }
 
 type ListExpensesQuery struct {
-	DateFrom        *string `form:"date_from"`
-	DateTo          *string `form:"date_to"`
-	CategoryID      *string `form:"category_id"`
-	Keyword         *string `form:"keyword"`
-	IncludeChildren bool    `form:"include_children"`
-	Page            int     `form:"page"`
-	PageSize        int     `form:"page_size"`
+	DateFrom         *string `form:"date_from"`
+	DateTo           *string `form:"date_to"`
+	CategoryID       *string `form:"category_id"`
+	CategoryIDs      *string `form:"category_ids"`
+	UserID           *string `form:"user_id"`
+	MinAmount        *string `form:"min_amount"`
+	MaxAmount        *string `form:"max_amount"`
+	OriginalCurrency *string `form:"original_currency"`
+	Keyword          *string `form:"keyword"`
+	SpentAtOrder     *string `form:"spent_at_order"`
+	IncludeChildren  bool    `form:"include_children"`
+	Page             int     `form:"page"`
+	PageSize         int     `form:"page_size"`
 }
 
 type ExpenseResponse struct {
@@ -119,6 +140,12 @@ type CreateMergedExpenseResponse struct {
 	Parent                  ExpenseResponse   `json:"parent"`
 	Children                []ExpenseResponse `json:"children"`
 	ChildrenAmountInputMode string            `json:"children_amount_input_mode"`
+}
+
+type DeleteExpenseResponse struct {
+	ExpenseID uuid.UUID `json:"expense_id"`
+	RootID    uuid.UUID `json:"root_id"`
+	Deleted   bool      `json:"deleted"`
 }
 
 func toExpenseCategoryResponse(record ExpenseCategoryRecord) ExpenseCategoryResponse {
