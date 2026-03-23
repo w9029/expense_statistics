@@ -1,4 +1,4 @@
-﻿package router
+package router
 
 import (
 	"context"
@@ -10,8 +10,10 @@ import (
 	"expense-statistics-server/internal/http/response"
 	"expense-statistics-server/internal/modules/accountbook"
 	"expense-statistics-server/internal/modules/authorization"
+	"expense-statistics-server/internal/modules/exchange"
 	"expense-statistics-server/internal/modules/identity"
 	"expense-statistics-server/internal/modules/invitation"
+	"expense-statistics-server/internal/modules/ledger"
 	"expense-statistics-server/internal/platform/clock"
 	"expense-statistics-server/internal/platform/config"
 	"expense-statistics-server/internal/platform/db"
@@ -62,28 +64,30 @@ func registerSystemRoutes(r *gin.Engine, deps Deps) {
 func registerModuleRoutes(r *gin.Engine, deps Deps) {
 	v1 := r.Group("/api/v1")
 	jwtService := jwt.New(deps.Config.JWTSecret)
-	// 注册identity模块的路由
+
 	identityService := identity.NewService(identity.Deps{DB: deps.DB, Logger: deps.Logger, Clock: deps.Clock, JWT: jwtService, Mail: mail.NewSender(deps.Config.Mail)})
 	identity.RegisterRoutes(v1.Group("/identity"), identityService)
 
 	authorizationService := authorization.NewService(authorization.Deps{DB: deps.DB, Logger: deps.Logger})
 	invitationRepo := invitation.NewRepository(deps.DB)
 	invitationService := invitation.NewService(invitationRepo, authorizationService)
-	// 注册invitation模块的公开路由，包含根据token获取invitation详情的接口
 	invitation.RegisterPublicRoutes(v1.Group("/invitations"), invitationService)
 
-	// 设置需要认证的路由组
+	exchangeRepo := exchange.NewRepository(deps.DB)
+	exchangeService := exchange.NewService(exchangeRepo)
+
 	protected := v1.Group("")
 	protected.Use(middleware.Authenticate(jwtService))
-	
-	// 注册authorization模块的路由
+
 	authorization.RegisterRoutes(protected.Group("/authorization"), authorizationService)
-	
-	// 注册accountbook模块的路由
+
 	accountbookRepo := accountbook.NewRepository(deps.DB)
 	accountbookService := accountbook.NewService(accountbookRepo, authorizationService, invitationService)
 	accountbook.RegisterRoutes(protected.Group("/account-books"), accountbookService)
 
-	// 注册invitation模块的受保护路由，包含创建invitation和接受invitation的接口
+	ledgerRepo := ledger.NewRepository(deps.DB)
+	ledgerService := ledger.NewService(ledgerRepo, authorizationService, exchangeService)
+	ledger.RegisterRoutes(protected.Group("/account-books"), ledgerService)
+
 	invitation.RegisterProtectedRoutes(protected.Group("/invitations"), invitationService)
 }

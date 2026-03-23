@@ -1,0 +1,304 @@
+package ledger
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"strings"
+	"time"
+
+	"expense-statistics-server/internal/platform/db"
+
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgconn"
+	"gorm.io/gorm"
+)
+
+type CreateCategoryParams struct {
+	AccountBookID   uuid.UUID
+	Name            string
+	Description     *string
+	IsMergeCategory bool
+	Color           string
+}
+
+type UpdateCategoryParams struct {
+	AccountBookID   uuid.UUID
+	CategoryID      uuid.UUID
+	Name            string
+	Description     *string
+	IsMergeCategory bool
+	Color           string
+}
+
+type CreateExpenseParams struct {
+	AccountBookID    uuid.UUID
+	UserID           uuid.UUID
+	CategoryID       uuid.UUID
+	ExpenseType      string
+	ParentID         *uuid.UUID
+	Name             string
+	Description      *string
+	OriginalAmount   string
+	OriginalCurrency string
+	ExchangeRateUsed string
+	ConvertedAmount  string
+	SpentAt          time.Time
+}
+
+type ListExpensesParams struct {
+	AccountBookID uuid.UUID
+	DateFrom      *time.Time
+	DateTo        *time.Time
+	CategoryID    *uuid.UUID
+	Keyword       *string
+	Limit         int
+	Offset        int
+}
+
+type Repository struct{ db *gorm.DB }
+
+func NewRepository(database *db.Database) *Repository { return &Repository{db: database.Gorm} }
+func (r *Repository) WithTx(tx *gorm.DB) *Repository  { return &Repository{db: tx} }
+func (r *Repository) Transaction(ctx context.Context, fn func(repo *Repository) error) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error { return fn(r.WithTx(tx)) })
+}
+
+func (r *Repository) GetAccountBookBaseCurrency(ctx context.Context, accountBookID uuid.UUID) (string, error) {
+	var currency string
+	err := r.db.WithContext(ctx).Raw(`SELECT base_currency FROM account_books WHERE id = ? AND deleted_at IS NULL LIMIT 1`, accountBookID).Scan(&currency).Error
+	if err != nil {
+		return "", err
+	}
+	if currency == "" {
+		return "", gorm.ErrRecordNotFound
+	}
+	return currency, nil
+}
+
+func (r *Repository) ListCategories(ctx context.Context, accountBookID uuid.UUID) ([]ExpenseCategoryRecord, error) {
+	var records []ExpenseCategoryRecord
+	err := r.db.WithContext(ctx).Raw(`
+        SELECT id, account_book_id, name, description, is_merge_category, color, is_system_seed, created_at, updated_at
+        FROM expense_categories
+        WHERE account_book_id = ? AND deleted_at IS NULL
+        ORDER BY is_system_seed DESC, is_merge_category ASC, name ASC
+    `, accountBookID).Scan(&records).Error
+	return records, err
+}
+
+func (r *Repository) GetCategoryByID(ctx context.Context, accountBookID uuid.UUID, categoryID uuid.UUID) (*ExpenseCategoryRecord, error) {
+	var record ExpenseCategoryRecord
+	err := r.db.WithContext(ctx).Raw(`
+        SELECT id, account_book_id, name, description, is_merge_category, color, is_system_seed, created_at, updated_at
+        FROM expense_categories
+        WHERE account_book_id = ? AND id = ? AND deleted_at IS NULL
+        LIMIT 1
+    `, accountBookID, categoryID).Scan(&record).Error
+	if err != nil {
+		return nil, err
+	}
+	if record.ID == uuid.Nil {
+		return nil, gorm.ErrRecordNotFound
+	}
+	return &record, nil
+}
+
+func (r *Repository) CreateCategory(ctx context.Context, params CreateCategoryParams) (*ExpenseCategoryRecord, error) {
+	var record ExpenseCategoryRecord
+	err := r.db.WithContext(ctx).Raw(`
+        INSERT INTO expense_categories (account_book_id, name, description, is_merge_category, color)
+        VALUES (?, ?, ?, ?, ?)
+        RETURNING id, account_book_id, name, description, is_merge_category, color, is_system_seed, created_at, updated_at
+    `, params.AccountBookID, params.Name, params.Description, params.IsMergeCategory, params.Color).Scan(&record).Error
+	if err != nil {
+		return nil, err
+	}
+	return &record, nil
+}
+
+func (r *Repository) UpdateCategory(ctx context.Context, params UpdateCategoryParams) (*ExpenseCategoryRecord, error) {
+	var record ExpenseCategoryRecord
+	err := r.db.WithContext(ctx).Raw(`
+        UPDATE expense_categories
+        SET name = ?, description = ?, is_merge_category = ?, color = ?, updated_at = now()
+        WHERE account_book_id = ? AND id = ? AND deleted_at IS NULL
+        RETURNING id, account_book_id, name, description, is_merge_category, color, is_system_seed, created_at, updated_at
+    `, params.Name, params.Description, params.IsMergeCategory, params.Color, params.AccountBookID, params.CategoryID).Scan(&record).Error
+	if err != nil {
+		return nil, err
+	}
+	if record.ID == uuid.Nil {
+		return nil, gorm.ErrRecordNotFound
+	}
+	return &record, nil
+}
+
+func (r *Repository) SoftDeleteCategory(ctx context.Context, accountBookID uuid.UUID, categoryID uuid.UUID) error {
+	result := r.db.WithContext(ctx).Exec(`UPDATE expense_categories SET deleted_at = now(), updated_at = now() WHERE account_book_id = ? AND id = ? AND deleted_at IS NULL`, accountBookID, categoryID)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
+}
+
+func (r *Repository) CountActiveExpensesByCategory(ctx context.Context, accountBookID uuid.UUID, categoryID uuid.UUID) (int64, error) {
+	var count int64
+	err := r.db.WithContext(ctx).Raw(`
+        SELECT COUNT(*)
+        FROM expenses
+        WHERE account_book_id = ? AND category_id = ? AND deleted_at IS NULL
+    `, accountBookID, categoryID).Scan(&count).Error
+	return count, err
+}
+
+func (r *Repository) CreateExpense(ctx context.Context, params CreateExpenseParams) (*ExpenseRecord, error) {
+	var record ExpenseRecord
+	err := r.db.WithContext(ctx).Raw(`
+        INSERT INTO expenses (
+            account_book_id, user_id, category_id, expense_type, parent_id, name, description,
+            original_amount, original_currency, exchange_rate_used, converted_amount, spent_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, CAST(? AS numeric(12,2)), ?, CAST(? AS numeric(12,6)), CAST(? AS numeric(12,2)), ?)
+        RETURNING id, account_book_id, user_id, category_id, expense_type, parent_id, name, description,
+                  original_amount::text AS original_amount, original_currency,
+                  exchange_rate_used::text AS exchange_rate_used, converted_amount::text AS converted_amount,
+                  spent_at, created_at, updated_at
+    `, params.AccountBookID, params.UserID, params.CategoryID, params.ExpenseType, params.ParentID, params.Name, params.Description,
+		params.OriginalAmount, params.OriginalCurrency, params.ExchangeRateUsed, params.ConvertedAmount, params.SpentAt.Format("2006-01-02")).Scan(&record).Error
+	if err != nil {
+		return nil, err
+	}
+	return &record, nil
+}
+
+func (r *Repository) CountRootExpenses(ctx context.Context, params ListExpensesParams) (int64, error) {
+	query := r.rootExpenseBaseQuery(ctx, params)
+	var count int64
+	err := query.Count(&count).Error
+	return count, err
+}
+
+func (r *Repository) ListRootExpenses(ctx context.Context, params ListExpensesParams) ([]ExpenseRecord, error) {
+	records := make([]ExpenseRecord, 0)
+	query := r.rootExpenseBaseQuery(ctx, params).
+		Select(`
+            e.id,
+            e.account_book_id,
+            e.user_id,
+            e.category_id,
+            e.expense_type,
+            e.parent_id,
+            e.name,
+            e.description,
+            e.original_amount::text AS original_amount,
+            e.original_currency,
+            e.exchange_rate_used::text AS exchange_rate_used,
+            e.converted_amount::text AS converted_amount,
+            e.spent_at,
+            e.created_at,
+            e.updated_at,
+            COALESCE(child_counts.children_count, 0) AS children_count
+        `).
+		Order("e.spent_at DESC").
+		Order("e.created_at DESC").
+		Order("e.id DESC").
+		Limit(params.Limit).
+		Offset(params.Offset)
+	err := query.Scan(&records).Error
+	return records, err
+}
+
+func (r *Repository) GetExpenseByID(ctx context.Context, accountBookID uuid.UUID, expenseID uuid.UUID) (*ExpenseRecord, error) {
+	var record ExpenseRecord
+	err := r.db.WithContext(ctx).Raw(`
+        SELECT e.id, e.account_book_id, e.user_id, e.category_id, e.expense_type, e.parent_id, e.name, e.description,
+               e.original_amount::text AS original_amount, e.original_currency,
+               e.exchange_rate_used::text AS exchange_rate_used, e.converted_amount::text AS converted_amount,
+               e.spent_at, e.created_at, e.updated_at,
+               COALESCE(child_counts.children_count, 0) AS children_count
+        FROM expenses e
+        LEFT JOIN (
+            SELECT parent_id, COUNT(*) AS children_count
+            FROM expenses
+            WHERE deleted_at IS NULL AND expense_type = 'merged_child'
+            GROUP BY parent_id
+        ) child_counts ON child_counts.parent_id = e.id
+        WHERE e.account_book_id = ? AND e.id = ? AND e.deleted_at IS NULL
+        LIMIT 1
+    `, accountBookID, expenseID).Scan(&record).Error
+	if err != nil {
+		return nil, err
+	}
+	if record.ID == uuid.Nil {
+		return nil, gorm.ErrRecordNotFound
+	}
+	return &record, nil
+}
+
+func (r *Repository) ListChildrenByParentID(ctx context.Context, accountBookID uuid.UUID, parentID uuid.UUID) ([]ExpenseRecord, error) {
+	var records []ExpenseRecord
+	err := r.db.WithContext(ctx).Raw(`
+        SELECT id, account_book_id, user_id, category_id, expense_type, parent_id, name, description,
+               original_amount::text AS original_amount, original_currency,
+               exchange_rate_used::text AS exchange_rate_used, converted_amount::text AS converted_amount,
+               spent_at, created_at, updated_at,
+               0 AS children_count
+        FROM expenses
+        WHERE account_book_id = ? AND parent_id = ? AND deleted_at IS NULL
+        ORDER BY created_at ASC, id ASC
+    `, accountBookID, parentID).Scan(&records).Error
+	return records, err
+}
+
+func (r *Repository) rootExpenseBaseQuery(ctx context.Context, params ListExpensesParams) *gorm.DB {
+	query := r.db.WithContext(ctx).Table("expenses AS e").
+		Joins(`LEFT JOIN (
+            SELECT parent_id, COUNT(*) AS children_count
+            FROM expenses
+            WHERE deleted_at IS NULL AND expense_type = 'merged_child'
+            GROUP BY parent_id
+        ) child_counts ON child_counts.parent_id = e.id`).
+		Where("e.account_book_id = ?", params.AccountBookID).
+		Where("e.deleted_at IS NULL").
+		Where("e.parent_id IS NULL")
+	if params.DateFrom != nil {
+		query = query.Where("e.spent_at >= ?", params.DateFrom.Format("2006-01-02"))
+	}
+	if params.DateTo != nil {
+		query = query.Where("e.spent_at <= ?", params.DateTo.Format("2006-01-02"))
+	}
+	if params.CategoryID != nil {
+		query = query.Where("e.category_id = ?", *params.CategoryID)
+	}
+	if params.Keyword != nil && strings.TrimSpace(*params.Keyword) != "" {
+		keyword := "%" + strings.TrimSpace(*params.Keyword) + "%"
+		query = query.Where("(e.name ILIKE ? OR COALESCE(e.description, '') ILIKE ?)", keyword, keyword)
+	}
+	return query
+}
+
+func isNotFound(err error) bool { return errors.Is(err, gorm.ErrRecordNotFound) }
+
+func isUniqueViolation(err error) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == "23505"
+}
+
+func wrapRepoError(message string, err error) *AppError {
+	return internalError(fmt.Sprintf("%s: %v", message, err))
+}
+
+func normalizeDescription(description *string) *string {
+	if description == nil {
+		return nil
+	}
+	value := strings.TrimSpace(*description)
+	if value == "" {
+		return nil
+	}
+	return &value
+}
