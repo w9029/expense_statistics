@@ -1,0 +1,13 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "types": ["vite/client"],
+    "paths": {
+      "@/*": ["src/*"],
+      "@expense-statistics/api-client": ["../../packages/api-client/src/index.ts"],
+      "@expense-statistics/domain": ["../../packages/domain/src/index.ts"]
+    }
+  },
+  "include": ["src"]
+}

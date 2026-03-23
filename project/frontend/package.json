@@ -1,0 +1,12 @@
+{
+  "name": "expense-statistics-frontend",
+  "private": true,
+  "version": "0.0.0",
+  "packageManager": "pnpm@10.32.1",
+  "scripts": {
+    "dev": "pnpm --filter @expense-statistics/web dev",
+    "build": "pnpm --filter @expense-statistics/web build",
+    "preview": "pnpm --filter @expense-statistics/web preview",
+    "typecheck": "pnpm --filter @expense-statistics/web typecheck"
+  }
+}

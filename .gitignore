@@ -23,3 +23,9 @@ go.work
 # IDE
 .vscode/
 .idea/
+
+node_modules
+dist
+.turbo
+.pnpm-store
+.DS_Store

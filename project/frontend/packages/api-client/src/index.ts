@@ -1,0 +1,280 @@
+import type {
+  AccountBookDetail,
+  AccountBookSummary,
+  AuthSession,
+  ExpenseCategory,
+  ExpenseList,
+  Expense,
+  MergedExpenseCreateResult,
+  User,
+  VerificationResult,
+} from "@expense-statistics/domain";
+
+export type ApiEnvelope<T> = {
+  ok: boolean;
+  data: T;
+  request_id: string;
+};
+
+export class ApiError extends Error {
+  status: number;
+  code: string;
+
+  constructor(status: number, code: string, message: string) {
+    super(message);
+    this.status = status;
+    this.code = code;
+  }
+}
+
+type RequestOptions = {
+  method?: string;
+  body?: unknown;
+  accessToken?: string | null;
+};
+
+type ApiClientOptions = {
+  apiBaseUrl: string;
+};
+
+export type HealthPayload = {
+  app: string;
+  env: string;
+  now: string;
+};
+
+export type LoginInput = {
+  email: string;
+  password: string;
+};
+
+export type SendVerificationCodeInput = {
+  email: string;
+  purpose: string;
+};
+
+export type VerifyCodeInput = {
+  email: string;
+  purpose: string;
+  code: string;
+};
+
+export type RegisterInput = {
+  email: string;
+  name: string;
+  password: string;
+  preferred_currency: string;
+  verification_token: string;
+};
+
+export type UpdateProfileInput = {
+  name: string;
+  preferred_currency: string;
+  avatar_path: string | null;
+};
+
+export type UpdateDefaultAccountBookInput = {
+  default_account_book_id: string | null;
+};
+
+export type UpdateAccountBookInput = {
+  name: string;
+  description: string | null;
+};
+
+export type ListExpensesInput = {
+  page?: number;
+  page_size?: number;
+  include_children?: boolean;
+  keyword?: string;
+  category_ids?: string[];
+  original_currency?: string;
+  spent_at_order?: "asc" | "desc";
+};
+
+export type CreateNormalExpenseInput = {
+  category_id: string;
+  name: string;
+  description: string | null;
+  original_amount: string;
+  original_currency: string;
+  spent_at: string;
+};
+
+export type CreateMergedExpenseInput = {
+  parent: {
+    category_id: string;
+    name: string;
+    description: string | null;
+    total_original_amount: string;
+    original_currency: string;
+    spent_at: string;
+  };
+  children_amount_input_mode: "pretax" | "posttax";
+  children: Array<{
+    category_id: string;
+    name: string;
+    description: string | null;
+    amount_input: string;
+  }>;
+};
+
+export function createApiClient(options: ApiClientOptions) {
+  const apiBaseUrl = options.apiBaseUrl.replace(/\/$/, "");
+  const systemBaseUrl = apiBaseUrl.replace(/\/api\/v1$/, "");
+
+  return {
+    health: () => request<HealthPayload>(`${systemBaseUrl}/healthz`),
+    login: (input: LoginInput) =>
+      request<AuthSession>(`${apiBaseUrl}/identity/login`, {
+        method: "POST",
+        body: input,
+      }),
+    sendVerificationCode: (input: SendVerificationCodeInput) =>
+      request<{ message: string }>(`${apiBaseUrl}/identity/email-verifications/send`, {
+        method: "POST",
+        body: input,
+      }),
+    verifyCode: (input: VerifyCodeInput) =>
+      request<VerificationResult>(`${apiBaseUrl}/identity/email-verifications/verify`, {
+        method: "POST",
+        body: input,
+      }),
+    register: (input: RegisterInput) =>
+      request<AuthSession>(`${apiBaseUrl}/identity/register`, {
+        method: "POST",
+        body: input,
+      }),
+    refresh: (refreshToken: string) =>
+      request<AuthSession>(`${apiBaseUrl}/identity/refresh`, {
+        method: "POST",
+        body: { refresh_token: refreshToken },
+      }),
+    listAccountBooks: (accessToken: string) =>
+      request<AccountBookSummary[]>(`${apiBaseUrl}/account-books`, {
+        accessToken,
+      }),
+    getAccountBook: (accessToken: string, accountBookId: string) =>
+      request<AccountBookDetail>(`${apiBaseUrl}/account-books/${accountBookId}`, {
+        accessToken,
+      }),
+    listExpenseCategories: (accessToken: string, accountBookId: string) =>
+      request<ExpenseCategory[]>(
+        `${apiBaseUrl}/account-books/${accountBookId}/expense-categories`,
+        {
+          accessToken,
+        },
+      ),
+    listExpenses: (
+      accessToken: string,
+      accountBookId: string,
+      input: ListExpensesInput = {},
+    ) =>
+      request<ExpenseList>(
+        `${apiBaseUrl}/account-books/${accountBookId}/expenses${toQueryString(input)}`,
+        {
+          accessToken,
+        },
+      ),
+    createNormalExpense: (
+      accessToken: string,
+      accountBookId: string,
+      input: CreateNormalExpenseInput,
+    ) =>
+      request<Expense>(`${apiBaseUrl}/account-books/${accountBookId}/expenses/normal`, {
+        method: "POST",
+        body: input,
+        accessToken,
+      }),
+    createMergedExpense: (
+      accessToken: string,
+      accountBookId: string,
+      input: CreateMergedExpenseInput,
+    ) =>
+      request<MergedExpenseCreateResult>(
+        `${apiBaseUrl}/account-books/${accountBookId}/expenses/merged`,
+        {
+          method: "POST",
+          body: input,
+          accessToken,
+        },
+      ),
+    updateAccountBook: (
+      accessToken: string,
+      accountBookId: string,
+      input: UpdateAccountBookInput,
+    ) =>
+      request<AccountBookDetail>(`${apiBaseUrl}/account-books/${accountBookId}`, {
+        method: "PUT",
+        body: input,
+        accessToken,
+      }),
+    updateProfile: (accessToken: string, input: UpdateProfileInput) =>
+      request<User>(`${apiBaseUrl}/identity/me/profile`, {
+        method: "PUT",
+        body: input,
+        accessToken,
+      }),
+    updateDefaultAccountBook: (
+      accessToken: string,
+      input: UpdateDefaultAccountBookInput,
+    ) =>
+      request<User>(`${apiBaseUrl}/identity/me/default-account-book`, {
+        method: "PUT",
+        body: input,
+        accessToken,
+      }),
+  };
+}
+
+async function request<T>(url: string, options: RequestOptions = {}) {
+  const response = await fetch(url, {
+    method: options.method ?? "GET",
+    headers: {
+      Accept: "application/json",
+      ...(options.body !== undefined ? { "Content-Type": "application/json" } : {}),
+      ...(options.accessToken
+        ? { Authorization: `Bearer ${options.accessToken}` }
+        : {}),
+    },
+    body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
+  });
+
+  const json = (await response.json()) as
+    | ApiEnvelope<T>
+    | { ok: false; error: string; message: string; request_id: string };
+
+  if (!response.ok || json.ok === false) {
+    const error = json as { error?: string; message?: string };
+    throw new ApiError(
+      response.status,
+      error.error ?? "request_failed",
+      error.message ?? `request failed: ${response.status}`,
+    );
+  }
+
+  return (json as ApiEnvelope<T>).data;
+}
+
+function toQueryString(
+  input: Record<string, string | number | boolean | string[] | undefined>,
+) {
+  const params = new URLSearchParams();
+
+  Object.entries(input).forEach(([key, value]) => {
+    if (value === undefined) {
+      return;
+    }
+    if (Array.isArray(value)) {
+      if (value.length === 0) {
+        return;
+      }
+      params.set(key, value.join(","));
+      return;
+    }
+    params.set(key, String(value));
+  });
+
+  const query = params.toString();
+  return query ? `?${query}` : "";
+}
