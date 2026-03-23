@@ -120,6 +120,7 @@ CREATE TABLE expenses (
     account_book_id uuid NOT NULL,
     user_id uuid,
     category_id uuid NOT NULL,
+    expense_type text NOT NULL,
     parent_id uuid,
     name text NOT NULL,
     description text,
@@ -138,9 +139,11 @@ CREATE INDEX idx_expenses_account_book_id ON expenses(account_book_id);
 CREATE INDEX idx_expenses_user_id ON expenses(user_id);
 CREATE INDEX idx_expenses_category_id ON expenses(category_id);
 CREATE INDEX idx_expenses_parent_id ON expenses(parent_id);
+ALTER TABLE expenses ADD CONSTRAINT chk_expenses_expense_type 
+    CHECK ((expense_type IN ('normal', 'merged_parent') AND parent_id IS NULL) OR  (expense_type = 'merged_child' AND parent_id IS NOT NULL));
 ALTER TABLE expenses ADD CONSTRAINT chk_expenses_original_currency 
     CHECK (original_currency ~ '^[A-Z]{3}$');
-CREATE INDEX idx_expenses_account_book_id_spent_at ON expenses(account_book_id, spent_at);
+CREATE INDEX idx_expenses_account_book_id_expense_type_spent_at ON expenses(account_book_id, expense_type, spent_at);
 
 
 CREATE TABLE budgets (
