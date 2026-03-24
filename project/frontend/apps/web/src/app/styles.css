@@ -206,6 +206,12 @@ select {
   padding: 20px;
 }
 
+.surface-card-default {
+  background: linear-gradient(135deg, rgba(255, 241, 227, 0.96), rgba(255, 250, 244, 0.98));
+  border-color: rgba(202, 93, 43, 0.24);
+  box-shadow: 0 12px 28px rgba(202, 93, 43, 0.08);
+}
+
 .surface-card h3,
 .detail-card h3 {
   margin: 0 0 10px;
@@ -404,6 +410,11 @@ select {
   color: var(--ink);
   font-size: 0.88rem;
   font-weight: 700;
+}
+
+.badge-default-book {
+  background: rgba(202, 93, 43, 0.14);
+  color: var(--accent-deep);
 }
 
 .badge-tight {
@@ -853,6 +864,14 @@ select {
   margin-top: 8px;
   color: var(--muted);
   font-size: 0.84rem;
+  align-items: center;
+}
+
+.expense-meta-actions {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  margin-left: auto;
 }
 
 .meta-label {

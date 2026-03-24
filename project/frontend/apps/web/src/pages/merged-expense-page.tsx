@@ -296,10 +296,22 @@ export function MergedExpensePage() {
   );
   const amountMode = form.watch("children_amount_input_mode");
   const postTaxDifference = Number((parentTotal - childTotal).toFixed(2));
+  const expectedTaxRate =
+    childTotal > 0 ? Number((((parentTotal - childTotal) / childTotal) * 100).toFixed(2)) : null;
+  const expectedTaxRateTone =
+    expectedTaxRate === null ? "info-banner compact-banner" : expectedTaxRate >= 0 && expectedTaxRate <= 15
+      ? "success-banner compact-banner"
+      : "error-banner compact-banner";
 
   async function submit(mode: SubmitMode) {
     setFlashMessage(null);
     submitModeRef.current = mode;
+    const confirmed = window.confirm(
+      isEditMode ? "Save merged expense?" : "Create merged expense?",
+    );
+    if (!confirmed) {
+      return;
+    }
     await form.handleSubmit(async (values) => {
       await saveMutation.mutateAsync(values);
     })();
@@ -668,6 +680,9 @@ export function MergedExpensePage() {
             </div>
             <div className="info-banner compact-banner">
               Children input sum: {childTotal.toFixed(2)}
+            </div>
+            <div className={expectedTaxRateTone}>
+              Expected tax rate: {expectedTaxRate === null ? "-" : `${expectedTaxRate.toFixed(2)}%`}
             </div>
             {amountMode === "pretax" ? (
               <div className="info-banner compact-banner">

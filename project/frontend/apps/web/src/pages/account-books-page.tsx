@@ -95,6 +95,15 @@ export function AccountBooksPage() {
     },
   });
 
+  const sortedAccountBooks = accountBooksQuery.data
+    ? [...accountBooksQuery.data].sort((left, right) => {
+        if (left.is_default === right.is_default) {
+          return 0;
+        }
+        return left.is_default ? -1 : 1;
+      })
+    : [];
+
   return (
     <section>
       <header className="page-header">
@@ -190,20 +199,22 @@ export function AccountBooksPage() {
         </div>
       ) : null}
 
-      {accountBooksQuery.data?.length ? (
+      {sortedAccountBooks.length ? (
         <div className="card-grid">
-          {accountBooksQuery.data.map((book) => {
+          {sortedAccountBooks.map((book) => {
             const isCurrentMutation = defaultMutation.variables === book.id;
 
             return (
-              <article className="surface-card" key={book.id}>
+              <article
+                className={`surface-card${book.is_default ? " surface-card-default" : ""}`}
+                key={book.id}
+              >
                 <div className="split-header">
                   <div className="badge-row">
                     <span className="badge">{book.my_role}</span>
                     <span className="badge">{book.base_currency}</span>
-                    {book.is_default ? <span className="badge">default</span> : null}
+                    {book.is_default ? <span className="badge badge-default-book">default</span> : null}
                   </div>
-                  <span className="mono">{book.id.slice(0, 8)}</span>
                 </div>
 
                 <h3 style={{ marginTop: 16 }}>{book.name}</h3>

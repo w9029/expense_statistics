@@ -280,6 +280,16 @@ export function AccountBookDetailPage() {
     return memberMap.get(expense.user_id)?.name ?? shortID(expense.user_id);
   }
 
+  function renderExchangeRate(expense: ExpenseSummary) {
+    const baseCurrency = detailQuery.data?.base_currency;
+    if (!baseCurrency || expense.original_currency === baseCurrency) {
+      return null;
+    }
+
+    const numericRate = Number(expense.exchange_rate_used);
+    return `rate ${Number.isFinite(numericRate) ? numericRate.toFixed(2) : expense.exchange_rate_used}`;
+  }
+
   function isPartialMergedExpense(expense: ExpenseSummary) {
     if (!hasCategoryFilter || expense.expense_type !== "merged_parent") {
       return false;
@@ -336,6 +346,9 @@ export function AccountBookDetailPage() {
   function renderExpenseCard(expense: ExpenseSummary) {
     const category = categoryMap.get(expense.category_id);
     const deletingThisExpense = deleteExpenseMutation.isPending && deleteExpenseMutation.variables === expense.id;
+    const exchangeRateLabel = renderExchangeRate(expense);
+    const showConvertedAmount =
+      !!detailQuery.data?.base_currency && expense.original_currency !== detailQuery.data.base_currency;
 
     return (
       <article className="expense-card expense-card-compact" key={expense.id}>
@@ -357,8 +370,8 @@ export function AccountBookDetailPage() {
                   {hasCategoryFilter &&
                   expense.matched_children_count > 0 &&
                   expense.matched_children_count < expense.children_count
-                    ? `${expense.matched_children_count}/${expense.children_count} children`
-                    : `${expense.children_count} children`}
+                    ? `${expense.matched_children_count}/${expense.children_count} records`
+                    : `${expense.children_count} records`}
                 </span>
               ) : null}
               <span className="meta-inline">by {renderMemberName(expense)}</span>
@@ -374,39 +387,39 @@ export function AccountBookDetailPage() {
 
           <div className="expense-main expense-main-right">
             <strong>{formatMoney(expense.original_amount, expense.original_currency)}</strong>
-            <span className="meta-line">
-              {formatMoney(expense.converted_amount, detailQuery.data?.base_currency ?? "JPY")}
-            </span>
+            {showConvertedAmount ? (
+              <span className="meta-line">
+                {formatMoney(expense.converted_amount, detailQuery.data?.base_currency ?? "JPY")}
+              </span>
+            ) : null}
           </div>
         </div>
 
         <div className="expense-meta-row">
           <span>{expense.spent_at}</span>
           <span>{expense.original_currency}</span>
-          <span>rate {expense.exchange_rate_used}</span>
-          <span className="mono">#{shortID(expense.id)}</span>
+          {exchangeRateLabel ? <span>{exchangeRateLabel}</span> : null}
+          {canManageExpenses ? (
+            <div className="expense-meta-actions">
+              <button
+                className="button button-xs"
+                disabled={deletingThisExpense}
+                onClick={() => handleEditExpense(expense)}
+                type="button"
+              >
+                Edit
+              </button>
+              <button
+                className="button button-xs button-danger-strong"
+                disabled={deletingThisExpense}
+                onClick={() => handleDeleteExpense(expense)}
+                type="button"
+              >
+                {deletingThisExpense ? "Deleting..." : "Delete"}
+              </button>
+            </div>
+          ) : null}
         </div>
-
-        {canManageExpenses ? (
-          <div className="helper-row" style={{ justifyContent: "flex-end", marginTop: 8 }}>
-            <button
-              className="button button-xs"
-              disabled={deletingThisExpense}
-              onClick={() => handleEditExpense(expense)}
-              type="button"
-            >
-              Edit
-            </button>
-            <button
-              className="button button-xs button-danger-strong"
-              disabled={deletingThisExpense}
-              onClick={() => handleDeleteExpense(expense)}
-              type="button"
-            >
-              {deletingThisExpense ? "Deleting..." : "Delete"}
-            </button>
-          </div>
-        ) : null}
 
         {expense.children?.length ? (
           <div className="expense-children">
@@ -430,7 +443,6 @@ export function AccountBookDetailPage() {
                       )}
                     </span>
                     <strong>{child.name}</strong>
-                    <span className="meta-line">{child.spent_at}</span>
                     {child.description ? <span className="meta-line">{child.description}</span> : null}
                   </div>
                   <div className="expense-amounts">
@@ -492,18 +504,6 @@ export function AccountBookDetailPage() {
                 to={`/app/account-books/${accountBookId}/categories`}
               >
                 Categories
-              </Link>
-              <Link
-                className="button primary button-sm"
-                to={`/app/account-books/${accountBookId}/expenses/new-normal`}
-              >
-                Add Normal
-              </Link>
-              <Link
-                className="button primary button-sm"
-                to={`/app/account-books/${accountBookId}/expenses/new-merged`}
-              >
-                Add Merged
               </Link>
             </div>
           ) : null}
@@ -778,6 +778,23 @@ export function AccountBookDetailPage() {
                   );
                 })}
               </div>
+
+              {accountBookId && canManageExpenses ? (
+                <div className="helper-row" style={{ justifyContent: "flex-end" }}>
+                  <Link
+                    className="button primary button-sm"
+                    to={`/app/account-books/${accountBookId}/expenses/new-normal`}
+                  >
+                    Add Normal
+                  </Link>
+                  <Link
+                    className="button primary button-sm"
+                    to={`/app/account-books/${accountBookId}/expenses/new-merged`}
+                  >
+                    Add Merged
+                  </Link>
+                </div>
+              ) : null}
             </div>
           </div>
 
