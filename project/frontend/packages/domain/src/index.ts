@@ -89,6 +89,7 @@ export type Expense = {
 
 export type ExpenseSummary = Expense & {
   children_count: number;
+  matched_children_count: number;
   expandable: boolean;
   children?: Expense[];
 };
@@ -98,6 +99,7 @@ export type ExpenseList = {
   page: number;
   page_size: number;
   total: number;
+  total_converted_amount: string;
 };
 
 export type MergedExpenseCreateResult = {

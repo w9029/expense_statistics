@@ -128,14 +128,11 @@ export function AccountBookDetailPage() {
   const totalPages = expensesQuery.data
     ? Math.max(1, Math.ceil(expensesQuery.data.total / expensesQuery.data.page_size))
     : 1;
-  const visibleRootAmount = (expensesQuery.data?.items ?? []).reduce((sum, expense) => {
-    const numeric = Number(expense.converted_amount);
-    return Number.isFinite(numeric) ? sum + numeric : sum;
-  }, 0);
   const mergeCategories = (categoriesQuery.data ?? []).filter((category) => category.is_merge_category);
   const normalCategories = (categoriesQuery.data ?? []).filter(
     (category) => !category.is_merge_category,
   );
+  const hasCategoryFilter = filters.categoryIDs.length > 0;
 
   const updateMutation = useMutation({
     mutationFn: (values: AccountBookFormValues) =>
@@ -204,7 +201,13 @@ export function AccountBookDetailPage() {
                 )}
               </span>
               {expense.expandable ? (
-                <span className="badge badge-tight">{expense.children_count} children</span>
+                <span className="badge badge-tight">
+                  {hasCategoryFilter &&
+                  expense.matched_children_count > 0 &&
+                  expense.matched_children_count < expense.children_count
+                    ? `${expense.matched_children_count}/${expense.children_count} children`
+                    : `${expense.children_count} children`}
+                </span>
               ) : null}
               <span className="meta-inline">by {renderMemberName(expense)}</span>
             </div>
@@ -300,6 +303,12 @@ export function AccountBookDetailPage() {
             <div className="cta-row">
               <Link className="button button-sm" to="/app/account-books">
                 Books
+              </Link>
+              <Link
+                className="button button-sm"
+                to={`/app/account-books/${accountBookId}/categories`}
+              >
+                Categories
               </Link>
               <Link
                 className="button primary button-sm"
@@ -398,7 +407,11 @@ export function AccountBookDetailPage() {
               <span className="badge badge-tight">total {expensesQuery.data?.total ?? 0}</span>
               <span className="badge badge-tight">page {filters.page}</span>
               <span className="badge badge-tight">
-                shown amount {formatMoney(String(visibleRootAmount.toFixed(2)), detailQuery.data?.base_currency ?? "JPY")}
+                total amount{" "}
+                {formatMoney(
+                  expensesQuery.data?.total_converted_amount ?? "0.00",
+                  detailQuery.data?.base_currency ?? "JPY",
+                )}
               </span>
             </div>
           </div>
@@ -585,7 +598,17 @@ export function AccountBookDetailPage() {
         </article>
 
         <article className="detail-card compact-card">
-          <h3>Category Snapshot</h3>
+          <div className="compact-header-row">
+            <div>
+              <h3>Category Snapshot</h3>
+              <p>Use the dedicated category page when you need CRUD operations.</p>
+            </div>
+            {accountBookId ? (
+              <Link className="button button-sm" to={`/app/account-books/${accountBookId}/categories`}>
+                Manage
+              </Link>
+            ) : null}
+          </div>
           <div className="stack-sm">
             <div>
               <strong>Merge</strong>

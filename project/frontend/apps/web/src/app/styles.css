@@ -452,10 +452,28 @@ select {
   color: var(--accent-deep);
 }
 
+.button-danger-strong {
+  background: linear-gradient(135deg, #e07a59 0%, #ab2f1c 100%);
+  color: #fff8f4;
+  border-color: rgba(124, 46, 14, 0.12);
+}
+
 .button-accent-soft {
   background: linear-gradient(135deg, #f0c78e 0%, #dd9961 100%);
   color: #4d2712;
   border-color: rgba(124, 46, 14, 0.08);
+}
+
+.button-earth {
+  background: linear-gradient(135deg, #c7d1ae 0%, #8ba173 100%);
+  color: #22311e;
+  border-color: rgba(34, 49, 30, 0.08);
+}
+
+.button-muted {
+  background: linear-gradient(135deg, #efebe4 0%, #d8d0c6 100%);
+  color: #4f4941;
+  border-color: rgba(79, 73, 65, 0.08);
 }
 
 .button-sm {
@@ -523,6 +541,22 @@ select {
   display: flex;
   gap: 12px;
   flex-wrap: wrap;
+}
+
+.form-actions-end {
+  justify-content: flex-end;
+}
+
+.form-actions-split {
+  align-items: center;
+  justify-content: space-between;
+}
+
+.form-actions-group {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
 }
 
 .split-header {
@@ -882,6 +916,51 @@ select {
   grid-template-columns: minmax(0, 1.45fr) minmax(300px, 0.75fr);
 }
 
+.category-page-grid {
+  display: grid;
+  grid-template-columns: minmax(320px, 0.9fr) minmax(0, 1.1fr);
+  gap: 18px;
+}
+
+.category-list {
+  display: grid;
+  gap: 10px;
+}
+
+.category-list-section {
+  display: grid;
+  gap: 10px;
+}
+
+.category-item {
+  width: 100%;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: rgba(255, 250, 244, 0.6);
+  text-align: left;
+  cursor: pointer;
+}
+
+.category-item.active {
+  background: rgba(202, 93, 43, 0.12);
+  border-color: rgba(202, 93, 43, 0.24);
+}
+
+.category-item-main {
+  display: grid;
+  gap: 8px;
+}
+
+.category-item-header,
+.category-preview-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
 .title-row {
   display: flex;
   align-items: center;
@@ -957,6 +1036,7 @@ select {
   .hero-grid,
   .detail-grid,
   .detail-grid-ledger,
+  .category-page-grid,
   .summary-grid,
   .surface-grid,
   .metric-strip,

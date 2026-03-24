@@ -286,32 +286,36 @@ export function NormalExpensePage() {
               </div>
             ) : null}
 
-            <div className="form-actions">
-              <button
-                className="button primary button-sm"
-                disabled={createMutation.isPending || normalCategories.length === 0}
-                onClick={() => {
-                  submitModeRef.current = "back";
-                }}
-                type="submit"
-              >
-                {createMutation.isPending && submitModeRef.current === "back"
-                  ? "Creating..."
-                  : "Create Expense"}
-              </button>
-              <button
-                className="button button-sm button-accent-soft"
-                disabled={createMutation.isPending || normalCategories.length === 0}
-                onClick={() => void submit("next")}
-                type="button"
-              >
-                {createMutation.isPending && submitModeRef.current === "next"
-                  ? "Creating..."
-                  : "Create Expense And Next"}
-              </button>
-              <Link className="button button-sm" to={`/app/account-books/${accountBookId}`}>
-                Cancel
-              </Link>
+            <div className="form-actions form-actions-split">
+              <div className="form-actions-group">
+                <Link className="button button-sm button-muted" to={`/app/account-books/${accountBookId}`}>
+                  Cancel
+                </Link>
+              </div>
+              <div className="form-actions-group">
+                <button
+                  className="button button-sm button-accent-soft"
+                  disabled={createMutation.isPending || normalCategories.length === 0}
+                  onClick={() => void submit("next")}
+                  type="button"
+                >
+                  {createMutation.isPending && submitModeRef.current === "next"
+                    ? "Creating..."
+                    : "Create Expense And Next"}
+                </button>
+                <button
+                  className="button primary button-sm"
+                  disabled={createMutation.isPending || normalCategories.length === 0}
+                  onClick={() => {
+                    submitModeRef.current = "back";
+                  }}
+                  type="submit"
+                >
+                  {createMutation.isPending && submitModeRef.current === "back"
+                    ? "Creating..."
+                    : "Create Expense"}
+                </button>
+              </div>
             </div>
           </form>
         </article>

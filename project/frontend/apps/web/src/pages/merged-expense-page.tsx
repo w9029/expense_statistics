@@ -64,6 +64,7 @@ export function MergedExpensePage() {
   const queryClient = useQueryClient();
   const { showToast } = useToast();
   const submitModeRef = useRef<SubmitMode>("back");
+  const formBottomRef = useRef<HTMLDivElement | null>(null);
   const [flashMessage, setFlashMessage] = useState<{
     tone: "success" | "error";
     text: string;
@@ -205,8 +206,24 @@ export function MergedExpensePage() {
       return;
     }
 
+    if (event.altKey) {
+      event.preventDefault();
+      appendChildAndScroll();
+      return;
+    }
+
     event.preventDefault();
     void submit(event.ctrlKey || event.metaKey ? "next" : "back");
+  }
+
+  function appendChildAndScroll() {
+    append(emptyChild());
+    window.setTimeout(() => {
+      formBottomRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "end",
+      });
+    }, 0);
   }
 
   return (
@@ -354,13 +371,6 @@ export function MergedExpensePage() {
                   <h3>Child Items</h3>
                   <p>Each row is a line item under the merged parent.</p>
                 </div>
-                <button
-                  className="button button-sm"
-                  onClick={() => append(emptyChild())}
-                  type="button"
-                >
-                  Add Child
-                </button>
               </div>
 
               <div className="stack-sm">
@@ -433,7 +443,7 @@ export function MergedExpensePage() {
 
                       <div className="child-row-actions">
                         <button
-                          className="button danger button-sm"
+                          className="button button-danger-strong button-sm"
                           disabled={fields.length === 1}
                           onClick={() => remove(index)}
                           type="button"
@@ -455,41 +465,53 @@ export function MergedExpensePage() {
               </div>
             ) : null}
 
-            <div className="form-actions">
-              <button
-                className="button primary button-sm"
-                disabled={
-                  createMutation.isPending ||
-                  mergeCategories.length === 0 ||
-                  normalCategories.length === 0
-                }
-                onClick={() => {
-                  submitModeRef.current = "back";
-                }}
-                type="submit"
-              >
-                {createMutation.isPending && submitModeRef.current === "back"
-                  ? "Creating..."
-                  : "Create Merged Expense"}
-              </button>
-              <button
-                className="button button-sm button-accent-soft"
-                disabled={
-                  createMutation.isPending ||
-                  mergeCategories.length === 0 ||
-                  normalCategories.length === 0
-                }
-                onClick={() => void submit("next")}
-                type="button"
-              >
-                {createMutation.isPending && submitModeRef.current === "next"
-                  ? "Creating..."
-                  : "Create Merged And Next"}
-              </button>
-              <Link className="button button-sm" to={`/app/account-books/${accountBookId}`}>
-                Cancel
-              </Link>
+            <div className="form-actions form-actions-split">
+              <div className="form-actions-group">
+                <Link className="button button-sm button-muted" to={`/app/account-books/${accountBookId}`}>
+                  Cancel
+                </Link>
+                <button
+                  className="button button-sm button-earth"
+                  onClick={appendChildAndScroll}
+                  type="button"
+                >
+                  Add Child Expense
+                </button>
+              </div>
+              <div className="form-actions-group">
+                <button
+                  className="button button-sm button-accent-soft"
+                  disabled={
+                    createMutation.isPending ||
+                    mergeCategories.length === 0 ||
+                    normalCategories.length === 0
+                  }
+                  onClick={() => void submit("next")}
+                  type="button"
+                >
+                  {createMutation.isPending && submitModeRef.current === "next"
+                    ? "Creating..."
+                    : "Create Merged And Next"}
+                </button>
+                <button
+                  className="button primary button-sm"
+                  disabled={
+                    createMutation.isPending ||
+                    mergeCategories.length === 0 ||
+                    normalCategories.length === 0
+                  }
+                  onClick={() => {
+                    submitModeRef.current = "back";
+                  }}
+                  type="submit"
+                >
+                  {createMutation.isPending && submitModeRef.current === "back"
+                    ? "Creating..."
+                    : "Create Merged Expense"}
+                </button>
+              </div>
             </div>
+            <div ref={formBottomRef} />
           </form>
         </article>
 
