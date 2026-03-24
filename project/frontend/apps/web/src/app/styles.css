@@ -825,7 +825,7 @@ select {
 .expense-main {
   min-width: 0;
   display: grid;
-  gap: 6px;
+  gap: 3px;
 }
 
 .expense-main-right {
@@ -861,7 +861,7 @@ select {
   display: flex;
   gap: 14px;
   flex-wrap: wrap;
-  margin-top: 8px;
+  margin-top: 0px;
   color: var(--muted);
   font-size: 0.84rem;
   align-items: center;
