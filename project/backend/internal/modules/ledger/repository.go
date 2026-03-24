@@ -230,6 +230,36 @@ func (r *Repository) CountRootExpenses(ctx context.Context, params ListExpensesP
 	return count, err
 }
 
+func (r *Repository) SumRootExpensesConvertedAmount(ctx context.Context, params ListExpensesParams) (string, error) {
+	type aggregateResult struct {
+		TotalConvertedAmount string
+	}
+
+	query := r.rootExpenseBaseQuery(ctx, params)
+	result := aggregateResult{}
+	if len(params.CategoryIDs) > 0 {
+		err := query.
+			Select(`
+                COALESCE(
+                    SUM(
+                        CASE
+                            WHEN e.category_id IN ? THEN e.converted_amount
+                            ELSE COALESCE(matched_child_counts.matched_children_converted_amount, 0)
+                        END
+                    ),
+                    0
+                )::text AS total_converted_amount
+            `, params.CategoryIDs).
+			Scan(&result).Error
+		return result.TotalConvertedAmount, err
+	}
+
+	err := query.
+		Select(`COALESCE(SUM(e.converted_amount), 0)::text AS total_converted_amount`).
+		Scan(&result).Error
+	return result.TotalConvertedAmount, err
+}
+
 func (r *Repository) ListRootExpenses(ctx context.Context, params ListExpensesParams) ([]ExpenseRecord, error) {
 	records := make([]ExpenseRecord, 0)
 	spentAtOrder := "DESC"
@@ -257,7 +287,9 @@ func (r *Repository) ListRootExpenses(ctx context.Context, params ListExpensesPa
             e.spent_at,
             e.created_at,
             e.updated_at,
-            COALESCE(child_counts.children_count, 0) AS children_count
+            COALESCE(child_counts.children_count, 0) AS children_count,
+            COALESCE(matched_child_counts.matched_children_count, 0) AS matched_children_count,
+            COALESCE(matched_child_counts.matched_children_converted_amount, 0)::text AS matched_children_converted_amount
         `).
 		Order("e.spent_at " + spentAtOrder).
 		Order("e.created_at " + createdAtOrder).
@@ -296,18 +328,11 @@ func (r *Repository) GetExpenseByID(ctx context.Context, accountBookID uuid.UUID
 }
 
 func (r *Repository) ListChildrenByParentID(ctx context.Context, accountBookID uuid.UUID, parentID uuid.UUID) ([]ExpenseRecord, error) {
-	var records []ExpenseRecord
-	err := r.db.WithContext(ctx).Raw(`
-        SELECT id, account_book_id, user_id, category_id, expense_type, parent_id, name, description,
-               original_amount::text AS original_amount, original_currency,
-               exchange_rate_used::text AS exchange_rate_used, converted_amount::text AS converted_amount,
-               spent_at, created_at, updated_at,
-               0 AS children_count
-        FROM expenses
-        WHERE account_book_id = ? AND parent_id = ? AND deleted_at IS NULL
-        ORDER BY created_at ASC, id ASC
-	`, accountBookID, parentID).Scan(&records).Error
-	return records, err
+	return r.listChildrenByParentID(ctx, accountBookID, parentID, nil)
+}
+
+func (r *Repository) ListChildrenByParentIDMatchingCategories(ctx context.Context, accountBookID uuid.UUID, parentID uuid.UUID, categoryIDs []uuid.UUID) ([]ExpenseRecord, error) {
+	return r.listChildrenByParentID(ctx, accountBookID, parentID, categoryIDs)
 }
 
 func (r *Repository) SoftDeleteExpenseByID(ctx context.Context, accountBookID uuid.UUID, expenseID uuid.UUID) error {
@@ -334,13 +359,15 @@ func (r *Repository) SoftDeleteChildrenByParentID(ctx context.Context, accountBo
 }
 
 func (r *Repository) rootExpenseBaseQuery(ctx context.Context, params ListExpensesParams) *gorm.DB {
+	childCountSubquery := r.db.Table("expenses").
+		Select("parent_id, COUNT(*) AS children_count").
+		Where("deleted_at IS NULL AND expense_type = ?", "merged_child").
+		Group("parent_id")
+	matchedChildSubquery := r.matchedChildAggregateSubquery(params)
+
 	query := r.db.WithContext(ctx).Table("expenses AS e").
-		Joins(`LEFT JOIN (
-            SELECT parent_id, COUNT(*) AS children_count
-            FROM expenses
-            WHERE deleted_at IS NULL AND expense_type = 'merged_child'
-            GROUP BY parent_id
-        ) child_counts ON child_counts.parent_id = e.id`).
+		Joins("LEFT JOIN (?) AS child_counts ON child_counts.parent_id = e.id", childCountSubquery).
+		Joins("LEFT JOIN (?) AS matched_child_counts ON matched_child_counts.parent_id = e.id", matchedChildSubquery).
 		Where("e.account_book_id = ?", params.AccountBookID).
 		Where("e.deleted_at IS NULL").
 		Where("e.parent_id IS NULL")
@@ -351,7 +378,7 @@ func (r *Repository) rootExpenseBaseQuery(ctx context.Context, params ListExpens
 		query = query.Where("e.spent_at <= ?", params.DateTo.Format("2006-01-02"))
 	}
 	if len(params.CategoryIDs) > 0 {
-		query = query.Where("e.category_id IN ?", params.CategoryIDs)
+		query = query.Where("(e.category_id IN ? OR COALESCE(matched_child_counts.matched_children_count, 0) > 0)", params.CategoryIDs)
 	}
 	if params.UserID != nil {
 		query = query.Where("e.user_id = ?", *params.UserID)
@@ -370,6 +397,38 @@ func (r *Repository) rootExpenseBaseQuery(ctx context.Context, params ListExpens
 		query = query.Where("(e.name ILIKE ? OR COALESCE(e.description, '') ILIKE ?)", keyword, keyword)
 	}
 	return query
+}
+
+func (r *Repository) matchedChildAggregateSubquery(params ListExpensesParams) *gorm.DB {
+	query := r.db.Table("expenses").
+		Select("parent_id, COUNT(*) AS matched_children_count, COALESCE(SUM(converted_amount), 0) AS matched_children_converted_amount").
+		Where("deleted_at IS NULL AND expense_type = ?", "merged_child")
+	if len(params.CategoryIDs) > 0 {
+		query = query.Where("category_id IN ?", params.CategoryIDs)
+	} else {
+		query = query.Where("1 = 0")
+	}
+	return query.Group("parent_id")
+}
+
+func (r *Repository) listChildrenByParentID(ctx context.Context, accountBookID uuid.UUID, parentID uuid.UUID, categoryIDs []uuid.UUID) ([]ExpenseRecord, error) {
+	var records []ExpenseRecord
+	query := r.db.WithContext(ctx).Table("expenses").
+		Select(`
+            id, account_book_id, user_id, category_id, expense_type, parent_id, name, description,
+            original_amount::text AS original_amount, original_currency,
+            exchange_rate_used::text AS exchange_rate_used, converted_amount::text AS converted_amount,
+            spent_at, created_at, updated_at,
+            0 AS children_count,
+            0 AS matched_children_count,
+            '0' AS matched_children_converted_amount
+        `).
+		Where("account_book_id = ? AND parent_id = ? AND deleted_at IS NULL", accountBookID, parentID)
+	if len(categoryIDs) > 0 {
+		query = query.Where("category_id IN ?", categoryIDs)
+	}
+	err := query.Order("created_at ASC").Order("id ASC").Scan(&records).Error
+	return records, err
 }
 
 func isNotFound(err error) bool { return errors.Is(err, gorm.ErrRecordNotFound) }

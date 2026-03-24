@@ -19,20 +19,22 @@ type ExpenseCategoryRecord struct {
 }
 
 type ExpenseRecord struct {
-	ID               uuid.UUID
-	AccountBookID    uuid.UUID
-	UserID           *uuid.UUID
-	CategoryID       uuid.UUID
-	ExpenseType      string
-	ParentID         *uuid.UUID
-	Name             string
-	Description      *string
-	OriginalAmount   string
-	OriginalCurrency string
-	ExchangeRateUsed string
-	ConvertedAmount  string
-	SpentAt          time.Time
-	CreatedAt        time.Time
-	UpdatedAt        time.Time
-	ChildrenCount    int64
+	ID                             uuid.UUID
+	AccountBookID                  uuid.UUID
+	UserID                         *uuid.UUID
+	CategoryID                     uuid.UUID
+	ExpenseType                    string
+	ParentID                       *uuid.UUID
+	Name                           string
+	Description                    *string
+	OriginalAmount                 string
+	OriginalCurrency               string
+	ExchangeRateUsed               string
+	ConvertedAmount                string
+	SpentAt                        time.Time
+	CreatedAt                      time.Time
+	UpdatedAt                      time.Time
+	ChildrenCount                  int64
+	MatchedChildrenCount           int64
+	MatchedChildrenConvertedAmount string
 }
