@@ -101,6 +101,7 @@ export function AccountBookDetailPage() {
 
   const canEdit =
     detailQuery.data?.my_role === "owner" || detailQuery.data?.my_role === "admin";
+  const canDeleteBook = detailQuery.data?.my_role === "owner";
   const canManageExpenses =
     detailQuery.data?.my_role === "owner" ||
     detailQuery.data?.my_role === "admin" ||
@@ -151,6 +152,28 @@ export function AccountBookDetailPage() {
             ? { ...book, name: updated.name, description: updated.description }
             : book,
         ) ?? current,
+      );
+    },
+  });
+
+  const deleteBookMutation = useMutation({
+    mutationFn: () => apiClient.deleteAccountBook(auth.accessToken!, accountBookId!),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["account-books"] });
+      const currentUser = auth.user;
+      if (currentUser && currentUser.default_account_book_id === accountBookId) {
+        auth.replaceUser({
+          ...currentUser,
+          default_account_book_id: null,
+        });
+      }
+      showToast("Account book deleted.", "success");
+      navigate("/app/account-books");
+    },
+    onError: (error) => {
+      showToast(
+        error instanceof ApiError ? error.message : "Failed to delete the account book",
+        "error",
       );
     },
   });
@@ -291,6 +314,25 @@ export function AccountBookDetailPage() {
     deleteExpenseMutation.mutate(expense.id);
   }
 
+  function handleDeleteBook() {
+    if (!detailQuery.data) {
+      return;
+    }
+
+    const typedName = window.prompt(
+      `Type "${detailQuery.data.name}" to delete this account book.`,
+      "",
+    );
+    if (typedName !== detailQuery.data.name) {
+      if (typedName !== null) {
+        showToast("Account book name did not match. Delete cancelled.", "error");
+      }
+      return;
+    }
+
+    deleteBookMutation.mutate();
+  }
+
   function renderExpenseCard(expense: ExpenseSummary) {
     const category = categoryMap.get(expense.category_id);
     const deletingThisExpense = deleteExpenseMutation.isPending && deleteExpenseMutation.variables === expense.id;
@@ -412,11 +454,21 @@ export function AccountBookDetailPage() {
               <h1>{detailQuery.data?.name ?? "Account Book Workspace"}</h1>
               {canEdit ? (
                 <button
-                  className="button button-icon"
+                  className="button button-sm"
                   onClick={() => setIsEditingMetadata((current) => !current)}
                   type="button"
                 >
                   Edit
+                </button>
+              ) : null}
+              {canDeleteBook ? (
+                <button
+                  className="button button-sm button-muted"
+                  disabled={deleteBookMutation.isPending}
+                  onClick={handleDeleteBook}
+                  type="button"
+                >
+                  {deleteBookMutation.isPending ? "Deleting..." : "Delete Book"}
                 </button>
               ) : null}
             </div>

@@ -48,6 +48,11 @@ export type AccountBookDetail = {
   updated_at: string;
 };
 
+export type DeleteAccountBookResult = {
+  account_book_id: string;
+  deleted: boolean;
+};
+
 export type AccountBookMember = {
   user_id: string;
   name: string;

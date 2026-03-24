@@ -2,6 +2,7 @@ import type {
   AccountBookMember,
   AccountBookDetail,
   AccountBookSummary,
+  DeleteAccountBookResult,
   AuthSession,
   ExpenseCategory,
   ExpenseDetail,
@@ -84,6 +85,12 @@ export type UpdateDefaultAccountBookInput = {
 
 export type UpdateAccountBookInput = {
   name: string;
+  description: string | null;
+};
+
+export type CreateAccountBookInput = {
+  name: string;
+  base_currency: string;
   description: string | null;
 };
 
@@ -177,6 +184,15 @@ export function createApiClient(options: ApiClientOptions) {
       }),
     listAccountBooks: (accessToken: string) =>
       requestWithAuthHandling<AccountBookSummary[]>(`${apiBaseUrl}/account-books`, {
+        accessToken,
+      }),
+    createAccountBook: (
+      accessToken: string,
+      input: CreateAccountBookInput,
+    ) =>
+      requestWithAuthHandling<AccountBookDetail>(`${apiBaseUrl}/account-books`, {
+        method: "POST",
+        body: input,
         accessToken,
       }),
     getAccountBook: (accessToken: string, accountBookId: string) =>
@@ -325,6 +341,14 @@ export function createApiClient(options: ApiClientOptions) {
         body: input,
         accessToken,
       }),
+    deleteAccountBook: (accessToken: string, accountBookId: string) =>
+      requestWithAuthHandling<DeleteAccountBookResult>(
+        `${apiBaseUrl}/account-books/${accountBookId}`,
+        {
+          method: "DELETE",
+          accessToken,
+        },
+      ),
     updateProfile: (accessToken: string, input: UpdateProfileInput) =>
       requestWithAuthHandling<User>(`${apiBaseUrl}/identity/me/profile`, {
         method: "PUT",
