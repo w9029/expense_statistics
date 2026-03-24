@@ -197,6 +197,14 @@ export function AccountBookDetailPage() {
     setFilters(createDefaultExpenseListFilters());
   }
 
+  function clearCategoryFilters() {
+    setFilters((current) => ({
+      ...current,
+      categoryIDs: [],
+      page: 1,
+    }));
+  }
+
   function applyDatePreset(preset: Exclude<ExpenseDatePreset, null>) {
     const range = trailingNaturalDateRange(preset === "last7" ? 7 : 30);
     setFilters((current) => ({
@@ -524,7 +532,6 @@ export function AccountBookDetailPage() {
           <div className="compact-header-row">
             <div>
               <h3>Expense Records</h3>
-              <p>Root expenses are paginated. Merged children stay attached to their parent.</p>
             </div>
             <div className="header-actions-column">
               <div className="badge-row badge-row-tight header-actions-badges">
@@ -538,7 +545,17 @@ export function AccountBookDetailPage() {
                   )}
                 </span>
               </div>
-              {renderPaginationControls()}
+              <div className="top-filter-actions-row">
+                <button
+                  className="button button-sm"
+                  disabled={!hasActiveFilters}
+                  onClick={clearFilters}
+                  type="button"
+                >
+                  Clear All Filters
+                </button>
+                {renderPaginationControls()}
+              </div>
             </div>
           </div>
 
@@ -679,11 +696,14 @@ export function AccountBookDetailPage() {
             <div className="stack-sm">
               <div className="helper-row">
                 <strong>Categories</strong>
-                {hasActiveFilters ? (
-                  <button className="button button-xs" onClick={clearFilters} type="button">
-                    Clear All
-                  </button>
-                ) : null}
+                <button
+                  className="button button-xs"
+                  disabled={filters.categoryIDs.length === 0}
+                  onClick={clearCategoryFilters}
+                  type="button"
+                >
+                  Clear Categories
+                </button>
               </div>
 
               <div className="pill-checklist">

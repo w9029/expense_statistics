@@ -898,6 +898,14 @@ select {
   gap: 12px;
 }
 
+.top-filter-actions-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+
 .header-actions-column {
   display: grid;
   justify-items: end;
@@ -1184,6 +1192,11 @@ select {
   .compact-header-row,
   .title-row {
     flex-direction: column;
+  }
+
+  .top-filter-actions-row {
+    flex-direction: column;
+    align-items: flex-start;
   }
 
   .header-actions-column {
