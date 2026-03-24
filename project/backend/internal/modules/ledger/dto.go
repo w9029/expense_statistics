@@ -117,16 +117,18 @@ type ExpenseResponse struct {
 
 type ExpenseSummaryResponse struct {
 	ExpenseResponse
-	ChildrenCount int64             `json:"children_count"`
-	Expandable    bool              `json:"expandable"`
-	Children      []ExpenseResponse `json:"children,omitempty"`
+	ChildrenCount        int64             `json:"children_count"`
+	MatchedChildrenCount int64             `json:"matched_children_count"`
+	Expandable           bool              `json:"expandable"`
+	Children             []ExpenseResponse `json:"children,omitempty"`
 }
 
 type ExpenseListResponse struct {
-	Items    []ExpenseSummaryResponse `json:"items"`
-	Page     int                      `json:"page"`
-	PageSize int                      `json:"page_size"`
-	Total    int64                    `json:"total"`
+	Items                []ExpenseSummaryResponse `json:"items"`
+	Page                 int                      `json:"page"`
+	PageSize             int                      `json:"page_size"`
+	Total                int64                    `json:"total"`
+	TotalConvertedAmount string                   `json:"total_converted_amount"`
 }
 
 type ExpenseDetailResponse struct {
@@ -184,8 +186,9 @@ func toExpenseResponse(record ExpenseRecord) ExpenseResponse {
 
 func toExpenseSummaryResponse(record ExpenseRecord) ExpenseSummaryResponse {
 	return ExpenseSummaryResponse{
-		ExpenseResponse: toExpenseResponse(record),
-		ChildrenCount:   record.ChildrenCount,
-		Expandable:      record.ExpenseType == "merged_parent" && record.ChildrenCount > 0,
+		ExpenseResponse:      toExpenseResponse(record),
+		ChildrenCount:        record.ChildrenCount,
+		MatchedChildrenCount: record.MatchedChildrenCount,
+		Expandable:           record.ExpenseType == "merged_parent" && record.ChildrenCount > 0,
 	}
 }

@@ -402,15 +402,23 @@ func (s *Service) ListExpenses(ctx context.Context, userID uuid.UUID, accountBoo
 	if err != nil {
 		return nil, wrapRepoError("count expenses", err)
 	}
+	totalConvertedAmount, err := s.repo.SumRootExpensesConvertedAmount(ctx, params)
+	if err != nil {
+		return nil, wrapRepoError("sum expense amounts", err)
+	}
 	records, err := s.repo.ListRootExpenses(ctx, params)
 	if err != nil {
 		return nil, wrapRepoError("list expenses", err)
+	}
+	filteredCategoryIDs := make(map[uuid.UUID]struct{}, len(params.CategoryIDs))
+	for _, categoryID := range params.CategoryIDs {
+		filteredCategoryIDs[categoryID] = struct{}{}
 	}
 	items := make([]ExpenseSummaryResponse, 0, len(records))
 	for _, record := range records {
 		summary := toExpenseSummaryResponse(record)
 		if query.IncludeChildren && record.ExpenseType == "merged_parent" && record.ChildrenCount > 0 {
-			children, err := s.repo.ListChildrenByParentID(ctx, accountBookID, record.ID)
+			children, err := s.listExpenseChildren(ctx, accountBookID, record, filteredCategoryIDs)
 			if err != nil {
 				return nil, wrapRepoError("list merged expense children", err)
 			}
@@ -421,7 +429,13 @@ func (s *Service) ListExpenses(ctx context.Context, userID uuid.UUID, accountBoo
 		}
 		items = append(items, summary)
 	}
-	return &ExpenseListResponse{Items: items, Page: page, PageSize: pageSize, Total: total}, nil
+	return &ExpenseListResponse{
+		Items:                items,
+		Page:                 page,
+		PageSize:             pageSize,
+		Total:                total,
+		TotalConvertedAmount: totalConvertedAmount,
+	}, nil
 }
 
 func (s *Service) GetExpenseDetail(ctx context.Context, userID uuid.UUID, accountBookID uuid.UUID, expenseID uuid.UUID) (*ExpenseDetailResponse, error) {
@@ -706,6 +720,23 @@ func (s *Service) requireRole(ctx context.Context, userID uuid.UUID, accountBook
 		return forbidden("you do not have permission to perform this action")
 	}
 	return nil
+}
+
+func (s *Service) listExpenseChildren(ctx context.Context, accountBookID uuid.UUID, record ExpenseRecord, filteredCategoryIDs map[uuid.UUID]struct{}) ([]ExpenseRecord, error) {
+	if len(filteredCategoryIDs) == 0 {
+		return s.repo.ListChildrenByParentID(ctx, accountBookID, record.ID)
+	}
+	if _, rootCategoryMatched := filteredCategoryIDs[record.CategoryID]; rootCategoryMatched {
+		return s.repo.ListChildrenByParentID(ctx, accountBookID, record.ID)
+	}
+	if record.MatchedChildrenCount == 0 {
+		return []ExpenseRecord{}, nil
+	}
+	categoryIDs := make([]uuid.UUID, 0, len(filteredCategoryIDs))
+	for categoryID := range filteredCategoryIDs {
+		categoryIDs = append(categoryIDs, categoryID)
+	}
+	return s.repo.ListChildrenByParentIDMatchingCategories(ctx, accountBookID, record.ID, categoryIDs)
 }
 
 func mapAuthorizationError(err error) *AppError {
