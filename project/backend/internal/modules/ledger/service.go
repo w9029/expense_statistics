@@ -105,6 +105,16 @@ func (s *Service) UpdateCategory(ctx context.Context, userID uuid.UUID, accountB
 	if err := s.requireRole(ctx, userID, accountBookID, "editor"); err != nil {
 		return nil, err
 	}
+	existing, err := s.repo.GetCategoryByID(ctx, accountBookID, categoryID)
+	if err != nil {
+		if isNotFound(err) {
+			return nil, notFound("expense category not found")
+		}
+		return nil, wrapRepoError("get expense category", err)
+	}
+	if req.IsMergeCategory != existing.IsMergeCategory {
+		return nil, invalidRequest("expense category type cannot be changed after creation")
+	}
 	name := strings.TrimSpace(req.Name)
 	if name == "" {
 		return nil, invalidRequest("name is required")
@@ -118,7 +128,6 @@ func (s *Service) UpdateCategory(ctx context.Context, userID uuid.UUID, accountB
 		CategoryID:      categoryID,
 		Name:            name,
 		Description:     normalizeDescription(req.Description),
-		IsMergeCategory: req.IsMergeCategory,
 		Color:           color,
 	})
 	if err != nil {

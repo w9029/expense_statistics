@@ -27,7 +27,6 @@ type UpdateCategoryParams struct {
 	CategoryID      uuid.UUID
 	Name            string
 	Description     *string
-	IsMergeCategory bool
 	Color           string
 }
 
@@ -139,10 +138,10 @@ func (r *Repository) UpdateCategory(ctx context.Context, params UpdateCategoryPa
 	var record ExpenseCategoryRecord
 	err := r.db.WithContext(ctx).Raw(`
         UPDATE expense_categories
-        SET name = ?, description = ?, is_merge_category = ?, color = ?, updated_at = now()
+        SET name = ?, description = ?, color = ?, updated_at = now()
         WHERE account_book_id = ? AND id = ? AND deleted_at IS NULL
         RETURNING id, account_book_id, name, description, is_merge_category, color, is_system_seed, created_at, updated_at
-    `, params.Name, params.Description, params.IsMergeCategory, params.Color, params.AccountBookID, params.CategoryID).Scan(&record).Error
+    `, params.Name, params.Description, params.Color, params.AccountBookID, params.CategoryID).Scan(&record).Error
 	if err != nil {
 		return nil, err
 	}
