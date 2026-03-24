@@ -16,11 +16,12 @@ import { useToast } from "@/features/feedback/toast-context";
 import { apiClient } from "@/lib/api";
 import {
   buildExpenseListNavigationState,
-  initialExpenseListFilters,
+  createDefaultExpenseListFilters,
   readExpenseListFiltersFromState,
+  type ExpenseDatePreset,
   type ExpenseListFilters,
 } from "@/lib/expense-list-navigation";
-import { formatMoney, shortID } from "@/lib/ledger";
+import { formatMoney, shortID, trailingNaturalDateRange } from "@/lib/ledger";
 
 const accountBookSchema = z.object({
   name: z.string().trim().min(1, "Name is required").max(100, "Name is too long"),
@@ -37,7 +38,7 @@ export function AccountBookDetailPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [filters, setFilters] = useState<ExpenseListFilters>(
-    () => readExpenseListFiltersFromState(location.state) ?? initialExpenseListFilters,
+    () => readExpenseListFiltersFromState(location.state) ?? createDefaultExpenseListFilters(),
   );
   const [isEditingMetadata, setIsEditingMetadata] = useState(false);
   const form = useForm<AccountBookFormValues>({
@@ -108,6 +109,17 @@ export function AccountBookDetailPage() {
   const categoryMap = new Map(
     (categoriesQuery.data ?? []).map((category) => [category.id, category] as const),
   );
+  const defaultFilters = createDefaultExpenseListFilters();
+  const hasActiveFilters =
+    filters.keyword !== defaultFilters.keyword ||
+    filters.originalCurrency !== defaultFilters.originalCurrency ||
+    filters.categoryIDs.length > 0 ||
+    filters.userID !== defaultFilters.userID ||
+    filters.minAmount !== defaultFilters.minAmount ||
+    filters.maxAmount !== defaultFilters.maxAmount ||
+    filters.dateFrom !== defaultFilters.dateFrom ||
+    filters.dateTo !== defaultFilters.dateTo ||
+    filters.datePreset !== defaultFilters.datePreset;
   const memberMap = new Map(
     (membersQuery.data ?? []).map((member) => [member.user_id, member] as const),
   );
@@ -182,7 +194,18 @@ export function AccountBookDetailPage() {
   }
 
   function clearFilters() {
-    setFilters(initialExpenseListFilters);
+    setFilters(createDefaultExpenseListFilters());
+  }
+
+  function applyDatePreset(preset: Exclude<ExpenseDatePreset, null>) {
+    const range = trailingNaturalDateRange(preset === "last7" ? 7 : 30);
+    setFilters((current) => ({
+      ...current,
+      dateFrom: range.dateFrom,
+      dateTo: range.dateTo,
+      datePreset: preset,
+      page: 1,
+    }));
   }
 
   function goToPreviousPage() {
@@ -573,10 +596,11 @@ export function AccountBookDetailPage() {
               </div>
             </div>
 
-            <div className="filter-grid filter-grid-ledger-extended">
-              <div className="field field-compact">
+            <div className="date-filter-row">
+              <div className="field field-compact amount-filter-field">
                 <label htmlFor="expense-min-amount">Min Amount</label>
                 <input
+                  className="amount-filter-input"
                   id="expense-min-amount"
                   onChange={(event) => updateFilter("minAmount", event.target.value)}
                   placeholder="0.00"
@@ -584,9 +608,10 @@ export function AccountBookDetailPage() {
                   value={filters.minAmount}
                 />
               </div>
-              <div className="field field-compact">
+              <div className="field field-compact amount-filter-field">
                 <label htmlFor="expense-max-amount">Max Amount</label>
                 <input
+                  className="amount-filter-input"
                   id="expense-max-amount"
                   onChange={(event) => updateFilter("maxAmount", event.target.value)}
                   placeholder="9999.99"
@@ -598,7 +623,14 @@ export function AccountBookDetailPage() {
                 <label htmlFor="expense-date-from">Date From</label>
                 <input
                   id="expense-date-from"
-                  onChange={(event) => updateFilter("dateFrom", event.target.value)}
+                  onChange={(event) =>
+                    setFilters((current) => ({
+                      ...current,
+                      dateFrom: event.target.value,
+                      datePreset: null,
+                      page: 1,
+                    }))
+                  }
                   type="date"
                   value={filters.dateFrom}
                 />
@@ -607,24 +639,47 @@ export function AccountBookDetailPage() {
                 <label htmlFor="expense-date-to">Date To</label>
                 <input
                   id="expense-date-to"
-                  onChange={(event) => updateFilter("dateTo", event.target.value)}
+                  onChange={(event) =>
+                    setFilters((current) => ({
+                      ...current,
+                      dateTo: event.target.value,
+                      datePreset: null,
+                      page: 1,
+                    }))
+                  }
                   type="date"
                   value={filters.dateTo}
                 />
+              </div>
+              <div className="field field-compact date-preset-field">
+                <label>Date Range</label>
+                <div className="inline-radio-group">
+                  <label className="radio-chip">
+                    <input
+                      checked={filters.datePreset === "last7"}
+                      name="expense-date-preset"
+                      onChange={() => applyDatePreset("last7")}
+                      type="radio"
+                    />
+                    <span>Last 7 Days</span>
+                  </label>
+                  <label className="radio-chip">
+                    <input
+                      checked={filters.datePreset === "last30"}
+                      name="expense-date-preset"
+                      onChange={() => applyDatePreset("last30")}
+                      type="radio"
+                    />
+                    <span>Last 30 Days</span>
+                  </label>
+                </div>
               </div>
             </div>
 
             <div className="stack-sm">
               <div className="helper-row">
                 <strong>Categories</strong>
-                {(filters.categoryIDs.length > 0 ||
-                  filters.userID ||
-                  filters.minAmount ||
-                  filters.maxAmount ||
-                  filters.dateFrom ||
-                  filters.dateTo ||
-                  filters.originalCurrency ||
-                  filters.keyword) ? (
+                {hasActiveFilters ? (
                   <button className="button button-xs" onClick={clearFilters} type="button">
                     Clear All
                   </button>

@@ -1,9 +1,16 @@
 export function todayNaturalDate() {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const day = String(now.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
+  return formatNaturalDate(new Date());
+}
+
+export function trailingNaturalDateRange(days: number) {
+  const end = new Date();
+  const start = new Date(end);
+  start.setDate(start.getDate() - Math.max(days - 1, 0));
+
+  return {
+    dateFrom: formatNaturalDate(start),
+    dateTo: formatNaturalDate(end),
+  };
 }
 
 export function parseDecimalInput(value: string) {
@@ -31,4 +38,11 @@ export function formatMoney(value: string, currency: string) {
 
 export function shortID(value: string | null | undefined) {
   return value ? value.slice(0, 8) : "unknown";
+}
+
+function formatNaturalDate(value: Date) {
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, "0");
+  const day = String(value.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }

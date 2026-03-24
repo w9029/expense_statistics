@@ -606,6 +606,51 @@ select {
   align-items: center;
 }
 
+.inline-radio-group {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+  min-height: 40px;
+}
+
+.date-filter-row {
+  display: grid;
+  grid-template-columns: auto auto 1fr 1fr auto;
+  gap: 10px;
+  align-items: end;
+}
+
+.date-preset-field {
+  width: auto;
+}
+
+.amount-filter-field {
+  width: auto;
+}
+
+.amount-filter-input {
+  width: 100px !important;
+  min-width: 100px;
+}
+
+.radio-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: rgba(255, 250, 244, 0.82);
+  color: var(--ink);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.radio-chip input {
+  margin: 0;
+}
+
 .meta-strip {
   display: flex;
   gap: 10px;
@@ -1103,6 +1148,10 @@ select {
   }
 
   .filter-grid-ledger-extended {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .date-filter-row {
     grid-template-columns: 1fr 1fr;
   }
 

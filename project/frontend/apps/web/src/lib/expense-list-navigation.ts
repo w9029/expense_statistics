@@ -1,3 +1,7 @@
+import { trailingNaturalDateRange } from "@/lib/ledger";
+
+export type ExpenseDatePreset = "last7" | "last30" | null;
+
 export type ExpenseListFilters = {
   keyword: string;
   originalCurrency: string;
@@ -7,6 +11,7 @@ export type ExpenseListFilters = {
   maxAmount: string;
   dateFrom: string;
   dateTo: string;
+  datePreset: ExpenseDatePreset;
   spentAtOrder: "asc" | "desc";
   page: number;
 };
@@ -15,18 +20,22 @@ export type ExpenseListNavigationState = {
   expense_list_filters?: ExpenseListFilters;
 };
 
-export const initialExpenseListFilters: ExpenseListFilters = {
-  keyword: "",
-  originalCurrency: "",
-  categoryIDs: [],
-  userID: "",
-  minAmount: "",
-  maxAmount: "",
-  dateFrom: "",
-  dateTo: "",
-  spentAtOrder: "desc",
-  page: 1,
-};
+export function createDefaultExpenseListFilters(): ExpenseListFilters {
+  const range = trailingNaturalDateRange(30);
+  return {
+    keyword: "",
+    originalCurrency: "",
+    categoryIDs: [],
+    userID: "",
+    minAmount: "",
+    maxAmount: "",
+    dateFrom: range.dateFrom,
+    dateTo: range.dateTo,
+    datePreset: "last30",
+    spentAtOrder: "desc",
+    page: 1,
+  };
+}
 
 export function buildExpenseListNavigationState(
   filters: ExpenseListFilters,
@@ -60,6 +69,9 @@ export function readExpenseListFiltersFromState(
     typeof candidate.maxAmount !== "string" ||
     typeof candidate.dateFrom !== "string" ||
     typeof candidate.dateTo !== "string" ||
+    (candidate.datePreset !== "last7" &&
+      candidate.datePreset !== "last30" &&
+      candidate.datePreset !== null) ||
     (candidate.spentAtOrder !== "asc" && candidate.spentAtOrder !== "desc") ||
     typeof candidate.page !== "number"
   ) {
