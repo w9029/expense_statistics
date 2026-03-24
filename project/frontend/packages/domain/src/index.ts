@@ -48,6 +48,15 @@ export type AccountBookDetail = {
   updated_at: string;
 };
 
+export type AccountBookMember = {
+  user_id: string;
+  name: string;
+  email: string;
+  account_role: AccountRole;
+  joined_at: string;
+  is_me: boolean;
+};
+
 export type ExpenseCategory = {
   id: string;
   account_book_id: string;

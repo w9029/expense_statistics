@@ -1,10 +1,12 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { KeyboardEvent, useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { z } from "zod";
 import { ApiError } from "@expense-statistics/api-client";
 import { useAuth } from "@/features/auth/auth-context";
+import { useToast } from "@/features/feedback/toast-context";
 import { apiClient } from "@/lib/api";
 import { todayNaturalDate } from "@/lib/ledger";
 
@@ -28,12 +30,21 @@ const normalExpenseSchema = z.object({
 });
 
 type NormalExpenseFormValues = z.input<typeof normalExpenseSchema>;
+type SubmitMode = "back" | "next";
 
 export function NormalExpensePage() {
   const { accountBookId } = useParams();
   const auth = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { showToast } = useToast();
+  const submitModeRef = useRef<SubmitMode>("back");
+  const nameInputRef = useRef<HTMLInputElement | null>(null);
+  const [flashMessage, setFlashMessage] = useState<{
+    tone: "success" | "error";
+    text: string;
+  } | null>(null);
+
   const form = useForm<NormalExpenseFormValues>({
     resolver: zodResolver(normalExpenseSchema),
     defaultValues: {
@@ -45,6 +56,7 @@ export function NormalExpensePage() {
       spent_at: todayNaturalDate(),
     },
   });
+  const { ref: nameFieldRef, ...nameFieldProps } = form.register("name");
 
   const detailQuery = useQuery({
     queryKey: ["account-book", accountBookId],
@@ -79,74 +91,150 @@ export function NormalExpensePage() {
       await queryClient.invalidateQueries({
         queryKey: ["account-book-expenses", accountBookId],
       });
+
+      if (submitModeRef.current === "next") {
+        const current = form.getValues();
+        form.reset({
+          category_id: current.category_id,
+          name: "",
+          description: "",
+          original_amount: "",
+          original_currency: current.original_currency,
+          spent_at: current.spent_at || todayNaturalDate(),
+        });
+        window.setTimeout(() => {
+          nameInputRef.current?.focus();
+        }, 0);
+        setFlashMessage({
+          tone: "success",
+          text: "Expense created. Ready for the next one.",
+        });
+        return;
+      }
+
+      showToast("Expense created.", "success");
       navigate(`/app/account-books/${accountBookId}`, { replace: true });
+    },
+    onError: (error) => {
+      const text =
+        error instanceof ApiError ? error.message : "Failed to create the expense";
+      setFlashMessage({ tone: "error", text });
+      showToast(text, "error");
     },
   });
 
+  useEffect(() => {
+    if (!flashMessage) {
+      return;
+    }
+
+    const timeoutID = window.setTimeout(() => {
+      setFlashMessage(null);
+    }, 2400);
+
+    return () => window.clearTimeout(timeoutID);
+  }, [flashMessage]);
+
+  async function submit(mode: SubmitMode) {
+    setFlashMessage(null);
+    submitModeRef.current = mode;
+    await form.handleSubmit(async (values) => {
+      await createMutation.mutateAsync(values);
+    })();
+  }
+
+  function handleFormKeyDown(event: KeyboardEvent<HTMLFormElement>) {
+    const target = event.target as HTMLElement;
+    if (target.tagName === "TEXTAREA") {
+      return;
+    }
+    if (event.key !== "Enter") {
+      return;
+    }
+
+    event.preventDefault();
+    void submit(event.ctrlKey || event.metaKey ? "next" : "back");
+  }
+
   return (
     <section className="stack">
-      <header className="page-header">
+      <header className="page-header page-header-compact">
         <div className="split-header">
           <div>
             <h1>New Normal Expense</h1>
             <p>
-              Record a single expense item directly into
-              <span className="mono"> {detailQuery.data?.name ?? "this book"}</span>.
+              Fast entry mode for <span className="mono">{detailQuery.data?.name ?? "this book"}</span>.
             </p>
           </div>
-          <Link className="button" to={`/app/account-books/${accountBookId}`}>
+          <Link className="button button-sm" to={`/app/account-books/${accountBookId}`}>
             Back To Book
           </Link>
         </div>
       </header>
 
-      <div className="detail-grid">
-        <article className="detail-card">
-          <h3>Expense Form</h3>
-          <p>
-            Only non-merge categories are listed here. The backend still resolves the
-            exchange rate and converted amount during write.
-          </p>
+      <div className="compact-form-shell">
+        <article className="detail-card compact-card">
+          {flashMessage ? (
+            <div
+              className={`inline-toast inline-toast-${flashMessage.tone}`}
+              role="status"
+            >
+              {flashMessage.text}
+            </div>
+          ) : null}
+
+          <div className="compact-header-row">
+            <div>
+              <h3>Expense Form</h3>
+              <p>Enter submits. Ctrl+Enter creates and keeps you on the form.</p>
+            </div>
+            <div className="helper-row">
+              <span className="badge">base {detailQuery.data?.base_currency ?? "..."}</span>
+              <span className="badge">{normalCategories.length} categories</span>
+            </div>
+          </div>
 
           <form
-            className="form-grid"
-            onSubmit={form.handleSubmit((values) => createMutation.mutate(values))}
+            className="form-grid compact-form-grid"
+            onKeyDown={handleFormKeyDown}
+            onSubmit={(event) => {
+              event.preventDefault();
+              void submit(submitModeRef.current);
+            }}
           >
-            <div className="field">
-              <label htmlFor="normal-category">Category</label>
-              <select id="normal-category" {...form.register("category_id")}>
-                <option value="">Choose a category</option>
-                {normalCategories.map((category) => (
-                  <option key={category.id} value={category.id}>
-                    {category.name}
-                  </option>
-                ))}
-              </select>
-              {form.formState.errors.category_id ? (
-                <div className="error-banner">
-                  {form.formState.errors.category_id.message}
-                </div>
-              ) : null}
-            </div>
+            <div className="inline-grid inline-grid-4">
+              <div className="field field-compact">
+                <label htmlFor="normal-category">Category</label>
+                <select id="normal-category" {...form.register("category_id")}>
+                  <option value="">Choose a category</option>
+                  {normalCategories.map((category) => (
+                    <option key={category.id} value={category.id}>
+                      {category.name}
+                    </option>
+                  ))}
+                </select>
+                {form.formState.errors.category_id ? (
+                  <div className="error-banner">{form.formState.errors.category_id.message}</div>
+                ) : null}
+              </div>
 
-            <div className="field">
-              <label htmlFor="normal-name">Name</label>
-              <input id="normal-name" type="text" {...form.register("name")} />
-              {form.formState.errors.name ? (
-                <div className="error-banner">{form.formState.errors.name.message}</div>
-              ) : null}
-            </div>
+              <div className="field field-compact">
+                <label htmlFor="normal-name">Name</label>
+                <input
+                  id="normal-name"
+                  ref={(element) => {
+                    nameFieldRef(element);
+                    nameInputRef.current = element;
+                  }}
+                  type="text"
+                  {...nameFieldProps}
+                />
+                {form.formState.errors.name ? (
+                  <div className="error-banner">{form.formState.errors.name.message}</div>
+                ) : null}
+              </div>
 
-            <div className="field">
-              <label htmlFor="normal-description">Description</label>
-              <textarea id="normal-description" {...form.register("description")} />
-              {form.formState.errors.description ? (
-                <div className="error-banner">{form.formState.errors.description.message}</div>
-              ) : null}
-            </div>
-
-            <div className="inline-grid">
-              <div className="field">
+              <div className="field field-compact">
                 <label htmlFor="normal-amount">Original Amount</label>
                 <input id="normal-amount" type="text" {...form.register("original_amount")} />
                 {form.formState.errors.original_amount ? (
@@ -156,8 +244,8 @@ export function NormalExpensePage() {
                 ) : null}
               </div>
 
-              <div className="field">
-                <label htmlFor="normal-currency">Original Currency</label>
+              <div className="field field-compact">
+                <label htmlFor="normal-currency">Currency</label>
                 <input
                   id="normal-currency"
                   maxLength={3}
@@ -170,12 +258,22 @@ export function NormalExpensePage() {
                   </div>
                 ) : null}
               </div>
+            </div>
 
-              <div className="field">
+            <div className="inline-grid inline-grid-3">
+              <div className="field field-compact">
                 <label htmlFor="normal-spent-at">Spent At</label>
                 <input id="normal-spent-at" type="date" {...form.register("spent_at")} />
                 {form.formState.errors.spent_at ? (
                   <div className="error-banner">{form.formState.errors.spent_at.message}</div>
+                ) : null}
+              </div>
+
+              <div className="field field-compact inline-grid-span-2">
+                <label htmlFor="normal-description">Description</label>
+                <input id="normal-description" type="text" {...form.register("description")} />
+                {form.formState.errors.description ? (
+                  <div className="error-banner">{form.formState.errors.description.message}</div>
                 ) : null}
               </div>
             </div>
@@ -190,27 +288,42 @@ export function NormalExpensePage() {
 
             <div className="form-actions">
               <button
-                className="button primary"
+                className="button primary button-sm"
                 disabled={createMutation.isPending || normalCategories.length === 0}
+                onClick={() => {
+                  submitModeRef.current = "back";
+                }}
                 type="submit"
               >
-                {createMutation.isPending ? "Creating..." : "Create Expense"}
+                {createMutation.isPending && submitModeRef.current === "back"
+                  ? "Creating..."
+                  : "Create Expense"}
               </button>
-              <Link className="button" to={`/app/account-books/${accountBookId}`}>
+              <button
+                className="button button-sm button-accent-soft"
+                disabled={createMutation.isPending || normalCategories.length === 0}
+                onClick={() => void submit("next")}
+                type="button"
+              >
+                {createMutation.isPending && submitModeRef.current === "next"
+                  ? "Creating..."
+                  : "Create Expense And Next"}
+              </button>
+              <Link className="button button-sm" to={`/app/account-books/${accountBookId}`}>
                 Cancel
               </Link>
             </div>
           </form>
         </article>
 
-        <article className="detail-card">
+        <article className="detail-card compact-card compact-side-card">
           <h3>Write Notes</h3>
           <div className="stack-sm">
-            <div className="info-banner">
-              Book base currency: {detailQuery.data?.base_currency ?? "Loading..."}
+            <div className="info-banner compact-banner">
+              Default date uses the current local system date.
             </div>
-            <div className="info-banner">
-              Available normal categories: {normalCategories.length}
+            <div className="info-banner compact-banner">
+              Normal categories: {normalCategories.length}
             </div>
             {normalCategories.length === 0 ? (
               <div className="error-banner">

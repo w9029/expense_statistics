@@ -5,6 +5,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { z } from "zod";
 import { ApiError } from "@expense-statistics/api-client";
 import { useAuth } from "@/features/auth/auth-context";
+import { getPostAuthPath } from "@/lib/auth";
 
 const loginSchema = z.object({
   email: z.string().email("Enter a valid email"),
@@ -27,9 +28,9 @@ export function LoginPage() {
 
   const loginMutation = useMutation({
     mutationFn: (values: LoginFormValues) => auth.login(values.email, values.password),
-    onSuccess: () => {
+    onSuccess: (session) => {
       const redirectPath =
-        (location.state as { from?: string } | null)?.from ?? "/app/account-books";
+        (location.state as { from?: string } | null)?.from ?? getPostAuthPath(session.user);
       navigate(redirectPath, { replace: true });
     },
   });

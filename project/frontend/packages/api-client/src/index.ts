@@ -1,4 +1,5 @@
 import type {
+  AccountBookMember,
   AccountBookDetail,
   AccountBookSummary,
   AuthSession,
@@ -88,9 +89,23 @@ export type ListExpensesInput = {
   include_children?: boolean;
   keyword?: string;
   category_ids?: string[];
+  user_id?: string;
+  min_amount?: string;
+  max_amount?: string;
   original_currency?: string;
+  date_from?: string;
+  date_to?: string;
   spent_at_order?: "asc" | "desc";
 };
+
+export type CreateExpenseCategoryInput = {
+  name: string;
+  description: string | null;
+  is_merge_category: boolean;
+  color: string;
+};
+
+export type UpdateExpenseCategoryInput = CreateExpenseCategoryInput;
 
 export type CreateNormalExpenseInput = {
   category_id: string;
@@ -158,10 +173,50 @@ export function createApiClient(options: ApiClientOptions) {
       request<AccountBookDetail>(`${apiBaseUrl}/account-books/${accountBookId}`, {
         accessToken,
       }),
+    listAccountBookMembers: (accessToken: string, accountBookId: string) =>
+      request<AccountBookMember[]>(`${apiBaseUrl}/account-books/${accountBookId}/members`, {
+        accessToken,
+      }),
     listExpenseCategories: (accessToken: string, accountBookId: string) =>
       request<ExpenseCategory[]>(
         `${apiBaseUrl}/account-books/${accountBookId}/expense-categories`,
         {
+          accessToken,
+        },
+      ),
+    createExpenseCategory: (
+      accessToken: string,
+      accountBookId: string,
+      input: CreateExpenseCategoryInput,
+    ) =>
+      request<ExpenseCategory>(`${apiBaseUrl}/account-books/${accountBookId}/expense-categories`, {
+        method: "POST",
+        body: input,
+        accessToken,
+      }),
+    updateExpenseCategory: (
+      accessToken: string,
+      accountBookId: string,
+      categoryId: string,
+      input: UpdateExpenseCategoryInput,
+    ) =>
+      request<ExpenseCategory>(
+        `${apiBaseUrl}/account-books/${accountBookId}/expense-categories/${categoryId}`,
+        {
+          method: "PUT",
+          body: input,
+          accessToken,
+        },
+      ),
+    deleteExpenseCategory: (
+      accessToken: string,
+      accountBookId: string,
+      categoryId: string,
+    ) =>
+      request<{ deleted: boolean; category_id: string }>(
+        `${apiBaseUrl}/account-books/${accountBookId}/expense-categories/${categoryId}`,
+        {
+          method: "DELETE",
           accessToken,
         },
       ),

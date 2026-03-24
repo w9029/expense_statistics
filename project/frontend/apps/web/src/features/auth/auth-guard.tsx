@@ -1,5 +1,6 @@
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "@/features/auth/auth-context";
+import { getPostAuthPath } from "@/lib/auth";
 
 export function RequireAuth() {
   const auth = useAuth();
@@ -16,7 +17,7 @@ export function RedirectAuthenticated() {
   const auth = useAuth();
 
   if (auth.isAuthenticated) {
-    return <Navigate replace to="/app/account-books" />;
+    return <Navigate replace to={getPostAuthPath(auth.user)} />;
   }
 
   return <Outlet />;

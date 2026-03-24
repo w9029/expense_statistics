@@ -7,6 +7,7 @@ import { z } from "zod";
 import { ApiError } from "@expense-statistics/api-client";
 import { useAuth } from "@/features/auth/auth-context";
 import { apiClient } from "@/lib/api";
+import { getPostAuthPath } from "@/lib/auth";
 
 const purpose = "register";
 
@@ -109,8 +110,8 @@ export function RegisterPage() {
         verification_token: verificationToken,
       });
     },
-    onSuccess: () => {
-      navigate("/app/account-books", { replace: true });
+    onSuccess: (session) => {
+      navigate(getPostAuthPath(session.user), { replace: true });
     },
   });
 
