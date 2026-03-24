@@ -4,8 +4,10 @@ import type {
   AccountBookSummary,
   AuthSession,
   ExpenseCategory,
+  ExpenseDetail,
   ExpenseList,
   Expense,
+  DeleteExpenseResult,
   MergedExpenseCreateResult,
   User,
   VerificationResult,
@@ -136,6 +138,10 @@ export type CreateMergedExpenseInput = {
   }>;
 };
 
+export type UpdateNormalExpenseInput = CreateNormalExpenseInput;
+
+export type UpdateMergedExpenseInput = CreateMergedExpenseInput;
+
 export function createApiClient(options: ApiClientOptions) {
   const apiBaseUrl = options.apiBaseUrl.replace(/\/$/, "");
   const systemBaseUrl = apiBaseUrl.replace(/\/api\/v1$/, "");
@@ -235,6 +241,17 @@ export function createApiClient(options: ApiClientOptions) {
           accessToken,
         },
       ),
+    getExpenseDetail: (
+      accessToken: string,
+      accountBookId: string,
+      expenseId: string,
+    ) =>
+      requestWithAuthHandling<ExpenseDetail>(
+        `${apiBaseUrl}/account-books/${accountBookId}/expenses/${expenseId}`,
+        {
+          accessToken,
+        },
+      ),
     createNormalExpense: (
       accessToken: string,
       accountBookId: string,
@@ -245,6 +262,20 @@ export function createApiClient(options: ApiClientOptions) {
         body: input,
         accessToken,
       }),
+    updateNormalExpense: (
+      accessToken: string,
+      accountBookId: string,
+      expenseId: string,
+      input: UpdateNormalExpenseInput,
+    ) =>
+      requestWithAuthHandling<Expense>(
+        `${apiBaseUrl}/account-books/${accountBookId}/expenses/${expenseId}/normal`,
+        {
+          method: "PUT",
+          body: input,
+          accessToken,
+        },
+      ),
     createMergedExpense: (
       accessToken: string,
       accountBookId: string,
@@ -255,6 +286,32 @@ export function createApiClient(options: ApiClientOptions) {
         {
           method: "POST",
           body: input,
+          accessToken,
+        },
+      ),
+    updateMergedExpense: (
+      accessToken: string,
+      accountBookId: string,
+      expenseId: string,
+      input: UpdateMergedExpenseInput,
+    ) =>
+      requestWithAuthHandling<MergedExpenseCreateResult>(
+        `${apiBaseUrl}/account-books/${accountBookId}/expenses/${expenseId}/merged`,
+        {
+          method: "PUT",
+          body: input,
+          accessToken,
+        },
+      ),
+    deleteExpense: (
+      accessToken: string,
+      accountBookId: string,
+      expenseId: string,
+    ) =>
+      requestWithAuthHandling<DeleteExpenseResult>(
+        `${apiBaseUrl}/account-books/${accountBookId}/expenses/${expenseId}`,
+        {
+          method: "DELETE",
           accessToken,
         },
       ),

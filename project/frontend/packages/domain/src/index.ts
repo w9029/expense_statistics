@@ -102,10 +102,23 @@ export type ExpenseList = {
   total_converted_amount: string;
 };
 
+export type ExpenseDetail = {
+  expense: Expense;
+  children?: Expense[];
+  is_root: boolean;
+  root_id: string;
+};
+
 export type MergedExpenseCreateResult = {
   parent: Expense;
   children: Expense[];
   children_amount_input_mode: "pretax" | "posttax";
+};
+
+export type DeleteExpenseResult = {
+  expense_id: string;
+  root_id: string;
+  deleted: boolean;
 };
 
 export function formatNaturalDateLabel(value: NaturalDateString) {

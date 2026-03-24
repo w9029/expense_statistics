@@ -49,7 +49,15 @@ export const router = createBrowserRouter([
             element: <NormalExpensePage />,
           },
           {
+            path: "account-books/:accountBookId/expenses/:expenseId/edit-normal",
+            element: <NormalExpensePage />,
+          },
+          {
             path: "account-books/:accountBookId/expenses/new-merged",
+            element: <MergedExpensePage />,
+          },
+          {
+            path: "account-books/:accountBookId/expenses/:expenseId/edit-merged",
             element: <MergedExpensePage />,
           },
           { path: "profile", element: <ProfilePage /> },

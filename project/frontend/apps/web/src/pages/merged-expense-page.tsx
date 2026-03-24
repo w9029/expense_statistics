@@ -2,12 +2,16 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { KeyboardEvent, useEffect, useRef, useState } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { z } from "zod";
 import { ApiError } from "@expense-statistics/api-client";
 import { useAuth } from "@/features/auth/auth-context";
 import { useToast } from "@/features/feedback/toast-context";
 import { apiClient } from "@/lib/api";
+import {
+  buildExpenseListNavigationState,
+  readExpenseListFiltersFromState,
+} from "@/lib/expense-list-navigation";
 import { parseDecimalInput, todayNaturalDate } from "@/lib/ledger";
 
 const amountPattern = /^\d+(\.\d{1,2})?$/;
@@ -58,11 +62,17 @@ function emptyChild() {
 }
 
 export function MergedExpensePage() {
-  const { accountBookId } = useParams();
+  const { accountBookId, expenseId } = useParams();
   const auth = useAuth();
+  const location = useLocation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { showToast } = useToast();
+  const isEditMode = Boolean(expenseId);
+  const returnFilters = readExpenseListFiltersFromState(location.state);
+  const backToBookState = returnFilters
+    ? buildExpenseListNavigationState(returnFilters)
+    : undefined;
   const submitModeRef = useRef<SubmitMode>("back");
   const formBottomRef = useRef<HTMLDivElement | null>(null);
   const [flashMessage, setFlashMessage] = useState<{
@@ -103,14 +113,74 @@ export function MergedExpensePage() {
     enabled: Boolean(auth.accessToken && accountBookId),
   });
 
+  const expenseDetailQuery = useQuery({
+    queryKey: ["expense-detail", accountBookId, expenseId],
+    queryFn: () => apiClient.getExpenseDetail(auth.accessToken!, accountBookId!, expenseId!),
+    enabled: Boolean(auth.accessToken && accountBookId && expenseId),
+  });
+
   const mergeCategories = (categoriesQuery.data ?? []).filter((category) => category.is_merge_category);
   const normalCategories = (categoriesQuery.data ?? []).filter(
     (category) => !category.is_merge_category,
   );
 
-  const createMutation = useMutation({
+  useEffect(() => {
+    if (!expenseDetailQuery.data || !isEditMode) {
+      return;
+    }
+
+    form.reset({
+      parent: {
+        category_id: expenseDetailQuery.data.expense.category_id,
+        name: expenseDetailQuery.data.expense.name,
+        description: expenseDetailQuery.data.expense.description ?? "",
+        total_original_amount: expenseDetailQuery.data.expense.original_amount,
+        original_currency: expenseDetailQuery.data.expense.original_currency,
+        spent_at: expenseDetailQuery.data.expense.spent_at,
+      },
+      // Stored child amounts are already final taxed amounts, so edit mode starts in posttax.
+      children_amount_input_mode: "posttax",
+      children:
+        expenseDetailQuery.data.children?.map((child) => ({
+          category_id: child.category_id,
+          name: child.name,
+          description: child.description ?? "",
+          amount_input: child.original_amount,
+        })) ?? [emptyChild()],
+    });
+    replace(
+      expenseDetailQuery.data.children?.map((child) => ({
+        category_id: child.category_id,
+        name: child.name,
+        description: child.description ?? "",
+        amount_input: child.original_amount,
+      })) ?? [emptyChild()],
+    );
+  }, [expenseDetailQuery.data, form, isEditMode, replace]);
+
+  const saveMutation = useMutation({
     mutationFn: async (values: MergedExpenseFormValues) => {
       const parsed = mergedExpenseSchema.parse(values);
+
+      if (isEditMode) {
+        return apiClient.updateMergedExpense(auth.accessToken!, accountBookId!, expenseId!, {
+          parent: {
+            category_id: parsed.parent.category_id,
+            name: parsed.parent.name.trim(),
+            description: parsed.parent.description?.trim() || null,
+            total_original_amount: parsed.parent.total_original_amount.trim(),
+            original_currency: parsed.parent.original_currency,
+            spent_at: parsed.parent.spent_at,
+          },
+          children_amount_input_mode: parsed.children_amount_input_mode,
+          children: parsed.children.map((child) => ({
+            category_id: child.category_id,
+            name: child.name.trim(),
+            description: child.description?.trim() || null,
+            amount_input: child.amount_input.trim(),
+          })),
+        });
+      }
 
       return apiClient.createMergedExpense(auth.accessToken!, accountBookId!, {
         parent: {
@@ -130,10 +200,44 @@ export function MergedExpensePage() {
         })),
       });
     },
-    onSuccess: async () => {
+    onSuccess: async (saved) => {
       await queryClient.invalidateQueries({
         queryKey: ["account-book-expenses", accountBookId],
       });
+
+      if (isEditMode) {
+        form.reset({
+          parent: {
+            category_id: saved.parent.category_id,
+            name: saved.parent.name,
+            description: saved.parent.description ?? "",
+            total_original_amount: saved.parent.original_amount,
+            original_currency: saved.parent.original_currency,
+            spent_at: saved.parent.spent_at,
+          },
+          children_amount_input_mode: saved.children_amount_input_mode,
+          children: saved.children.map((child) => ({
+            category_id: child.category_id,
+            name: child.name,
+            description: child.description ?? "",
+            amount_input: child.original_amount,
+          })),
+        });
+        replace(
+          saved.children.map((child) => ({
+            category_id: child.category_id,
+            name: child.name,
+            description: child.description ?? "",
+            amount_input: child.original_amount,
+          })),
+        );
+        showToast("Merged expense updated.", "success");
+        navigate(`/app/account-books/${accountBookId}`, {
+          replace: true,
+          state: backToBookState,
+        });
+        return;
+      }
 
       if (submitModeRef.current === "next") {
         const current = form.getValues();
@@ -162,7 +266,11 @@ export function MergedExpensePage() {
     },
     onError: (error) => {
       const text =
-        error instanceof ApiError ? error.message : "Failed to create the merged expense";
+        error instanceof ApiError
+          ? error.message
+          : isEditMode
+            ? "Failed to update the merged expense"
+            : "Failed to create the merged expense";
       setFlashMessage({ tone: "error", text });
       showToast(text, "error");
     },
@@ -193,7 +301,7 @@ export function MergedExpensePage() {
     setFlashMessage(null);
     submitModeRef.current = mode;
     await form.handleSubmit(async (values) => {
-      await createMutation.mutateAsync(values);
+      await saveMutation.mutateAsync(values);
     })();
   }
 
@@ -231,12 +339,18 @@ export function MergedExpensePage() {
       <header className="page-header page-header-compact">
         <div className="split-header">
           <div>
-            <h1>New Merged Expense</h1>
+            <h1>{isEditMode ? "Edit Merged Expense" : "New Merged Expense"}</h1>
             <p>
-              High-speed receipt entry for <span className="mono">{detailQuery.data?.name ?? "this book"}</span>.
+              {isEditMode ? "Update mode for " : "High-speed receipt entry for "}
+              <span className="mono">{detailQuery.data?.name ?? "this book"}</span>.
             </p>
           </div>
-          <Link className="button button-sm" to={`/app/account-books/${accountBookId}`}>
+          <Link
+            className="button button-sm"
+            replace={isEditMode}
+            state={backToBookState}
+            to={`/app/account-books/${accountBookId}`}
+          >
             Back To Book
           </Link>
         </div>
@@ -256,12 +370,17 @@ export function MergedExpensePage() {
           <div className="compact-header-row">
             <div>
               <h3>Merged Expense Form</h3>
-              <p>Enter submits. Ctrl+Enter creates and stays in input mode.</p>
+              <p>
+                {isEditMode
+                  ? "Enter submits the update. Alt+Enter still adds a child row."
+                  : "Enter submits. Ctrl+Enter creates and stays in input mode."}
+              </p>
             </div>
             <div className="helper-row">
               <span className="badge">merge {mergeCategories.length}</span>
               <span className="badge">normal {normalCategories.length}</span>
               <span className="badge">base {detailQuery.data?.base_currency ?? "..."}</span>
+              {isEditMode ? <span className="badge">editing</span> : null}
             </div>
           </div>
 
@@ -457,17 +576,36 @@ export function MergedExpensePage() {
               </div>
             </div>
 
-            {createMutation.isError ? (
+            {expenseDetailQuery.isLoading && isEditMode ? (
+              <div className="info-banner">Loading merged expense...</div>
+            ) : null}
+
+            {expenseDetailQuery.isError && isEditMode ? (
               <div className="error-banner">
-                {createMutation.error instanceof ApiError
-                  ? createMutation.error.message
-                  : "Failed to create the merged expense"}
+                {expenseDetailQuery.error instanceof ApiError
+                  ? expenseDetailQuery.error.message
+                  : "Failed to load the merged expense"}
+              </div>
+            ) : null}
+
+            {saveMutation.isError ? (
+              <div className="error-banner">
+                {saveMutation.error instanceof ApiError
+                  ? saveMutation.error.message
+                  : isEditMode
+                    ? "Failed to update the merged expense"
+                    : "Failed to create the merged expense"}
               </div>
             ) : null}
 
             <div className="form-actions form-actions-split">
               <div className="form-actions-group">
-                <Link className="button button-sm button-muted" to={`/app/account-books/${accountBookId}`}>
+                <Link
+                  className="button button-sm button-muted"
+                  replace={isEditMode}
+                  state={backToBookState}
+                  to={`/app/account-books/${accountBookId}`}
+                >
                   Cancel
                 </Link>
                 <button
@@ -479,24 +617,26 @@ export function MergedExpensePage() {
                 </button>
               </div>
               <div className="form-actions-group">
-                <button
-                  className="button button-sm button-accent-soft"
-                  disabled={
-                    createMutation.isPending ||
-                    mergeCategories.length === 0 ||
-                    normalCategories.length === 0
-                  }
-                  onClick={() => void submit("next")}
-                  type="button"
-                >
-                  {createMutation.isPending && submitModeRef.current === "next"
-                    ? "Creating..."
-                    : "Create Merged And Next"}
-                </button>
+                {!isEditMode ? (
+                  <button
+                    className="button button-sm button-accent-soft"
+                    disabled={
+                      saveMutation.isPending ||
+                      mergeCategories.length === 0 ||
+                      normalCategories.length === 0
+                    }
+                    onClick={() => void submit("next")}
+                    type="button"
+                  >
+                    {saveMutation.isPending && submitModeRef.current === "next"
+                      ? "Creating..."
+                      : "Create Merged And Next"}
+                  </button>
+                ) : null}
                 <button
                   className="button primary button-sm"
                   disabled={
-                    createMutation.isPending ||
+                    saveMutation.isPending ||
                     mergeCategories.length === 0 ||
                     normalCategories.length === 0
                   }
@@ -505,9 +645,13 @@ export function MergedExpensePage() {
                   }}
                   type="submit"
                 >
-                  {createMutation.isPending && submitModeRef.current === "back"
-                    ? "Creating..."
-                    : "Create Merged Expense"}
+                  {saveMutation.isPending && submitModeRef.current === "back"
+                    ? isEditMode
+                      ? "Saving..."
+                      : "Creating..."
+                    : isEditMode
+                      ? "Save Merged Expense"
+                      : "Create Merged Expense"}
                 </button>
               </div>
             </div>

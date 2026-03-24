@@ -2,7 +2,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
-import { Link, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { z } from "zod";
 import type {
   AccountBookMember,
@@ -12,7 +12,14 @@ import type {
 } from "@expense-statistics/domain";
 import { ApiError } from "@expense-statistics/api-client";
 import { useAuth } from "@/features/auth/auth-context";
+import { useToast } from "@/features/feedback/toast-context";
 import { apiClient } from "@/lib/api";
+import {
+  buildExpenseListNavigationState,
+  initialExpenseListFilters,
+  readExpenseListFiltersFromState,
+  type ExpenseListFilters,
+} from "@/lib/expense-list-navigation";
 import { formatMoney, shortID } from "@/lib/ledger";
 
 const accountBookSchema = z.object({
@@ -22,37 +29,16 @@ const accountBookSchema = z.object({
 
 type AccountBookFormValues = z.infer<typeof accountBookSchema>;
 
-type ExpenseFilters = {
-  keyword: string;
-  originalCurrency: string;
-  categoryIDs: string[];
-  userID: string;
-  minAmount: string;
-  maxAmount: string;
-  dateFrom: string;
-  dateTo: string;
-  spentAtOrder: "asc" | "desc";
-  page: number;
-};
-
-const initialFilters: ExpenseFilters = {
-  keyword: "",
-  originalCurrency: "",
-  categoryIDs: [],
-  userID: "",
-  minAmount: "",
-  maxAmount: "",
-  dateFrom: "",
-  dateTo: "",
-  spentAtOrder: "desc",
-  page: 1,
-};
-
 export function AccountBookDetailPage() {
   const { accountBookId } = useParams();
   const auth = useAuth();
+  const { showToast } = useToast();
+  const location = useLocation();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [filters, setFilters] = useState<ExpenseFilters>(initialFilters);
+  const [filters, setFilters] = useState<ExpenseListFilters>(
+    () => readExpenseListFiltersFromState(location.state) ?? initialExpenseListFilters,
+  );
   const [isEditingMetadata, setIsEditingMetadata] = useState(false);
   const form = useForm<AccountBookFormValues>({
     resolver: zodResolver(accountBookSchema),
@@ -114,6 +100,10 @@ export function AccountBookDetailPage() {
 
   const canEdit =
     detailQuery.data?.my_role === "owner" || detailQuery.data?.my_role === "admin";
+  const canManageExpenses =
+    detailQuery.data?.my_role === "owner" ||
+    detailQuery.data?.my_role === "admin" ||
+    detailQuery.data?.my_role === "editor";
 
   const categoryMap = new Map(
     (categoriesQuery.data ?? []).map((category) => [category.id, category] as const),
@@ -153,6 +143,23 @@ export function AccountBookDetailPage() {
     },
   });
 
+  const deleteExpenseMutation = useMutation({
+    mutationFn: (expenseID: string) =>
+      apiClient.deleteExpense(auth.accessToken!, accountBookId!, expenseID),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: ["account-book-expenses", accountBookId],
+      });
+      showToast("Expense deleted.", "success");
+    },
+    onError: (error) => {
+      showToast(
+        error instanceof ApiError ? error.message : "Failed to delete the expense",
+        "error",
+      );
+    },
+  });
+
   function toggleCategory(categoryID: string) {
     setFilters((current) => ({
       ...current,
@@ -163,7 +170,10 @@ export function AccountBookDetailPage() {
     }));
   }
 
-  function updateFilter<K extends keyof ExpenseFilters>(key: K, value: ExpenseFilters[K]) {
+  function updateFilter<K extends keyof ExpenseListFilters>(
+    key: K,
+    value: ExpenseListFilters[K],
+  ) {
     setFilters((current) => ({
       ...current,
       page: 1,
@@ -172,7 +182,7 @@ export function AccountBookDetailPage() {
   }
 
   function clearFilters() {
-    setFilters(initialFilters);
+    setFilters(initialExpenseListFilters);
   }
 
   function goToPreviousPage() {
@@ -216,8 +226,43 @@ export function AccountBookDetailPage() {
     return memberMap.get(expense.user_id)?.name ?? shortID(expense.user_id);
   }
 
+  function isPartialMergedExpense(expense: ExpenseSummary) {
+    if (!hasCategoryFilter || expense.expense_type !== "merged_parent") {
+      return false;
+    }
+    return (expense.children?.length ?? 0) < expense.children_count;
+  }
+
+  function handleEditExpense(expense: ExpenseSummary) {
+    const returnState = buildExpenseListNavigationState(filters);
+    if (expense.expense_type === "merged_parent") {
+      navigate(`/app/account-books/${accountBookId}/expenses/${expense.id}/edit-merged`, {
+        state: returnState,
+      });
+      return;
+    }
+    navigate(`/app/account-books/${accountBookId}/expenses/${expense.id}/edit-normal`, {
+      state: returnState,
+    });
+  }
+
+  function handleDeleteExpense(expense: ExpenseSummary) {
+    const confirmed = window.confirm(
+      isPartialMergedExpense(expense)
+        ? "This merged expense is partially matched by current filters. Deleting it will also delete child items currently hidden by filters. Continue?"
+        : expense.expense_type === "merged_parent"
+          ? "Delete this merged expense and all child items?"
+          : "Delete this expense?",
+    );
+    if (!confirmed) {
+      return;
+    }
+    deleteExpenseMutation.mutate(expense.id);
+  }
+
   function renderExpenseCard(expense: ExpenseSummary) {
     const category = categoryMap.get(expense.category_id);
+    const deletingThisExpense = deleteExpenseMutation.isPending && deleteExpenseMutation.variables === expense.id;
 
     return (
       <article className="expense-card expense-card-compact" key={expense.id}>
@@ -268,6 +313,27 @@ export function AccountBookDetailPage() {
           <span>rate {expense.exchange_rate_used}</span>
           <span className="mono">#{shortID(expense.id)}</span>
         </div>
+
+        {canManageExpenses ? (
+          <div className="helper-row" style={{ justifyContent: "flex-end", marginTop: 8 }}>
+            <button
+              className="button button-xs"
+              disabled={deletingThisExpense}
+              onClick={() => handleEditExpense(expense)}
+              type="button"
+            >
+              Edit
+            </button>
+            <button
+              className="button button-xs button-danger-strong"
+              disabled={deletingThisExpense}
+              onClick={() => handleDeleteExpense(expense)}
+              type="button"
+            >
+              {deletingThisExpense ? "Deleting..." : "Delete"}
+            </button>
+          </div>
+        ) : null}
 
         {expense.children?.length ? (
           <div className="expense-children">
