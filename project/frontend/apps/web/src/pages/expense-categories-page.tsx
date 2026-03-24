@@ -72,6 +72,16 @@ export function ExpenseCategoriesPage() {
     form.reset(emptyCategoryValues);
   }, [selectedCategory, form]);
 
+  useEffect(() => {
+    if (!successMessage) {
+      return;
+    }
+    const timeoutID = window.setTimeout(() => {
+      setSuccessMessage(null);
+    }, 2000);
+    return () => window.clearTimeout(timeoutID);
+  }, [successMessage]);
+
   const canEdit =
     detailQuery.data?.my_role === "owner" ||
     detailQuery.data?.my_role === "admin" ||
@@ -88,6 +98,14 @@ export function ExpenseCategoriesPage() {
     ]);
   }
 
+  function resetToCreateMode(isMergeCategory = false) {
+    setSelectedCategoryId(null);
+    form.reset({
+      ...emptyCategoryValues,
+      is_merge_category: isMergeCategory,
+    });
+  }
+
   const createMutation = useMutation({
     mutationFn: (values: CategoryFormValues) =>
       apiClient.createExpenseCategory(auth.accessToken!, accountBookId!, {
@@ -96,8 +114,8 @@ export function ExpenseCategoriesPage() {
         is_merge_category: values.is_merge_category,
         color: values.color.trim().toUpperCase(),
       }),
-    onSuccess: async (created) => {
-      setSelectedCategoryId(created.id);
+    onSuccess: async (_, values) => {
+      resetToCreateMode(values.is_merge_category);
       setSuccessMessage("Category created.");
       await refreshCategoryQueries();
     },
@@ -111,7 +129,8 @@ export function ExpenseCategoriesPage() {
         is_merge_category: values.is_merge_category,
         color: values.color.trim().toUpperCase(),
       }),
-    onSuccess: async () => {
+    onSuccess: async (updated) => {
+      form.reset(toFormValues(updated));
       setSuccessMessage("Category updated.");
       await refreshCategoryQueries();
     },
@@ -135,11 +154,7 @@ export function ExpenseCategoriesPage() {
 
   function startCreate(isMergeCategory: boolean) {
     setSuccessMessage(null);
-    setSelectedCategoryId(null);
-    form.reset({
-      ...emptyCategoryValues,
-      is_merge_category: isMergeCategory,
-    });
+    resetToCreateMode(isMergeCategory);
   }
 
   function startEdit(categoryID: string) {
@@ -173,10 +188,7 @@ export function ExpenseCategoriesPage() {
       form.reset(toFormValues(selectedCategory));
       return;
     }
-    form.reset({
-      ...emptyCategoryValues,
-      is_merge_category: form.getValues("is_merge_category"),
-    });
+    resetToCreateMode(form.getValues("is_merge_category"));
   }
 
   function renderCategoryGroup(
@@ -255,14 +267,9 @@ export function ExpenseCategoriesPage() {
               </Link>
             ) : null}
             {canEdit ? (
-              <>
-                <button className="button button-sm" onClick={() => startCreate(false)} type="button">
-                  New Normal
-                </button>
-                <button className="button primary button-sm" onClick={() => startCreate(true)} type="button">
-                  New Merge
-                </button>
-              </>
+              <button className="button primary button-sm" onClick={() => startCreate(false)} type="button">
+                New Category
+              </button>
             ) : null}
           </div>
         </div>
@@ -313,7 +320,12 @@ export function ExpenseCategoriesPage() {
               </p>
             </div>
             {selectedCategory ? (
-              <span className="badge badge-tight">{selectedCategory.is_merge_category ? "merge" : "normal"}</span>
+              <div className="form-actions-group">
+                <span className="badge badge-tight">{selectedCategory.is_merge_category ? "merge" : "normal"}</span>
+                <button className="button button-sm" onClick={() => startCreate(false)} type="button">
+                  Cancel
+                </button>
+              </div>
             ) : null}
           </div>
 
@@ -338,19 +350,21 @@ export function ExpenseCategoriesPage() {
                     {...form.register("name")}
                   />
                 </div>
-                <div className="field field-compact">
-                  <label htmlFor="category-type">Type</label>
-                  <select
-                    disabled={isMutating}
-                    id="category-type"
-                    {...form.register("is_merge_category", {
-                      setValueAs: (value) => value === "true",
-                    })}
-                  >
-                    <option value="false">Normal</option>
-                    <option value="true">Merge</option>
-                  </select>
-                </div>
+                {!selectedCategory ? (
+                  <div className="field field-compact">
+                    <label htmlFor="category-type">Type</label>
+                    <select
+                      disabled={isMutating}
+                      id="category-type"
+                      {...form.register("is_merge_category", {
+                        setValueAs: (value) => value === "true",
+                      })}
+                    >
+                      <option value="false">Normal</option>
+                      <option value="true">Merge</option>
+                    </select>
+                  </div>
+                ) : null}
               </div>
 
               <div className="field field-compact">
@@ -363,22 +377,13 @@ export function ExpenseCategoriesPage() {
                 />
               </div>
 
-              <div className="inline-grid inline-grid-3">
-                <div className="field field-compact">
+              <div className="category-appearance-row">
+                <div className="field field-compact category-appearance-field">
                   <label htmlFor="category-color">Color</label>
                   <input
+                    className="color-picker-input"
                     disabled={isMutating}
                     id="category-color"
-                    maxLength={7}
-                    type="text"
-                    {...form.register("color")}
-                  />
-                </div>
-                <div className="field field-compact">
-                  <label htmlFor="category-color-picker">Preview</label>
-                  <input
-                    disabled={isMutating}
-                    id="category-color-picker"
                     type="color"
                     value={previewColor}
                     onChange={(event) =>
@@ -389,9 +394,9 @@ export function ExpenseCategoriesPage() {
                     }
                   />
                 </div>
-                <div className="field field-compact">
+                <div className="field field-compact category-appearance-field">
                   <label>Live Badge</label>
-                  <div className="category-preview-row">
+                  <div className="category-preview-row category-preview-row-left category-preview-row-centered">
                     <span className="category-badge">
                       <span
                         className="color-swatch color-swatch-lg"
@@ -415,9 +420,11 @@ export function ExpenseCategoriesPage() {
 
               <div className="form-actions form-actions-split">
                 <div className="form-actions-group">
-                  <button className="button button-sm" onClick={handleResetForm} type="button">
-                    Reset
-                  </button>
+                  {form.formState.isDirty ? (
+                    <button className="button button-sm" onClick={handleResetForm} type="button">
+                      Reset
+                    </button>
+                  ) : null}
                   {selectedCategory ? (
                     <button
                       className="button button-danger-strong button-sm"

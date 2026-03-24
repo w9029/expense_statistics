@@ -32,10 +32,12 @@ type RequestOptions = {
   method?: string;
   body?: unknown;
   accessToken?: string | null;
+  retryOnUnauthorized?: boolean;
 };
 
 type ApiClientOptions = {
   apiBaseUrl: string;
+  onAccessTokenExpired?: (failedAccessToken: string) => Promise<string | null>;
 };
 
 export type HealthPayload = {
@@ -137,48 +139,50 @@ export type CreateMergedExpenseInput = {
 export function createApiClient(options: ApiClientOptions) {
   const apiBaseUrl = options.apiBaseUrl.replace(/\/$/, "");
   const systemBaseUrl = apiBaseUrl.replace(/\/api\/v1$/, "");
+  const requestWithAuthHandling = <T>(url: string, requestOptions: RequestOptions = {}) =>
+    request<T>(url, requestOptions, options.onAccessTokenExpired);
 
   return {
-    health: () => request<HealthPayload>(`${systemBaseUrl}/healthz`),
+    health: () => requestWithAuthHandling<HealthPayload>(`${systemBaseUrl}/healthz`),
     login: (input: LoginInput) =>
-      request<AuthSession>(`${apiBaseUrl}/identity/login`, {
+      requestWithAuthHandling<AuthSession>(`${apiBaseUrl}/identity/login`, {
         method: "POST",
         body: input,
       }),
     sendVerificationCode: (input: SendVerificationCodeInput) =>
-      request<{ message: string }>(`${apiBaseUrl}/identity/email-verifications/send`, {
+      requestWithAuthHandling<{ message: string }>(`${apiBaseUrl}/identity/email-verifications/send`, {
         method: "POST",
         body: input,
       }),
     verifyCode: (input: VerifyCodeInput) =>
-      request<VerificationResult>(`${apiBaseUrl}/identity/email-verifications/verify`, {
+      requestWithAuthHandling<VerificationResult>(`${apiBaseUrl}/identity/email-verifications/verify`, {
         method: "POST",
         body: input,
       }),
     register: (input: RegisterInput) =>
-      request<AuthSession>(`${apiBaseUrl}/identity/register`, {
+      requestWithAuthHandling<AuthSession>(`${apiBaseUrl}/identity/register`, {
         method: "POST",
         body: input,
       }),
     refresh: (refreshToken: string) =>
-      request<AuthSession>(`${apiBaseUrl}/identity/refresh`, {
+      requestWithAuthHandling<AuthSession>(`${apiBaseUrl}/identity/refresh`, {
         method: "POST",
         body: { refresh_token: refreshToken },
       }),
     listAccountBooks: (accessToken: string) =>
-      request<AccountBookSummary[]>(`${apiBaseUrl}/account-books`, {
+      requestWithAuthHandling<AccountBookSummary[]>(`${apiBaseUrl}/account-books`, {
         accessToken,
       }),
     getAccountBook: (accessToken: string, accountBookId: string) =>
-      request<AccountBookDetail>(`${apiBaseUrl}/account-books/${accountBookId}`, {
+      requestWithAuthHandling<AccountBookDetail>(`${apiBaseUrl}/account-books/${accountBookId}`, {
         accessToken,
       }),
     listAccountBookMembers: (accessToken: string, accountBookId: string) =>
-      request<AccountBookMember[]>(`${apiBaseUrl}/account-books/${accountBookId}/members`, {
+      requestWithAuthHandling<AccountBookMember[]>(`${apiBaseUrl}/account-books/${accountBookId}/members`, {
         accessToken,
       }),
     listExpenseCategories: (accessToken: string, accountBookId: string) =>
-      request<ExpenseCategory[]>(
+      requestWithAuthHandling<ExpenseCategory[]>(
         `${apiBaseUrl}/account-books/${accountBookId}/expense-categories`,
         {
           accessToken,
@@ -189,7 +193,7 @@ export function createApiClient(options: ApiClientOptions) {
       accountBookId: string,
       input: CreateExpenseCategoryInput,
     ) =>
-      request<ExpenseCategory>(`${apiBaseUrl}/account-books/${accountBookId}/expense-categories`, {
+      requestWithAuthHandling<ExpenseCategory>(`${apiBaseUrl}/account-books/${accountBookId}/expense-categories`, {
         method: "POST",
         body: input,
         accessToken,
@@ -200,7 +204,7 @@ export function createApiClient(options: ApiClientOptions) {
       categoryId: string,
       input: UpdateExpenseCategoryInput,
     ) =>
-      request<ExpenseCategory>(
+      requestWithAuthHandling<ExpenseCategory>(
         `${apiBaseUrl}/account-books/${accountBookId}/expense-categories/${categoryId}`,
         {
           method: "PUT",
@@ -213,7 +217,7 @@ export function createApiClient(options: ApiClientOptions) {
       accountBookId: string,
       categoryId: string,
     ) =>
-      request<{ deleted: boolean; category_id: string }>(
+      requestWithAuthHandling<{ deleted: boolean; category_id: string }>(
         `${apiBaseUrl}/account-books/${accountBookId}/expense-categories/${categoryId}`,
         {
           method: "DELETE",
@@ -225,7 +229,7 @@ export function createApiClient(options: ApiClientOptions) {
       accountBookId: string,
       input: ListExpensesInput = {},
     ) =>
-      request<ExpenseList>(
+      requestWithAuthHandling<ExpenseList>(
         `${apiBaseUrl}/account-books/${accountBookId}/expenses${toQueryString(input)}`,
         {
           accessToken,
@@ -236,7 +240,7 @@ export function createApiClient(options: ApiClientOptions) {
       accountBookId: string,
       input: CreateNormalExpenseInput,
     ) =>
-      request<Expense>(`${apiBaseUrl}/account-books/${accountBookId}/expenses/normal`, {
+      requestWithAuthHandling<Expense>(`${apiBaseUrl}/account-books/${accountBookId}/expenses/normal`, {
         method: "POST",
         body: input,
         accessToken,
@@ -246,7 +250,7 @@ export function createApiClient(options: ApiClientOptions) {
       accountBookId: string,
       input: CreateMergedExpenseInput,
     ) =>
-      request<MergedExpenseCreateResult>(
+      requestWithAuthHandling<MergedExpenseCreateResult>(
         `${apiBaseUrl}/account-books/${accountBookId}/expenses/merged`,
         {
           method: "POST",
@@ -259,13 +263,13 @@ export function createApiClient(options: ApiClientOptions) {
       accountBookId: string,
       input: UpdateAccountBookInput,
     ) =>
-      request<AccountBookDetail>(`${apiBaseUrl}/account-books/${accountBookId}`, {
+      requestWithAuthHandling<AccountBookDetail>(`${apiBaseUrl}/account-books/${accountBookId}`, {
         method: "PUT",
         body: input,
         accessToken,
       }),
     updateProfile: (accessToken: string, input: UpdateProfileInput) =>
-      request<User>(`${apiBaseUrl}/identity/me/profile`, {
+      requestWithAuthHandling<User>(`${apiBaseUrl}/identity/me/profile`, {
         method: "PUT",
         body: input,
         accessToken,
@@ -274,7 +278,7 @@ export function createApiClient(options: ApiClientOptions) {
       accessToken: string,
       input: UpdateDefaultAccountBookInput,
     ) =>
-      request<User>(`${apiBaseUrl}/identity/me/default-account-book`, {
+      requestWithAuthHandling<User>(`${apiBaseUrl}/identity/me/default-account-book`, {
         method: "PUT",
         body: input,
         accessToken,
@@ -282,7 +286,11 @@ export function createApiClient(options: ApiClientOptions) {
   };
 }
 
-async function request<T>(url: string, options: RequestOptions = {}) {
+async function request<T>(
+  url: string,
+  options: RequestOptions = {},
+  onAccessTokenExpired?: (failedAccessToken: string) => Promise<string | null>,
+) {
   const response = await fetch(url, {
     method: options.method ?? "GET",
     headers: {
@@ -294,6 +302,27 @@ async function request<T>(url: string, options: RequestOptions = {}) {
     },
     body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
   });
+
+  if (
+    response.status === 401 &&
+    options.accessToken &&
+    options.retryOnUnauthorized !== false &&
+    onAccessTokenExpired &&
+    !url.endsWith("/identity/refresh")
+  ) {
+    const nextAccessToken = await onAccessTokenExpired(options.accessToken);
+    if (nextAccessToken) {
+      return request<T>(
+        url,
+        {
+          ...options,
+          accessToken: nextAccessToken,
+          retryOnUnauthorized: false,
+        },
+        onAccessTokenExpired,
+      );
+    }
+  }
 
   const json = (await response.json()) as
     | ApiEnvelope<T>

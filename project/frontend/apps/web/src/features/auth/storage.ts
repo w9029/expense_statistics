@@ -1,6 +1,7 @@
 import type { AuthSession } from "@expense-statistics/domain";
 
 const storageKey = "expense-atlas.auth-session";
+const listeners = new Set<(session: AuthSession | null) => void>();
 
 export function loadStoredSession(): AuthSession | null {
   if (typeof window === "undefined") {
@@ -27,8 +28,23 @@ export function storeSession(session: AuthSession | null) {
 
   if (session === null) {
     window.localStorage.removeItem(storageKey);
+    notifySessionListeners(null);
     return;
   }
 
   window.localStorage.setItem(storageKey, JSON.stringify(session));
+  notifySessionListeners(session);
+}
+
+export function subscribeToSessionChanges(listener: (session: AuthSession | null) => void) {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+}
+
+function notifySessionListeners(session: AuthSession | null) {
+  for (const listener of listeners) {
+    listener(session);
+  }
 }

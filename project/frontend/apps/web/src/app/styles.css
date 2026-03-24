@@ -408,7 +408,7 @@ select {
 
 .badge-tight {
   padding: 5px 10px;
-  font-size: 0.8rem;
+  font-size: 1.0rem;
 }
 
 .status-chip {
@@ -436,7 +436,7 @@ select {
   padding: 12px 18px;
   border-radius: 16px;
   border: 1px solid var(--line);
-  background: #fff9f2;
+  background: #fae9d7;
   color: var(--ink);
   cursor: pointer;
 }
@@ -853,6 +853,16 @@ select {
   gap: 12px;
 }
 
+.header-actions-column {
+  display: grid;
+  justify-items: end;
+  gap: 10px;
+}
+
+.header-actions-badges {
+  justify-content: flex-end;
+}
+
 .compact-form-shell {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 280px;
@@ -889,6 +899,32 @@ select {
 .field-compact select {
   padding: 9px 11px;
   border-radius: 12px;
+}
+
+.color-picker-input {
+  width: 52px !important;
+  min-width: 52px;
+  height: 40px;
+  padding: 4px !important;
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.category-appearance-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.category-appearance-field {
+  width: auto;
+}
+
+.category-appearance-field label {
+  min-height: 18px;
+  display: flex;
+  align-items: center;
 }
 
 .field-compact textarea {
@@ -959,6 +995,15 @@ select {
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
+}
+
+.category-preview-row-left {
+  justify-content: flex-start;
+}
+
+.category-preview-row-centered {
+  min-height: 40px;
+  align-items: center;
 }
 
 .title-row {
@@ -1060,6 +1105,10 @@ select {
   .filter-grid-ledger-extended {
     grid-template-columns: 1fr 1fr;
   }
+
+  .category-appearance-row {
+    align-items: stretch;
+  }
 }
 
 @media (max-width: 640px) {
@@ -1086,6 +1135,14 @@ select {
   .compact-header-row,
   .title-row {
     flex-direction: column;
+  }
+
+  .header-actions-column {
+    justify-items: start;
+  }
+
+  .header-actions-badges {
+    justify-content: flex-start;
   }
 
   .expense-amounts {

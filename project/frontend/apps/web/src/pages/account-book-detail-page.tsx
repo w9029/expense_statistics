@@ -86,7 +86,7 @@ export function AccountBookDetailPage() {
       apiClient.listExpenses(auth.accessToken!, accountBookId!, {
         include_children: true,
         page: filters.page,
-        page_size: 20,
+        page_size: 10,
         keyword: filters.keyword.trim() || undefined,
         category_ids: filters.categoryIDs.length > 0 ? filters.categoryIDs : undefined,
         user_id: filters.userID || undefined,
@@ -173,6 +173,40 @@ export function AccountBookDetailPage() {
 
   function clearFilters() {
     setFilters(initialFilters);
+  }
+
+  function goToPreviousPage() {
+    setFilters((current) => ({ ...current, page: current.page - 1 }));
+  }
+
+  function goToNextPage() {
+    setFilters((current) => ({ ...current, page: current.page + 1 }));
+  }
+
+  function renderPaginationControls() {
+    return (
+      <div className="pagination-row">
+        <button
+          className="button button-sm"
+          disabled={filters.page <= 1 || expensesQuery.isFetching}
+          onClick={goToPreviousPage}
+          type="button"
+        >
+          Previous
+        </button>
+        <span className="mono">
+          {filters.page} / {totalPages}
+        </span>
+        <button
+          className="button button-sm"
+          disabled={filters.page >= totalPages || expensesQuery.isFetching}
+          onClick={goToNextPage}
+          type="button"
+        >
+          Next
+        </button>
+      </div>
+    );
   }
 
   function renderMemberName(expense: ExpenseSummary) {
@@ -400,19 +434,22 @@ export function AccountBookDetailPage() {
         <article className="detail-card compact-card">
           <div className="compact-header-row">
             <div>
-              <h3>Expense Feed</h3>
+              <h3>Expense Records</h3>
               <p>Root expenses are paginated. Merged children stay attached to their parent.</p>
             </div>
-            <div className="badge-row badge-row-tight">
-              <span className="badge badge-tight">total {expensesQuery.data?.total ?? 0}</span>
-              <span className="badge badge-tight">page {filters.page}</span>
-              <span className="badge badge-tight">
-                total amount{" "}
-                {formatMoney(
-                  expensesQuery.data?.total_converted_amount ?? "0.00",
-                  detailQuery.data?.base_currency ?? "JPY",
-                )}
-              </span>
+            <div className="header-actions-column">
+              <div className="badge-row badge-row-tight header-actions-badges">
+                <span className="badge badge-tight">total {expensesQuery.data?.total ?? 0}</span>
+                <span className="badge badge-tight">page {filters.page}</span>
+                <span className="badge badge-tight">
+                  total amount{" "}
+                  {formatMoney(
+                    expensesQuery.data?.total_converted_amount ?? "0.00",
+                    detailQuery.data?.base_currency ?? "JPY",
+                  )}
+                </span>
+              </div>
+              {renderPaginationControls()}
             </div>
           </div>
 
@@ -564,31 +601,7 @@ export function AccountBookDetailPage() {
             <div className="stack stack-tight" style={{ marginTop: 10 }}>
               {expensesQuery.data.items.map(renderExpenseCard)}
 
-              <div className="pagination-row">
-                <button
-                  className="button button-sm"
-                  disabled={filters.page <= 1 || expensesQuery.isFetching}
-                  onClick={() =>
-                    setFilters((current) => ({ ...current, page: current.page - 1 }))
-                  }
-                  type="button"
-                >
-                  Previous
-                </button>
-                <span className="mono">
-                  {filters.page} / {totalPages}
-                </span>
-                <button
-                  className="button button-sm"
-                  disabled={filters.page >= totalPages || expensesQuery.isFetching}
-                  onClick={() =>
-                    setFilters((current) => ({ ...current, page: current.page + 1 }))
-                  }
-                  type="button"
-                >
-                  Next
-                </button>
-              </div>
+              {renderPaginationControls()}
             </div>
           ) : expensesQuery.isSuccess ? (
             <div className="empty-state" style={{ marginTop: 10 }}>

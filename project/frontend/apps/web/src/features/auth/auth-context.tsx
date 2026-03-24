@@ -2,13 +2,18 @@ import {
   createContext,
   PropsWithChildren,
   useContext,
+  useEffect,
   useMemo,
   useState,
 } from "react";
 import type { AuthSession, User } from "@expense-statistics/domain";
 import { ApiError } from "@expense-statistics/api-client";
 import { apiClient } from "@/lib/api";
-import { loadStoredSession, storeSession } from "@/features/auth/storage";
+import {
+  loadStoredSession,
+  storeSession,
+  subscribeToSessionChanges,
+} from "@/features/auth/storage";
 
 type AuthContextValue = {
   session: AuthSession | null;
@@ -38,6 +43,12 @@ export function AuthProvider({ children }: PropsWithChildren) {
     setSession(nextSession);
     storeSession(nextSession);
   };
+
+  useEffect(() => {
+    return subscribeToSessionChanges((nextSession) => {
+      setSession(nextSession);
+    });
+  }, []);
 
   const value = useMemo<AuthContextValue>(
     () => ({
