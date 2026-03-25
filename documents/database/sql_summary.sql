@@ -4,6 +4,7 @@ CREATE TABLE users (
     password_hash text NOT NULL,
     name text NOT NULL,
     preferred_currency varchar(3) NOT NULL,
+    language text NOT NULL DEFAULT 'zh-CN',
     user_role text NOT NULL DEFAULT 'user',
     default_account_book_id uuid,
     avatar_path text  DEFAULT NULL,
@@ -16,6 +17,8 @@ CREATE TABLE users (
 );
 ALTER TABLE users ADD CONSTRAINT chk_users_preferred_currency 
     CHECK (preferred_currency ~ '^[A-Z]{3}$');
+ALTER TABLE users ADD CONSTRAINT chk_users_language 
+    CHECK (language IN ('zh-CN', 'en', 'ja'));
 ALTER TABLE users ADD CONSTRAINT chk_users_user_role 
     CHECK (user_role IN ('user', 'admin'));
 

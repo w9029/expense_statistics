@@ -27,6 +27,15 @@ func (s *Service) SendVerificationCode(ctx context.Context, req SendVerification
 		return invalidRequest("invalid verification purpose")
 	}
 	email := strings.TrimSpace(strings.ToLower(req.Email))
+	if purpose == PurposeRegister {
+		existingUser, err := s.repo.GetUserByEmail(ctx, email)
+		if err == nil && existingUser != nil {
+			return conflict("email already registered")
+		}
+		if err != nil && !isNotFound(err) {
+			return wrapRepoError("get user by email", err)
+		}
+	}
 	code, err := generateCode()
 	if err != nil {
 		return internalError("generate verification code failed")
@@ -80,6 +89,10 @@ func (s *Service) Register(ctx context.Context, req RegisterRequest) (*AuthRespo
 	if !isCurrencyCode(preferredCurrency) {
 		return nil, invalidRequest("preferred_currency must be 3 uppercase letters")
 	}
+	language := normalizeLanguage(req.Language)
+	if !isSupportedLanguage(language) {
+		return nil, invalidRequest("language must be zh-CN, en, or ja")
+	}
 	existingUser, err := s.repo.GetUserByEmail(ctx, email)
 	if err == nil && existingUser != nil {
 		return nil, conflict("email already registered")
@@ -100,7 +113,7 @@ func (s *Service) Register(ctx context.Context, req RegisterRequest) (*AuthRespo
 	}
 	var createdUser *UserRecord
 	if err := s.repo.Transaction(ctx, func(repo *Repository) error {
-		user, createErr := repo.CreateUser(ctx, email, passwordHash, strings.TrimSpace(req.Name), preferredCurrency)
+		user, createErr := repo.CreateUser(ctx, email, passwordHash, strings.TrimSpace(req.Name), preferredCurrency, language)
 		if createErr != nil {
 			return createErr
 		}
@@ -180,8 +193,12 @@ func (s *Service) UpdateProfile(ctx context.Context, userID uuid.UUID, req Updat
 	if !isCurrencyCode(preferredCurrency) {
 		return nil, invalidRequest("preferred_currency must be 3 uppercase letters")
 	}
+	language := normalizeLanguage(req.Language)
+	if !isSupportedLanguage(language) {
+		return nil, invalidRequest("language must be zh-CN, en, or ja")
+	}
 	avatarPath := normalizeOptionalText(req.AvatarPath)
-	user, err := s.repo.UpdateUserProfile(ctx, userID, name, preferredCurrency, avatarPath)
+	user, err := s.repo.UpdateUserProfile(ctx, userID, name, preferredCurrency, language, avatarPath)
 	if err != nil {
 		if isNotFound(err) {
 			return nil, notFound("user not found")
@@ -257,6 +274,20 @@ func isCurrencyCode(code string) bool {
 	}
 	return true
 }
+
+func normalizeLanguage(language string) string {
+	return strings.TrimSpace(language)
+}
+
+func isSupportedLanguage(language string) bool {
+	switch language {
+	case "zh-CN", "en", "ja":
+		return true
+	default:
+		return false
+	}
+}
+
 func generateCode() (string, error) {
 	max := big.NewInt(1000000)
 	n, err := rand.Int(rand.Reader, max)
@@ -279,6 +310,7 @@ func toUserResponse(user *UserRecord) UserResponse {
 		Email:             user.Email,
 		Name:              user.Name,
 		PreferredCurrency: user.PreferredCurrency,
+		Language:          user.Language,
 		UserRole:          user.UserRole,
 		DefaultAccountID:  user.DefaultAccountBookID,
 		AvatarPath:        user.AvatarPath,

@@ -29,6 +29,7 @@ type RegisterRequest struct {
 	Name              string `json:"name" binding:"required,min=1,max=100"`
 	Password          string `json:"password" binding:"required,min=8,max=72"`
 	PreferredCurrency string `json:"preferred_currency" binding:"required,len=3"`
+	Language          string `json:"language" binding:"required"`
 	VerificationToken string `json:"verification_token" binding:"required"`
 }
 
@@ -44,6 +45,7 @@ type RefreshRequest struct {
 type UpdateProfileRequest struct {
 	Name              string  `json:"name" binding:"required,min=1,max=100"`
 	PreferredCurrency string  `json:"preferred_currency" binding:"required,len=3"`
+	Language          string  `json:"language" binding:"required"`
 	AvatarPath        *string `json:"avatar_path"`
 }
 
@@ -67,6 +69,7 @@ type UserResponse struct {
 	Email             string     `json:"email"`
 	Name              string     `json:"name"`
 	PreferredCurrency string     `json:"preferred_currency"`
+	Language          string     `json:"language"`
 	UserRole          string     `json:"user_role"`
 	DefaultAccountID  *uuid.UUID `json:"default_account_book_id"`
 	AvatarPath        *string    `json:"avatar_path"`
