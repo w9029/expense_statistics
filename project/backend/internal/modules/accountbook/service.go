@@ -217,11 +217,11 @@ func (s *Service) RemoveMember(ctx context.Context, userID uuid.UUID, accountBoo
 	if err != nil {
 		return nil, mapAuthorizationError(err)
 	}
-	if role != "owner" {
-		return nil, forbidden("only the owner can remove account book members")
+	if role != "owner" && role != "admin" {
+		return nil, forbidden("only the owner or admin can remove account book members")
 	}
 	if targetUserID == userID {
-		return nil, conflict("owner cannot remove themselves")
+		return nil, conflict("use leave to remove yourself from the account book")
 	}
 
 	if err := s.repo.Transaction(ctx, func(repo *Repository) error {
@@ -232,8 +232,14 @@ func (s *Service) RemoveMember(ctx context.Context, userID uuid.UUID, accountBoo
 			}
 			return err
 		}
-		if targetRole == "owner" {
-			return forbidden("owner cannot be removed")
+		if role == "owner" {
+			if targetRole == "owner" {
+				return forbidden("owner cannot be removed")
+			}
+		} else {
+			if targetRole == "owner" || targetRole == "admin" {
+				return forbidden("admin can only remove editor or viewer members")
+			}
 		}
 		if err := repo.RemoveMember(ctx, accountBookID, targetUserID); err != nil {
 			return err

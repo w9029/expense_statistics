@@ -27,6 +27,15 @@ func (s *Service) SendVerificationCode(ctx context.Context, req SendVerification
 		return invalidRequest("invalid verification purpose")
 	}
 	email := strings.TrimSpace(strings.ToLower(req.Email))
+	if purpose == PurposeRegister {
+		existingUser, err := s.repo.GetUserByEmail(ctx, email)
+		if err == nil && existingUser != nil {
+			return conflict("email already registered")
+		}
+		if err != nil && !isNotFound(err) {
+			return wrapRepoError("get user by email", err)
+		}
+	}
 	code, err := generateCode()
 	if err != nil {
 		return internalError("generate verification code failed")
