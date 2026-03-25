@@ -14,6 +14,7 @@ type UserRecord struct {
 	PasswordHash         string
 	Name                 string
 	PreferredCurrency    string
+	Language             string
 	UserRole             string
 	DefaultAccountBookID *uuid.UUID
 	AvatarPath           *string

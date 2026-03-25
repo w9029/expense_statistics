@@ -56,7 +56,7 @@ func (r *Repository) DeleteVerificationByID(ctx context.Context, id uuid.UUID) e
 }
 func (r *Repository) GetUserByEmail(ctx context.Context, email string) (*UserRecord, error) {
 	var record UserRecord
-	err := r.db.WithContext(ctx).Raw(`SELECT id, email, password_hash, name, preferred_currency, user_role, default_account_book_id, avatar_path, is_active FROM users WHERE email = ? AND deleted_at IS NULL LIMIT 1`, email).Scan(&record).Error
+	err := r.db.WithContext(ctx).Raw(`SELECT id, email, password_hash, name, preferred_currency, language, user_role, default_account_book_id, avatar_path, is_active FROM users WHERE email = ? AND deleted_at IS NULL LIMIT 1`, email).Scan(&record).Error
 	if err != nil {
 		return nil, err
 	}
@@ -65,9 +65,9 @@ func (r *Repository) GetUserByEmail(ctx context.Context, email string) (*UserRec
 	}
 	return &record, nil
 }
-func (r *Repository) CreateUser(ctx context.Context, email string, passwordHash string, name string, preferredCurrency string) (*UserRecord, error) {
+func (r *Repository) CreateUser(ctx context.Context, email string, passwordHash string, name string, preferredCurrency string, language string) (*UserRecord, error) {
 	var record UserRecord
-	err := r.db.WithContext(ctx).Raw(`INSERT INTO users (email, password_hash, name, preferred_currency) VALUES (?, ?, ?, ?) RETURNING id, email, password_hash, name, preferred_currency, user_role, default_account_book_id, avatar_path, is_active`, email, passwordHash, name, preferredCurrency).Scan(&record).Error
+	err := r.db.WithContext(ctx).Raw(`INSERT INTO users (email, password_hash, name, preferred_currency, language) VALUES (?, ?, ?, ?, ?) RETURNING id, email, password_hash, name, preferred_currency, language, user_role, default_account_book_id, avatar_path, is_active`, email, passwordHash, name, preferredCurrency, language).Scan(&record).Error
 	if err != nil {
 		return nil, err
 	}
@@ -92,7 +92,7 @@ func (r *Repository) RevokeRefreshToken(ctx context.Context, id uuid.UUID, revok
 }
 func (r *Repository) MustGetUserByID(ctx context.Context, id uuid.UUID) (*UserRecord, error) {
 	var record UserRecord
-	err := r.db.WithContext(ctx).Raw(`SELECT id, email, password_hash, name, preferred_currency, user_role, default_account_book_id, avatar_path, is_active FROM users WHERE id = ? AND deleted_at IS NULL LIMIT 1`, id).Scan(&record).Error
+	err := r.db.WithContext(ctx).Raw(`SELECT id, email, password_hash, name, preferred_currency, language, user_role, default_account_book_id, avatar_path, is_active FROM users WHERE id = ? AND deleted_at IS NULL LIMIT 1`, id).Scan(&record).Error
 	if err != nil {
 		return nil, err
 	}
@@ -102,17 +102,18 @@ func (r *Repository) MustGetUserByID(ctx context.Context, id uuid.UUID) (*UserRe
 	return &record, nil
 }
 
-func (r *Repository) UpdateUserProfile(ctx context.Context, userID uuid.UUID, name string, preferredCurrency string, avatarPath *string) (*UserRecord, error) {
+func (r *Repository) UpdateUserProfile(ctx context.Context, userID uuid.UUID, name string, preferredCurrency string, language string, avatarPath *string) (*UserRecord, error) {
 	var record UserRecord
 	err := r.db.WithContext(ctx).Raw(`
         UPDATE users
         SET name = ?,
             preferred_currency = ?,
+            language = ?,
             avatar_path = ?,
             updated_at = now()
         WHERE id = ? AND deleted_at IS NULL
-        RETURNING id, email, password_hash, name, preferred_currency, user_role, default_account_book_id, avatar_path, is_active
-    `, name, preferredCurrency, avatarPath, userID).Scan(&record).Error
+        RETURNING id, email, password_hash, name, preferred_currency, language, user_role, default_account_book_id, avatar_path, is_active
+    `, name, preferredCurrency, language, avatarPath, userID).Scan(&record).Error
 	if err != nil {
 		return nil, err
 	}
@@ -129,7 +130,7 @@ func (r *Repository) UpdateDefaultAccountBook(ctx context.Context, userID uuid.U
         SET default_account_book_id = ?,
             updated_at = now()
         WHERE id = ? AND deleted_at IS NULL
-        RETURNING id, email, password_hash, name, preferred_currency, user_role, default_account_book_id, avatar_path, is_active
+        RETURNING id, email, password_hash, name, preferred_currency, language, user_role, default_account_book_id, avatar_path, is_active
     `, accountBookID, userID).Scan(&record).Error
 	if err != nil {
 		return nil, err
