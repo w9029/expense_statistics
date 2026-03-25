@@ -169,20 +169,6 @@ export function ProfilePage() {
             {defaultMutation.isSuccess ? (
               <div className="success-banner">Default account book updated.</div>
             ) : null}
-
-            <div className="helper-row">
-              <button
-                className="button"
-                disabled={defaultMutation.isPending}
-                onClick={() => defaultMutation.mutate(null)}
-                type="button"
-              >
-                Clear Default
-              </button>
-              <span className="list-note mono">
-                current: {auth.user?.default_account_book_id ?? "null"}
-              </span>
-            </div>
           </div>
         </article>
       </div>
