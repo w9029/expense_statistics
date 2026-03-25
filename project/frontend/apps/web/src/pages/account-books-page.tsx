@@ -5,28 +5,39 @@ import { useForm } from "react-hook-form";
 import { Link, useNavigate } from "react-router-dom";
 import { z } from "zod";
 import type { AccountBookSummary } from "@expense-statistics/domain";
-import { ApiError } from "@expense-statistics/api-client";
 import { useAuth } from "@/features/auth/auth-context";
 import { useToast } from "@/features/feedback/toast-context";
+import { useI18n } from "@/features/i18n/i18n-context";
 import { apiClient } from "@/lib/api";
+import { getApiErrorMessage } from "@/lib/api-errors";
 
-const accountBookCreateSchema = z.object({
-  name: z.string().trim().min(1, "Name is required").max(100, "Name is too long"),
-  base_currency: z
-    .string()
-    .trim()
-    .length(3, "Use a 3-letter currency code")
-    .transform((value) => value.toUpperCase()),
-  description: z.string().max(400, "Description is too long").optional(),
-});
-
-type AccountBookCreateFormValues = z.input<typeof accountBookCreateSchema>;
+type AccountBookCreateFormValues = {
+  name: string;
+  base_currency: string;
+  description?: string;
+};
 
 export function AccountBooksPage() {
   const auth = useAuth();
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const { t } = useI18n();
   const queryClient = useQueryClient();
+
+  const accountBookCreateSchema = z.object({
+    name: z
+      .string()
+      .trim()
+      .min(1, t("register.error.name"))
+      .max(100, t("register.error.nameLong")),
+    base_currency: z
+      .string()
+      .trim()
+      .length(3, t("register.error.currency"))
+      .transform((value) => value.toUpperCase()),
+    description: z.string().max(400, t("common.error.descriptionLong")).optional(),
+  });
+
   const createForm = useForm<AccountBookCreateFormValues>({
     resolver: zodResolver(accountBookCreateSchema),
     defaultValues: {
@@ -68,14 +79,11 @@ export function AccountBooksPage() {
           default_account_book_id: created.id,
         });
       }
-      showToast("Account book created.", "success");
+      showToast(t("accountBooks.create.success"), "success");
       navigate(`/app/account-books/${created.id}`);
     },
     onError: (error) => {
-      showToast(
-        error instanceof ApiError ? error.message : "Failed to create the account book",
-        "error",
-      );
+      showToast(getApiErrorMessage(error, t("accountBooks.create.failed")), "error");
     },
   });
 
@@ -107,13 +115,10 @@ export function AccountBooksPage() {
           default_account_book_id: null,
         });
       }
-      showToast("Account book deleted.", "success");
+      showToast(t("accountBooks.delete.success"), "success");
     },
     onError: (error) => {
-      showToast(
-        error instanceof ApiError ? error.message : "Failed to delete the account book",
-        "error",
-      );
+      showToast(getApiErrorMessage(error, t("accountBooks.delete.failed")), "error");
     },
   });
 
@@ -129,13 +134,10 @@ export function AccountBooksPage() {
           default_account_book_id: null,
         });
       }
-      showToast("Left account book.", "success");
+      showToast(t("accountBooks.leave.success"), "success");
     },
     onError: (error) => {
-      showToast(
-        error instanceof ApiError ? error.message : "Failed to leave the account book",
-        "error",
-      );
+      showToast(getApiErrorMessage(error, t("accountBooks.leave.failed")), "error");
     },
   });
 
@@ -149,10 +151,10 @@ export function AccountBooksPage() {
     : [];
 
   function handleDeleteBook(accountBookId: string, name: string) {
-    const typedName = window.prompt(`Type "${name}" to delete this account book.`, "");
+    const typedName = window.prompt(t("accountBooks.delete.confirm", { name }), "");
     if (typedName !== name) {
       if (typedName !== null) {
-        showToast("Account book name did not match. Delete cancelled.", "error");
+        showToast(t("accountBooks.delete.nameMismatch"), "error");
       }
       return;
     }
@@ -160,7 +162,7 @@ export function AccountBooksPage() {
   }
 
   function handleLeaveBook(accountBookId: string, name: string) {
-    if (!window.confirm(`Leave "${name}"?`)) {
+    if (!window.confirm(t("accountBooks.leave.confirm", { name }))) {
       return;
     }
     leaveMutation.mutate(accountBookId);
@@ -169,18 +171,15 @@ export function AccountBooksPage() {
   return (
     <section>
       <header className="page-header">
-        <h1>Account Books</h1>
-        <p>
-          Create account books here, open them directly, and manage the user's default
-          book from the list.
-        </p>
+        <h1>{t("accountBooks.title")}</h1>
+        <p>{t("accountBooks.description")}</p>
       </header>
 
       <article className="detail-card compact-card" style={{ marginBottom: 18 }}>
         <div className="compact-header-row">
           <div>
-            <h3>Create Account Book</h3>
-            <p>Base currency is fixed at creation time. Name and description can be edited later.</p>
+            <h3>{t("accountBooks.create.title")}</h3>
+            <p>{t("accountBooks.create.description")}</p>
           </div>
         </div>
 
@@ -190,7 +189,7 @@ export function AccountBooksPage() {
         >
           <div className="inline-grid inline-grid-4">
             <div className="field field-compact inline-grid-span-2">
-              <label htmlFor="account-book-create-name">Name</label>
+              <label htmlFor="account-book-create-name">{t("accountBooks.name")}</label>
               <input
                 disabled={createMutation.isPending}
                 id="account-book-create-name"
@@ -199,7 +198,7 @@ export function AccountBooksPage() {
               />
             </div>
             <div className="field field-compact">
-              <label htmlFor="account-book-create-base-currency">Base Currency</label>
+              <label htmlFor="account-book-create-base-currency">{t("accountBooks.baseCurrency")}</label>
               <input
                 disabled={createMutation.isPending}
                 id="account-book-create-base-currency"
@@ -209,7 +208,7 @@ export function AccountBooksPage() {
               />
             </div>
             <div className="field field-compact">
-              <label htmlFor="account-book-create-description">Description</label>
+              <label htmlFor="account-book-create-description">{t("accountBooks.bookDescription")}</label>
               <input
                 disabled={createMutation.isPending}
                 id="account-book-create-description"
@@ -230,34 +229,30 @@ export function AccountBooksPage() {
           ) : null}
           {createMutation.isError ? (
             <div className="error-banner">
-              {createMutation.error instanceof ApiError
-                ? createMutation.error.message
-                : "Failed to create the account book"}
+              {getApiErrorMessage(createMutation.error, t("accountBooks.create.failed"))}
             </div>
           ) : null}
 
           <div className="form-actions form-actions-end">
             <button className="button primary button-sm" disabled={createMutation.isPending} type="submit">
-              {createMutation.isPending ? "Creating..." : "Create Book"}
+              {createMutation.isPending
+                ? t("accountBooks.create.submitting")
+                : t("accountBooks.create.submit")}
             </button>
           </div>
         </form>
       </article>
 
-      {accountBooksQuery.isLoading ? <div className="info-banner">Loading account books...</div> : null}
+      {accountBooksQuery.isLoading ? <div className="info-banner">{t("accountBooks.loading")}</div> : null}
       {accountBooksQuery.isError ? (
         <div className="error-banner">
-          {accountBooksQuery.error instanceof ApiError
-            ? accountBooksQuery.error.message
-            : "Failed to load account books"}
+          {getApiErrorMessage(accountBooksQuery.error, t("accountBooks.loadFailed"))}
         </div>
       ) : null}
 
       {defaultMutation.isError ? (
         <div className="error-banner" style={{ marginBottom: 16 }}>
-          {defaultMutation.error instanceof ApiError
-            ? defaultMutation.error.message
-            : "Failed to update the default account book"}
+          {getApiErrorMessage(defaultMutation.error, t("accountBooks.default.failed"))}
         </div>
       ) : null}
 
@@ -279,11 +274,11 @@ export function AccountBooksPage() {
                   <div className="badge-row">
                     <span className="badge">{book.my_role}</span>
                     <span className="badge">{book.base_currency}</span>
-                    {book.is_default ? <span className="badge badge-default-book">default</span> : null}
+                    {book.is_default ? <span className="badge badge-default-book">{t("accountBooks.default.badge")}</span> : null}
                   </div>
                   <div className="helper-row" style={{ justifyContent: "flex-end" }}>
                     <Link className="button button-sm" to={`/app/account-books/${book.id}/collaboration`}>
-                      Members
+                      {t("accountBooks.members")}
                     </Link>
                     {book.my_role === "owner" ? (
                       <button
@@ -292,7 +287,7 @@ export function AccountBooksPage() {
                         onClick={() => handleDeleteBook(book.id, book.name)}
                         type="button"
                       >
-                        {isDeletingThisBook ? "Deleting..." : "Delete"}
+                        {isDeletingThisBook ? t("accountBooks.deleting") : t("accountBooks.delete")}
                       </button>
                     ) : (
                       <button
@@ -301,18 +296,18 @@ export function AccountBooksPage() {
                         onClick={() => handleLeaveBook(book.id, book.name)}
                         type="button"
                       >
-                        {isLeavingThisBook ? "Leaving..." : "Leave"}
+                        {isLeavingThisBook ? t("accountBooks.leaving") : t("accountBooks.leave")}
                       </button>
                     )}
                   </div>
                 </div>
 
                 <h3 style={{ marginTop: 16 }}>{book.name}</h3>
-                <p>{book.description ?? "No description yet."}</p>
+                <p>{book.description ?? t("common.noDescription")}</p>
 
                 <div className="cta-row" style={{ marginTop: 18 }}>
                   <Link className="button primary" to={`/app/account-books/${book.id}`}>
-                    Open Book
+                    {t("accountBooks.open")}
                   </Link>
                   <button
                     className="button"
@@ -321,10 +316,10 @@ export function AccountBooksPage() {
                     type="button"
                   >
                     {book.is_default
-                      ? "Current Default"
+                      ? t("accountBooks.currentDefault")
                       : isCurrentMutation && defaultMutation.isPending
-                        ? "Setting..."
-                        : "Set Default"}
+                        ? t("accountBooks.settingDefault")
+                        : t("accountBooks.setDefault")}
                   </button>
                 </div>
               </article>
@@ -332,10 +327,7 @@ export function AccountBooksPage() {
           })}
         </div>
       ) : accountBooksQuery.isSuccess ? (
-        <div className="empty-state">
-          No account books yet. The next step is to connect create-book and invitation
-          flows so this page becomes the real post-login landing surface.
-        </div>
+        <div className="empty-state">{t("accountBooks.empty")}</div>
       ) : null}
     </section>
   );

@@ -7,6 +7,7 @@ import { z } from "zod";
 import { ApiError } from "@expense-statistics/api-client";
 import { useAuth } from "@/features/auth/auth-context";
 import { useToast } from "@/features/feedback/toast-context";
+import { useI18n } from "@/features/i18n/i18n-context";
 import { apiClient } from "@/lib/api";
 import {
   buildExpenseListNavigationState,
@@ -17,39 +18,6 @@ import { parseDecimalInput, todayNaturalDate } from "@/lib/ledger";
 const amountPattern = /^\d+(\.\d{1,2})?$/;
 const naturalDatePattern = /^\d{4}-\d{2}-\d{2}$/;
 
-const mergedExpenseSchema = z.object({
-  parent: z.object({
-    category_id: z.string().min(1, "Parent category is required"),
-    name: z.string().trim().min(1, "Parent name is required").max(200, "Name is too long"),
-    description: z.string().max(400, "Description is too long").optional(),
-    total_original_amount: z
-      .string()
-      .trim()
-      .regex(amountPattern, "Use a valid total amount"),
-    original_currency: z
-      .string()
-      .trim()
-      .length(3, "Use a 3-letter currency code")
-      .transform((value) => value.toUpperCase()),
-    spent_at: z.string().regex(naturalDatePattern, "Use YYYY-MM-DD"),
-  }),
-  children_amount_input_mode: z.enum(["pretax", "posttax"]),
-  children: z
-    .array(
-      z.object({
-        category_id: z.string().min(1, "Child category is required"),
-        name: z.string().trim().min(1, "Child name is required").max(200, "Name is too long"),
-        description: z.string().max(400, "Description is too long").optional(),
-        amount_input: z
-          .string()
-          .trim()
-          .regex(amountPattern, "Use a valid child amount"),
-      }),
-    )
-    .min(1, "At least one child item is required"),
-});
-
-type MergedExpenseFormValues = z.input<typeof mergedExpenseSchema>;
 type SubmitMode = "back" | "next";
 
 function emptyChild() {
@@ -68,6 +36,7 @@ export function MergedExpensePage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { showToast } = useToast();
+  const { t } = useI18n();
   const isEditMode = Boolean(expenseId);
   const returnFilters = readExpenseListFiltersFromState(location.state);
   const backToBookState = returnFilters
@@ -79,6 +48,96 @@ export function MergedExpensePage() {
     tone: "success" | "error";
     text: string;
   } | null>(null);
+  const copy = {
+    titleCreate: t("mergedExpense.titleCreate"),
+    titleEdit: t("mergedExpense.titleEdit"),
+    subtitleCreate: t("mergedExpense.subtitleCreate"),
+    subtitleEdit: t("mergedExpense.subtitleEdit"),
+    formTitle: t("mergedExpense.formTitle"),
+    formDescriptionCreate: t("mergedExpense.formDescriptionCreate"),
+    formDescriptionEdit: t("mergedExpense.formDescriptionEdit"),
+    mergeLabel: t("mergedExpense.mergeLabel"),
+    normalLabel: t("mergedExpense.normalLabel"),
+    baseLabel: t("mergedExpense.baseLabel"),
+    editing: t("mergedExpense.editing"),
+    mergeCategory: t("mergedExpense.mergeCategory"),
+    chooseMergeCategory: t("mergedExpense.chooseMergeCategory"),
+    parentName: t("mergedExpense.parentName"),
+    total: t("mergedExpense.total"),
+    currency: t("mergedExpense.currency"),
+    spentAt: t("mergedExpense.spentAt"),
+    mode: t("mergedExpense.mode"),
+    pretax: t("mergedExpense.pretax"),
+    posttax: t("mergedExpense.posttax"),
+    description: t("mergedExpense.description"),
+    childItems: t("mergedExpense.childItems"),
+    childItemsDescription: t("mergedExpense.childItemsDescription"),
+    category: t("mergedExpense.category"),
+    chooseNormalCategory: t("mergedExpense.chooseNormalCategory"),
+    name: t("mergedExpense.name"),
+    remove: t("mergedExpense.remove"),
+    loadingExpense: t("mergedExpense.loadingExpense"),
+    loadExpenseFailed: t("mergedExpense.loadExpenseFailed"),
+    createFailed: t("mergedExpense.createFailed"),
+    updateFailed: t("mergedExpense.updateFailed"),
+    created: t("mergedExpense.created"),
+    updated: t("mergedExpense.updated"),
+    createdNext: t("mergedExpense.createdNext"),
+    cancel: t("common.cancel"),
+    addChild: t("mergedExpense.addChild"),
+    createAndNext: t("mergedExpense.createAndNext"),
+    create: t("mergedExpense.create"),
+    save: t("mergedExpense.save"),
+    creating: t("mergedExpense.creating"),
+    saving: t("mergedExpense.saving"),
+    previewTitle: t("mergedExpense.previewTitle"),
+    parentTotal: t("mergedExpense.parentTotal"),
+    childrenSum: t("mergedExpense.childrenSum"),
+    expectedTaxRate: t("mergedExpense.expectedTaxRate"),
+    pretaxHint: t("mergedExpense.pretaxHint"),
+    posttaxDifference: t("mergedExpense.posttaxDifference"),
+    missingCategories: t("mergedExpense.missingCategories"),
+    confirmCreate: t("mergedExpense.confirmCreate"),
+    confirmSave: t("mergedExpense.confirmSave"),
+    parentCategoryRequired: t("mergedExpense.parentCategoryRequired"),
+    parentNameRequired: t("mergedExpense.parentNameRequired"),
+    nameLong: t("mergedExpense.nameLong"),
+    amountInvalid: t("mergedExpense.amountInvalid"),
+    currencyInvalid: t("mergedExpense.currencyInvalid"),
+    dateInvalid: t("mergedExpense.dateInvalid"),
+    childCategoryRequired: t("mergedExpense.childCategoryRequired"),
+    childNameRequired: t("mergedExpense.childNameRequired"),
+    childAmountInvalid: t("mergedExpense.childAmountInvalid"),
+    childrenRequired: t("mergedExpense.childrenRequired"),
+  };
+
+  const mergedExpenseSchema = z.object({
+    parent: z.object({
+      category_id: z.string().min(1, copy.parentCategoryRequired),
+      name: z.string().trim().min(1, copy.parentNameRequired).max(200, copy.nameLong),
+      description: z.string().max(400, t("common.error.descriptionLong")).optional(),
+      total_original_amount: z.string().trim().regex(amountPattern, copy.amountInvalid),
+      original_currency: z
+        .string()
+        .trim()
+        .length(3, copy.currencyInvalid)
+        .transform((value) => value.toUpperCase()),
+      spent_at: z.string().regex(naturalDatePattern, copy.dateInvalid),
+    }),
+    children_amount_input_mode: z.enum(["pretax", "posttax"]),
+    children: z
+      .array(
+        z.object({
+          category_id: z.string().min(1, copy.childCategoryRequired),
+          name: z.string().trim().min(1, copy.childNameRequired).max(200, copy.nameLong),
+          description: z.string().max(400, t("common.error.descriptionLong")).optional(),
+          amount_input: z.string().trim().regex(amountPattern, copy.childAmountInvalid),
+        }),
+      )
+      .min(1, copy.childrenRequired),
+  });
+
+  type MergedExpenseFormValues = z.input<typeof mergedExpenseSchema>;
 
   const form = useForm<MergedExpenseFormValues>({
     resolver: zodResolver(mergedExpenseSchema),
@@ -129,6 +188,14 @@ export function MergedExpensePage() {
       return;
     }
 
+    const mappedChildren =
+      expenseDetailQuery.data.children?.map((child) => ({
+        category_id: child.category_id,
+        name: child.name,
+        description: child.description ?? "",
+        amount_input: child.original_amount,
+      })) ?? [emptyChild()];
+
     form.reset({
       parent: {
         category_id: expenseDetailQuery.data.expense.category_id,
@@ -138,24 +205,10 @@ export function MergedExpensePage() {
         original_currency: expenseDetailQuery.data.expense.original_currency,
         spent_at: expenseDetailQuery.data.expense.spent_at,
       },
-      // Stored child amounts are already final taxed amounts, so edit mode starts in posttax.
       children_amount_input_mode: "posttax",
-      children:
-        expenseDetailQuery.data.children?.map((child) => ({
-          category_id: child.category_id,
-          name: child.name,
-          description: child.description ?? "",
-          amount_input: child.original_amount,
-        })) ?? [emptyChild()],
+      children: mappedChildren,
     });
-    replace(
-      expenseDetailQuery.data.children?.map((child) => ({
-        category_id: child.category_id,
-        name: child.name,
-        description: child.description ?? "",
-        amount_input: child.original_amount,
-      })) ?? [emptyChild()],
-    );
+    replace(mappedChildren);
   }, [expenseDetailQuery.data, form, isEditMode, replace]);
 
   const saveMutation = useMutation({
@@ -206,6 +259,13 @@ export function MergedExpensePage() {
       });
 
       if (isEditMode) {
+        const mappedChildren = saved.children.map((child) => ({
+          category_id: child.category_id,
+          name: child.name,
+          description: child.description ?? "",
+          amount_input: child.original_amount,
+        }));
+
         form.reset({
           parent: {
             category_id: saved.parent.category_id,
@@ -216,22 +276,10 @@ export function MergedExpensePage() {
             spent_at: saved.parent.spent_at,
           },
           children_amount_input_mode: saved.children_amount_input_mode,
-          children: saved.children.map((child) => ({
-            category_id: child.category_id,
-            name: child.name,
-            description: child.description ?? "",
-            amount_input: child.original_amount,
-          })),
+          children: mappedChildren,
         });
-        replace(
-          saved.children.map((child) => ({
-            category_id: child.category_id,
-            name: child.name,
-            description: child.description ?? "",
-            amount_input: child.original_amount,
-          })),
-        );
-        showToast("Merged expense updated.", "success");
+        replace(mappedChildren);
+        showToast(copy.updated, "success");
         navigate(`/app/account-books/${accountBookId}`, {
           replace: true,
           state: backToBookState,
@@ -256,12 +304,12 @@ export function MergedExpensePage() {
         replace([emptyChild()]);
         setFlashMessage({
           tone: "success",
-          text: "Merged expense created. Ready for the next one.",
+          text: copy.createdNext,
         });
         return;
       }
 
-      showToast("Merged expense created.", "success");
+      showToast(copy.created, "success");
       navigate(`/app/account-books/${accountBookId}`, { replace: true });
     },
     onError: (error) => {
@@ -269,8 +317,8 @@ export function MergedExpensePage() {
         error instanceof ApiError
           ? error.message
           : isEditMode
-            ? "Failed to update the merged expense"
-            : "Failed to create the merged expense";
+            ? copy.updateFailed
+            : copy.createFailed;
       setFlashMessage({ tone: "error", text });
       showToast(text, "error");
     },
@@ -299,16 +347,16 @@ export function MergedExpensePage() {
   const expectedTaxRate =
     childTotal > 0 ? Number((((parentTotal - childTotal) / childTotal) * 100).toFixed(2)) : null;
   const expectedTaxRateTone =
-    expectedTaxRate === null ? "info-banner compact-banner" : expectedTaxRate >= 0 && expectedTaxRate <= 15
-      ? "success-banner compact-banner"
-      : "error-banner compact-banner";
+    expectedTaxRate === null
+      ? "info-banner compact-banner"
+      : expectedTaxRate >= 0 && expectedTaxRate <= 15
+        ? "success-banner compact-banner"
+        : "error-banner compact-banner";
 
   async function submit(mode: SubmitMode) {
     setFlashMessage(null);
     submitModeRef.current = mode;
-    const confirmed = window.confirm(
-      isEditMode ? "Save merged expense?" : "Create merged expense?",
-    );
+    const confirmed = window.confirm(isEditMode ? copy.confirmSave : copy.confirmCreate);
     if (!confirmed) {
       return;
     }
@@ -351,11 +399,13 @@ export function MergedExpensePage() {
       <header className="page-header page-header-compact">
         <div>
           <div className="title-row">
-            <h1>{isEditMode ? "Edit Merged Expense" : "New Merged Expense"}</h1>
+            <h1>{isEditMode ? copy.titleEdit : copy.titleCreate}</h1>
           </div>
           <p>
-            {isEditMode ? "Update mode for " : "High-speed receipt entry for "}
-            <span className="mono">{detailQuery.data?.name ?? "this book"}</span>.
+            {(isEditMode ? copy.subtitleEdit : copy.subtitleCreate).replace(
+              "{book}",
+              detailQuery.data?.name ?? "this book",
+            )}
           </p>
         </div>
       </header>
@@ -363,28 +413,27 @@ export function MergedExpensePage() {
       <div className="compact-form-shell compact-form-shell-wide">
         <article className="detail-card compact-card">
           {flashMessage ? (
-            <div
-              className={`inline-toast inline-toast-${flashMessage.tone}`}
-              role="status"
-            >
+            <div className={`inline-toast inline-toast-${flashMessage.tone}`} role="status">
               {flashMessage.text}
             </div>
           ) : null}
 
           <div className="compact-header-row">
             <div>
-              <h3>Merged Expense Form</h3>
-              <p>
-                {isEditMode
-                  ? "Enter submits the update. Alt+Enter still adds a child row."
-                  : "Enter submits. Ctrl+Enter creates and stays in input mode."}
-              </p>
+              <h3>{copy.formTitle}</h3>
+              <p>{isEditMode ? copy.formDescriptionEdit : copy.formDescriptionCreate}</p>
             </div>
             <div className="helper-row">
-              <span className="badge">merge {mergeCategories.length}</span>
-              <span className="badge">normal {normalCategories.length}</span>
-              <span className="badge">base {detailQuery.data?.base_currency ?? "..."}</span>
-              {isEditMode ? <span className="badge">editing</span> : null}
+              <span className="badge">
+                {copy.mergeLabel} {mergeCategories.length}
+              </span>
+              <span className="badge">
+                {copy.normalLabel} {normalCategories.length}
+              </span>
+              <span className="badge">
+                {copy.baseLabel} {detailQuery.data?.base_currency ?? "..."}
+              </span>
+              {isEditMode ? <span className="badge">{copy.editing}</span> : null}
             </div>
           </div>
 
@@ -398,9 +447,9 @@ export function MergedExpensePage() {
           >
             <div className="inline-grid inline-grid-5">
               <div className="field field-compact">
-                <label htmlFor="merged-parent-category">Merge Category</label>
+                <label htmlFor="merged-parent-category">{copy.mergeCategory}</label>
                 <select id="merged-parent-category" {...form.register("parent.category_id")}>
-                  <option value="">Choose a merge category</option>
+                  <option value="">{copy.chooseMergeCategory}</option>
                   {mergeCategories.map((category) => (
                     <option key={category.id} value={category.id}>
                       {category.name}
@@ -415,7 +464,7 @@ export function MergedExpensePage() {
               </div>
 
               <div className="field field-compact inline-grid-span-2">
-                <label htmlFor="merged-parent-name">Parent Name</label>
+                <label htmlFor="merged-parent-name">{copy.parentName}</label>
                 <input id="merged-parent-name" type="text" {...form.register("parent.name")} />
                 {form.formState.errors.parent?.name ? (
                   <div className="error-banner">{form.formState.errors.parent.name.message}</div>
@@ -423,7 +472,7 @@ export function MergedExpensePage() {
               </div>
 
               <div className="field field-compact">
-                <label htmlFor="merged-parent-total">Total</label>
+                <label htmlFor="merged-parent-total">{copy.total}</label>
                 <input
                   id="merged-parent-total"
                   type="text"
@@ -437,7 +486,7 @@ export function MergedExpensePage() {
               </div>
 
               <div className="field field-compact">
-                <label htmlFor="merged-parent-currency">Currency</label>
+                <label htmlFor="merged-parent-currency">{copy.currency}</label>
                 <input
                   id="merged-parent-currency"
                   maxLength={3}
@@ -454,7 +503,7 @@ export function MergedExpensePage() {
 
             <div className="inline-grid inline-grid-4">
               <div className="field field-compact">
-                <label htmlFor="merged-parent-spent-at">Spent At</label>
+                <label htmlFor="merged-parent-spent-at">{copy.spentAt}</label>
                 <input
                   id="merged-parent-spent-at"
                   type="date"
@@ -466,15 +515,15 @@ export function MergedExpensePage() {
               </div>
 
               <div className="field field-compact">
-                <label htmlFor="merged-mode">Mode</label>
+                <label htmlFor="merged-mode">{copy.mode}</label>
                 <select id="merged-mode" {...form.register("children_amount_input_mode")}>
-                  <option value="pretax">Pretax</option>
-                  <option value="posttax">Posttax</option>
+                  <option value="pretax">{copy.pretax}</option>
+                  <option value="posttax">{copy.posttax}</option>
                 </select>
               </div>
 
               <div className="field field-compact inline-grid-span-2">
-                <label htmlFor="merged-parent-description">Description</label>
+                <label htmlFor="merged-parent-description">{copy.description}</label>
                 <input
                   id="merged-parent-description"
                   type="text"
@@ -491,8 +540,8 @@ export function MergedExpensePage() {
             <div className="child-list-shell">
               <div className="compact-header-row">
                 <div>
-                  <h3>Child Items</h3>
-                  <p>Each row is a line item under the merged parent.</p>
+                  <h3>{copy.childItems}</h3>
+                  <p>{copy.childItemsDescription}</p>
                 </div>
               </div>
 
@@ -501,12 +550,12 @@ export function MergedExpensePage() {
                   <div className="child-row-card" key={field.id}>
                     <div className="inline-grid inline-grid-6">
                       <div className="field field-compact">
-                        <label htmlFor={`child-category-${index}`}>Category</label>
+                        <label htmlFor={`child-category-${index}`}>{copy.category}</label>
                         <select
                           id={`child-category-${index}`}
                           {...form.register(`children.${index}.category_id`)}
                         >
-                          <option value="">Choose a normal category</option>
+                          <option value="">{copy.chooseNormalCategory}</option>
                           {normalCategories.map((category) => (
                             <option key={category.id} value={category.id}>
                               {category.name}
@@ -521,7 +570,7 @@ export function MergedExpensePage() {
                       </div>
 
                       <div className="field field-compact inline-grid-span-2">
-                        <label htmlFor={`child-name-${index}`}>Name</label>
+                        <label htmlFor={`child-name-${index}`}>{copy.name}</label>
                         <input
                           id={`child-name-${index}`}
                           type="text"
@@ -536,7 +585,7 @@ export function MergedExpensePage() {
 
                       <div className="field field-compact">
                         <label htmlFor={`child-amount-${index}`}>
-                          {amountMode === "pretax" ? "Pretax" : "Posttax"}
+                          {amountMode === "pretax" ? copy.pretax : copy.posttax}
                         </label>
                         <input
                           id={`child-amount-${index}`}
@@ -551,7 +600,7 @@ export function MergedExpensePage() {
                       </div>
 
                       <div className="field field-compact inline-grid-span-2">
-                        <label htmlFor={`child-description-${index}`}>Description</label>
+                        <label htmlFor={`child-description-${index}`}>{copy.description}</label>
                         <input
                           id={`child-description-${index}`}
                           type="text"
@@ -571,7 +620,7 @@ export function MergedExpensePage() {
                           onClick={() => remove(index)}
                           type="button"
                         >
-                          Remove
+                          {copy.remove}
                         </button>
                       </div>
                     </div>
@@ -581,14 +630,14 @@ export function MergedExpensePage() {
             </div>
 
             {expenseDetailQuery.isLoading && isEditMode ? (
-              <div className="info-banner">Loading merged expense...</div>
+              <div className="info-banner">{copy.loadingExpense}</div>
             ) : null}
 
             {expenseDetailQuery.isError && isEditMode ? (
               <div className="error-banner">
                 {expenseDetailQuery.error instanceof ApiError
                   ? expenseDetailQuery.error.message
-                  : "Failed to load the merged expense"}
+                  : copy.loadExpenseFailed}
               </div>
             ) : null}
 
@@ -597,8 +646,8 @@ export function MergedExpensePage() {
                 {saveMutation.error instanceof ApiError
                   ? saveMutation.error.message
                   : isEditMode
-                    ? "Failed to update the merged expense"
-                    : "Failed to create the merged expense"}
+                    ? copy.updateFailed
+                    : copy.createFailed}
               </div>
             ) : null}
 
@@ -610,14 +659,14 @@ export function MergedExpensePage() {
                   state={backToBookState}
                   to={`/app/account-books/${accountBookId}`}
                 >
-                  Cancel
+                  {copy.cancel}
                 </Link>
                 <button
                   className="button button-sm button-earth"
                   onClick={appendChildAndScroll}
                   type="button"
                 >
-                  Add Child Expense
+                  {copy.addChild}
                 </button>
               </div>
               <div className="form-actions-group">
@@ -633,8 +682,8 @@ export function MergedExpensePage() {
                     type="button"
                   >
                     {saveMutation.isPending && submitModeRef.current === "next"
-                      ? "Creating..."
-                      : "Create Merged And Next"}
+                      ? copy.creating
+                      : copy.createAndNext}
                   </button>
                 ) : null}
                 <button
@@ -651,11 +700,11 @@ export function MergedExpensePage() {
                 >
                   {saveMutation.isPending && submitModeRef.current === "back"
                     ? isEditMode
-                      ? "Saving..."
-                      : "Creating..."
+                      ? copy.saving
+                      : copy.creating
                     : isEditMode
-                      ? "Save Merged Expense"
-                      : "Create Merged Expense"}
+                      ? copy.save
+                      : copy.create}
                 </button>
               </div>
             </div>
@@ -664,32 +713,27 @@ export function MergedExpensePage() {
         </article>
 
         <article className="detail-card compact-card compact-side-card">
-          <h3>Calculation Preview</h3>
+          <h3>{copy.previewTitle}</h3>
           <div className="stack-sm">
             <div className="info-banner compact-banner">
-              Parent total: {parentTotal.toFixed(2)}{" "}
+              {copy.parentTotal}: {parentTotal.toFixed(2)}{" "}
               {form.watch("parent.original_currency").trim().toUpperCase() || "JPY"}
             </div>
             <div className="info-banner compact-banner">
-              Children input sum: {childTotal.toFixed(2)}
+              {copy.childrenSum}: {childTotal.toFixed(2)}
             </div>
             <div className={expectedTaxRateTone}>
-              Expected tax rate: {expectedTaxRate === null ? "-" : `${expectedTaxRate.toFixed(2)}%`}
+              {copy.expectedTaxRate}: {expectedTaxRate === null ? "-" : `${expectedTaxRate.toFixed(2)}%`}
             </div>
             {amountMode === "pretax" ? (
-              <div className="info-banner compact-banner">
-                Pretax mode lets the backend allocate tax and the rounding remainder.
-              </div>
+              <div className="info-banner compact-banner">{copy.pretaxHint}</div>
             ) : (
               <div className={postTaxDifference === 0 ? "success-banner" : "error-banner"}>
-                Posttax difference vs parent total: {postTaxDifference.toFixed(2)}
+                {copy.posttaxDifference}: {postTaxDifference.toFixed(2)}
               </div>
             )}
             {mergeCategories.length === 0 || normalCategories.length === 0 ? (
-              <div className="error-banner">
-                This account book needs both merge categories and normal categories
-                before merged expenses can be entered.
-              </div>
+              <div className="error-banner">{copy.missingCategories}</div>
             ) : null}
           </div>
         </article>

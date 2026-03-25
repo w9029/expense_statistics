@@ -3,21 +3,21 @@ import { useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { z } from "zod";
-import { ApiError } from "@expense-statistics/api-client";
 import { useAuth } from "@/features/auth/auth-context";
+import { useI18n } from "@/features/i18n/i18n-context";
 import { getPostAuthPath } from "@/lib/auth";
-
-const loginSchema = z.object({
-  email: z.string().email("Enter a valid email"),
-  password: z.string().min(1, "Password is required"),
-});
-
-type LoginFormValues = z.infer<typeof loginSchema>;
+import { getApiErrorMessage } from "@/lib/api-errors";
 
 export function LoginPage() {
   const auth = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const { t } = useI18n();
+  const loginSchema = z.object({
+    email: z.string().email(t("login.error.email")),
+    password: z.string().min(1, t("login.error.password")),
+  });
+  type LoginFormValues = z.infer<typeof loginSchema>;
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
@@ -38,19 +38,15 @@ export function LoginPage() {
   return (
     <div className="auth-shell">
       <section className="auth-card">
-        <h1>Sign in</h1>
-        <p>
-          This page is now wired to
-          <span className="mono"> /api/v1/identity/login</span>. The session is stored
-          locally so account books and profile pages can query protected endpoints.
-        </p>
+        <h1>{t("login.title")}</h1>
+        <p>{t("login.description")}</p>
 
         <form className="form-grid" onSubmit={form.handleSubmit((values) => loginMutation.mutate(values))}>
           <div className="field">
-            <label htmlFor="login-email">Email</label>
+            <label htmlFor="login-email">{t("login.email")}</label>
             <input
               id="login-email"
-              placeholder="joshua@example.com"
+              placeholder={t("login.placeholder.email")}
               type="email"
               {...form.register("email")}
             />
@@ -60,10 +56,10 @@ export function LoginPage() {
           </div>
 
           <div className="field">
-            <label htmlFor="login-password">Password</label>
+            <label htmlFor="login-password">{t("login.password")}</label>
             <input
               id="login-password"
-              placeholder="Enter your password"
+              placeholder={t("login.placeholder.password")}
               type="password"
               {...form.register("password")}
             />
@@ -74,24 +70,23 @@ export function LoginPage() {
 
           {loginMutation.isError ? (
             <div className="error-banner">
-              {loginMutation.error instanceof ApiError
-                ? loginMutation.error.message
-                : "Sign in failed"}
+              {getApiErrorMessage(loginMutation.error, t("login.failed"))}
             </div>
           ) : null}
 
           <button className="button primary full" disabled={loginMutation.isPending} type="submit">
-            {loginMutation.isPending ? "Signing in..." : "Continue"}
+            {loginMutation.isPending ? t("login.submitting") : t("login.submit")}
           </button>
         </form>
 
         <p className="list-note" style={{ marginTop: 18 }}>
-          Need an account?{" "}
+          
           <Link
             state={location.state}
             to="/auth/register"
           >
-            Create one
+            {t("login.needAccount")}{" "}
+            {t("login.createOne")}
           </Link>
         </p>
       </section>

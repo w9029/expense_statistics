@@ -5,21 +5,17 @@ import { useForm } from "react-hook-form";
 import { useParams } from "react-router-dom";
 import { z } from "zod";
 import type { ExpenseCategory } from "@expense-statistics/domain";
-import { ApiError } from "@expense-statistics/api-client";
 import { useAuth } from "@/features/auth/auth-context";
+import { useI18n } from "@/features/i18n/i18n-context";
 import { apiClient } from "@/lib/api";
+import { getApiErrorMessage } from "@/lib/api-errors";
 
-const categorySchema = z.object({
-  name: z.string().trim().min(1, "Name is required").max(100, "Name is too long"),
-  description: z.string().max(400, "Description is too long").optional(),
-  is_merge_category: z.boolean(),
-  color: z
-    .string()
-    .trim()
-    .regex(/^#[0-9A-Fa-f]{6}$/, "Color must be a hex value like #AABBCC"),
-});
-
-type CategoryFormValues = z.infer<typeof categorySchema>;
+type CategoryFormValues = {
+  name: string;
+  description?: string;
+  is_merge_category: boolean;
+  color: string;
+};
 
 const emptyCategoryValues: CategoryFormValues = {
   name: "",
@@ -40,9 +36,68 @@ function toFormValues(category: ExpenseCategory): CategoryFormValues {
 export function ExpenseCategoriesPage() {
   const { accountBookId } = useParams();
   const auth = useAuth();
+  const { t } = useI18n();
   const queryClient = useQueryClient();
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const copy = {
+    title: t("categories.title"),
+    subtitle: t("categories.subtitle"),
+    loading: t("categories.loading"),
+    loadBookFailed: t("categories.loadBookFailed"),
+    loadCategoriesFailed: t("categories.loadCategoriesFailed"),
+    listTitle: t("categories.listTitle"),
+    listDescription: t("categories.listDescription"),
+    total: t("categories.total"),
+    normal: t("categories.normal"),
+    merge: t("categories.merge"),
+    normalCategories: t("categories.normalCategories"),
+    mergeCategories: t("categories.mergeCategories"),
+    noNormal: t("categories.noNormal"),
+    noMerge: t("categories.noMerge"),
+    seed: t("categories.seed"),
+    editing: t("categories.editing"),
+    noDescription: t("common.noDescription"),
+    editTitle: t("categories.editTitle"),
+    createTitle: t("categories.createTitle"),
+    editDescription: t("categories.editDescription"),
+    createDescription: t("categories.createDescription"),
+    cancel: t("common.cancel"),
+    readonly: t("categories.readonly"),
+    name: t("categories.name"),
+    type: t("categories.type"),
+    description: t("categories.description"),
+    color: t("categories.color"),
+    liveBadge: t("categories.liveBadge"),
+    previewName: t("categories.previewName"),
+    reset: t("categories.reset"),
+    delete: t("common.delete"),
+    deleting: t("book.deleting"),
+    save: t("categories.save"),
+    saving: t("categories.saving"),
+    create: t("categories.create"),
+    creating: t("categories.creating"),
+    created: t("categories.created"),
+    updated: t("categories.updated"),
+    deleted: t("categories.deleted"),
+    actionFailed: t("categories.actionFailed"),
+    deleteConfirm: t("categories.deleteConfirm"),
+  };
+
+  const categorySchema = z.object({
+    name: z
+      .string()
+      .trim()
+      .min(1, t("categories.nameRequired"))
+      .max(100, t("categories.nameLong")),
+    description: z.string().max(400, t("common.error.descriptionLong")).optional(),
+    is_merge_category: z.boolean(),
+    color: z
+      .string()
+      .trim()
+      .regex(/^#[0-9A-Fa-f]{6}$/, t("categories.colorInvalid")),
+  });
+
   const form = useForm<CategoryFormValues>({
     resolver: zodResolver(categorySchema),
     defaultValues: emptyCategoryValues,
@@ -116,7 +171,7 @@ export function ExpenseCategoriesPage() {
       }),
     onSuccess: async (_, values) => {
       resetToCreateMode(values.is_merge_category);
-      setSuccessMessage("Category created.");
+      setSuccessMessage(copy.created);
       await refreshCategoryQueries();
     },
   });
@@ -131,16 +186,17 @@ export function ExpenseCategoriesPage() {
       }),
     onSuccess: async (updated) => {
       form.reset(toFormValues(updated));
-      setSuccessMessage("Category updated.");
+      setSuccessMessage(copy.updated);
       await refreshCategoryQueries();
     },
   });
 
   const deleteMutation = useMutation({
-    mutationFn: () => apiClient.deleteExpenseCategory(auth.accessToken!, accountBookId!, selectedCategoryId!),
+    mutationFn: () =>
+      apiClient.deleteExpenseCategory(auth.accessToken!, accountBookId!, selectedCategoryId!),
     onSuccess: async () => {
       setSelectedCategoryId(null);
-      setSuccessMessage("Category deleted.");
+      setSuccessMessage(copy.deleted);
       await refreshCategoryQueries();
     },
   });
@@ -175,7 +231,7 @@ export function ExpenseCategoriesPage() {
     if (!selectedCategoryId || deleteMutation.isPending) {
       return;
     }
-    if (!window.confirm("Delete this category? This only works when no expense uses it.")) {
+    if (!window.confirm(copy.deleteConfirm)) {
       return;
     }
     setSuccessMessage(null);
@@ -218,15 +274,20 @@ export function ExpenseCategoriesPage() {
                   <div className="category-item-main">
                     <div className="category-item-header">
                       <span className="category-badge">
-                        <span className="color-swatch color-swatch-lg" style={{ backgroundColor: category.color }} />
+                        <span
+                          className="color-swatch color-swatch-lg"
+                          style={{ backgroundColor: category.color }}
+                        />
                         {category.name}
                       </span>
                       <div className="helper-row">
-                        {category.is_system_seed ? <span className="badge badge-tight">seed</span> : null}
-                        {active ? <span className="badge badge-tight">editing</span> : null}
+                        {category.is_system_seed ? (
+                          <span className="badge badge-tight">{copy.seed}</span>
+                        ) : null}
+                        {active ? <span className="badge badge-tight">{copy.editing}</span> : null}
                       </div>
                     </div>
-                    <p>{category.description ?? "No description."}</p>
+                    <p>{category.description ?? copy.noDescription}</p>
                   </div>
                 </button>
               );
@@ -249,11 +310,9 @@ export function ExpenseCategoriesPage() {
       <header className="page-header page-header-compact">
         <div className="stack-sm">
           <div className="title-row">
-            <h1>Expense Categories</h1>
+            <h1>{copy.title}</h1>
           </div>
-          <p>
-            Manage normal categories and merge parent categories for this account book.
-          </p>
+          <p>{copy.subtitle}</p>
           <div className="meta-strip">
             <span className="inline-stat">book: {detailQuery.data?.name ?? "-"}</span>
             <span className="inline-stat">role: {detailQuery.data?.my_role ?? "-"}</span>
@@ -263,16 +322,16 @@ export function ExpenseCategoriesPage() {
       </header>
 
       {detailQuery.isLoading || categoriesQuery.isLoading ? (
-        <div className="info-banner compact-banner">Loading categories...</div>
+        <div className="info-banner compact-banner">{copy.loading}</div>
       ) : null}
       {detailQuery.isError ? (
         <div className="error-banner">
-          {detailQuery.error instanceof ApiError ? detailQuery.error.message : "Failed to load account book"}
+          {getApiErrorMessage(detailQuery.error, copy.loadBookFailed)}
         </div>
       ) : null}
       {categoriesQuery.isError ? (
         <div className="error-banner">
-          {categoriesQuery.error instanceof ApiError ? categoriesQuery.error.message : "Failed to load categories"}
+          {getApiErrorMessage(categoriesQuery.error, copy.loadCategoriesFailed)}
         </div>
       ) : null}
 
@@ -280,56 +339,60 @@ export function ExpenseCategoriesPage() {
         <article className="detail-card compact-card">
           <div className="compact-header-row">
             <div>
-              <h3>Category List</h3>
-              <p>Normal categories are used by direct expenses and merged children.</p>
+              <h3>{copy.listTitle}</h3>
+              <p>{copy.listDescription}</p>
             </div>
             <div className="badge-row badge-row-tight">
-              <span className="badge badge-tight">total {categoriesQuery.data?.length ?? 0}</span>
-              <span className="badge badge-tight">normal {normalCategories.length}</span>
-              <span className="badge badge-tight">merge {mergeCategories.length}</span>
+              <span className="badge badge-tight">
+                {copy.total} {categoriesQuery.data?.length ?? 0}
+              </span>
+              <span className="badge badge-tight">
+                {copy.normal} {normalCategories.length}
+              </span>
+              <span className="badge badge-tight">
+                {copy.merge} {mergeCategories.length}
+              </span>
             </div>
           </div>
 
           <div className="stack">
-            {renderCategoryGroup("Normal Categories", normalCategories, "No normal category yet.")}
-            {renderCategoryGroup("Merge Categories", mergeCategories, "No merge category yet.")}
+            {renderCategoryGroup(copy.normalCategories, normalCategories, copy.noNormal)}
+            {renderCategoryGroup(copy.mergeCategories, mergeCategories, copy.noMerge)}
           </div>
         </article>
 
         <article className="detail-card compact-card">
           <div className="compact-header-row">
             <div>
-              <h3>{selectedCategory ? "Edit Category" : "Create Category"}</h3>
-              <p>
-                {selectedCategory
-                  ? "Update the selected category. Delete only works if no expense uses it."
-                  : "Choose normal or merge, then save the new category."}
-              </p>
+              <h3>{selectedCategory ? copy.editTitle : copy.createTitle}</h3>
+              <p>{selectedCategory ? copy.editDescription : copy.createDescription}</p>
             </div>
             {selectedCategory ? (
               <div className="form-actions-group">
-                <span className="badge badge-tight">{selectedCategory.is_merge_category ? "merge" : "normal"}</span>
+                <span className="badge badge-tight">
+                  {selectedCategory.is_merge_category ? copy.merge : copy.normal}
+                </span>
                 <button className="button button-sm" onClick={() => startCreate(false)} type="button">
-                  Cancel
+                  {copy.cancel}
                 </button>
               </div>
             ) : null}
           </div>
 
           {!canEdit ? (
-            <div className="info-banner">Your role can view categories but cannot modify them.</div>
+            <div className="info-banner">{copy.readonly}</div>
           ) : (
             <form className="form-grid compact-form-grid" onSubmit={form.handleSubmit(handleSubmit)}>
               {successMessage ? <div className="success-banner compact-banner">{successMessage}</div> : null}
               {currentError ? (
                 <div className="error-banner compact-banner">
-                  {currentError instanceof ApiError ? currentError.message : "Category action failed"}
+                  {getApiErrorMessage(currentError, copy.actionFailed)}
                 </div>
               ) : null}
 
               <div className="inline-grid inline-grid-3">
                 <div className="field field-compact inline-grid-span-2">
-                  <label htmlFor="category-name">Name</label>
+                  <label htmlFor="category-name">{copy.name}</label>
                   <input
                     disabled={isMutating}
                     id="category-name"
@@ -339,7 +402,7 @@ export function ExpenseCategoriesPage() {
                 </div>
                 {!selectedCategory ? (
                   <div className="field field-compact">
-                    <label htmlFor="category-type">Type</label>
+                    <label htmlFor="category-type">{copy.type}</label>
                     <select
                       disabled={isMutating}
                       id="category-type"
@@ -347,15 +410,15 @@ export function ExpenseCategoriesPage() {
                         setValueAs: (value) => value === "true",
                       })}
                     >
-                      <option value="false">Normal</option>
-                      <option value="true">Merge</option>
+                      <option value="false">{copy.normal}</option>
+                      <option value="true">{copy.merge}</option>
                     </select>
                   </div>
                 ) : null}
               </div>
 
               <div className="field field-compact">
-                <label htmlFor="category-description">Description</label>
+                <label htmlFor="category-description">{copy.description}</label>
                 <textarea
                   disabled={isMutating}
                   id="category-description"
@@ -366,7 +429,7 @@ export function ExpenseCategoriesPage() {
 
               <div className="category-appearance-row">
                 <div className="field field-compact category-appearance-field">
-                  <label htmlFor="category-color">Color</label>
+                  <label htmlFor="category-color">{copy.color}</label>
                   <input
                     className="color-picker-input"
                     disabled={isMutating}
@@ -382,14 +445,14 @@ export function ExpenseCategoriesPage() {
                   />
                 </div>
                 <div className="field field-compact category-appearance-field">
-                  <label>Live Badge</label>
+                  <label>{copy.liveBadge}</label>
                   <div className="category-preview-row category-preview-row-left category-preview-row-centered">
                     <span className="category-badge">
                       <span
                         className="color-swatch color-swatch-lg"
                         style={{ backgroundColor: previewColor }}
                       />
-                      {watchedName.trim() || "Category"}
+                      {watchedName.trim() || copy.previewName}
                     </span>
                   </div>
                 </div>
@@ -399,7 +462,9 @@ export function ExpenseCategoriesPage() {
                 <div className="error-banner compact-banner">{form.formState.errors.name.message}</div>
               ) : null}
               {form.formState.errors.description ? (
-                <div className="error-banner compact-banner">{form.formState.errors.description.message}</div>
+                <div className="error-banner compact-banner">
+                  {form.formState.errors.description.message}
+                </div>
               ) : null}
               {form.formState.errors.color ? (
                 <div className="error-banner compact-banner">{form.formState.errors.color.message}</div>
@@ -409,7 +474,7 @@ export function ExpenseCategoriesPage() {
                 <div className="form-actions-group">
                   {form.formState.isDirty ? (
                     <button className="button button-sm" onClick={handleResetForm} type="button">
-                      Reset
+                      {copy.reset}
                     </button>
                   ) : null}
                   {selectedCategory ? (
@@ -419,7 +484,7 @@ export function ExpenseCategoriesPage() {
                       onClick={handleDelete}
                       type="button"
                     >
-                      {deleteMutation.isPending ? "Deleting..." : "Delete"}
+                      {deleteMutation.isPending ? copy.deleting : copy.delete}
                     </button>
                   ) : null}
                 </div>
@@ -428,11 +493,11 @@ export function ExpenseCategoriesPage() {
                   <button className="button primary button-sm" disabled={isMutating} type="submit">
                     {selectedCategory
                       ? updateMutation.isPending
-                        ? "Saving..."
-                        : "Save Category"
+                        ? copy.saving
+                        : copy.save
                       : createMutation.isPending
-                        ? "Creating..."
-                        : "Create Category"}
+                        ? copy.creating
+                        : copy.create}
                   </button>
                 </div>
               </div>

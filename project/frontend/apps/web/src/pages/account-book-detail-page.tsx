@@ -10,10 +10,11 @@ import type {
   ExpenseCategory,
   ExpenseSummary,
 } from "@expense-statistics/domain";
-import { ApiError } from "@expense-statistics/api-client";
 import { useAuth } from "@/features/auth/auth-context";
 import { useToast } from "@/features/feedback/toast-context";
+import { useI18n } from "@/features/i18n/i18n-context";
 import { apiClient } from "@/lib/api";
+import { getApiErrorMessage } from "@/lib/api-errors";
 import {
   buildExpenseListNavigationState,
   createDefaultExpenseListFilters,
@@ -23,17 +24,16 @@ import {
 } from "@/lib/expense-list-navigation";
 import { formatMoney, shortID, trailingNaturalDateRange } from "@/lib/ledger";
 
-const accountBookSchema = z.object({
-  name: z.string().trim().min(1, "Name is required").max(100, "Name is too long"),
-  description: z.string().max(400, "Description is too long").optional(),
-});
-
-type AccountBookFormValues = z.infer<typeof accountBookSchema>;
+type AccountBookFormValues = {
+  name: string;
+  description?: string;
+};
 
 export function AccountBookDetailPage() {
   const { accountBookId } = useParams();
   const auth = useAuth();
   const { showToast } = useToast();
+  const { t } = useI18n();
   const location = useLocation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -41,6 +41,10 @@ export function AccountBookDetailPage() {
     () => readExpenseListFiltersFromState(location.state) ?? createDefaultExpenseListFilters(),
   );
   const [isEditingMetadata, setIsEditingMetadata] = useState(false);
+  const accountBookSchema = z.object({
+    name: z.string().trim().min(1, t("book.nameRequired")).max(100, t("book.nameLong")),
+    description: z.string().max(400, t("common.error.descriptionLong")).optional(),
+  });
   const form = useForm<AccountBookFormValues>({
     resolver: zodResolver(accountBookSchema),
     defaultValues: {
@@ -48,6 +52,80 @@ export function AccountBookDetailPage() {
       description: "",
     },
   });
+  const copy = {
+    titleFallback: t("book.titleFallback"),
+    edit: t("book.edit"),
+    deleteBook: t("book.deleteBook"),
+    deleting: t("book.deleting"),
+    leave: t("book.leave"),
+    leaving: t("book.leaving"),
+    loadingBook: t("book.loadingBook"),
+    loadBookFailed: t("book.loadBookFailed"),
+    updated: t("book.updated"),
+    updateFailed: t("book.updateFailed"),
+    expensesTitle: t("book.expensesTitle"),
+    clearAll: t("book.clearAll"),
+    previous: t("book.previous"),
+    next: t("book.next"),
+    deletedUser: t("book.deletedUser"),
+    unknownCategory: t("book.unknownCategory"),
+    by: t("book.by"),
+    rate: t("book.rate"),
+    delete: t("common.delete"),
+    expenseDeleted: t("book.expenseDeleted"),
+    expenseDeleteFailed: t("book.expenseDeleteFailed"),
+    deleteExpenseConfirm: t("book.deleteExpenseConfirm"),
+    deleteMergedConfirm: t("book.deleteMergedConfirm"),
+    deletePartialConfirm: t("book.deletePartialConfirm"),
+    loadExpenses: t("book.loadExpenses"),
+    loadExpensesFailed: t("book.loadExpensesFailed"),
+    emptyExpenses: t("book.emptyExpenses"),
+    snapshotTitle: t("book.snapshotTitle"),
+    snapshotDescription: t("book.snapshotDescription"),
+    manage: t("book.manage"),
+    merge: t("book.merge"),
+    normal: t("book.normal"),
+    bookDeleted: t("book.bookDeleted"),
+    bookDeleteFailed: t("book.bookDeleteFailed"),
+    nameMismatch: t("book.nameMismatch"),
+    leaveConfirm: t("book.leaveConfirm"),
+    left: t("book.left"),
+    leaveFailed: t("book.leaveFailed"),
+    name: t("book.name"),
+    description: t("book.description"),
+    save: t("book.save"),
+    saving: t("book.saving"),
+    close: t("book.close"),
+    total: t("book.total"),
+    page: t("book.page"),
+    totalAmount: t("book.totalAmount"),
+    keyword: t("book.keyword"),
+    keywordPlaceholder: t("book.keywordPlaceholder"),
+    user: t("book.user"),
+    allUsers: t("book.allUsers"),
+    currency: t("book.currency"),
+    order: t("book.order"),
+    orderDesc: t("book.orderDesc"),
+    orderAsc: t("book.orderAsc"),
+    minAmount: t("book.minAmount"),
+    maxAmount: t("book.maxAmount"),
+    dateFrom: t("book.dateFrom"),
+    dateTo: t("book.dateTo"),
+    dateRange: t("book.dateRange"),
+    last7Days: t("book.last7Days"),
+    last30Days: t("book.last30Days"),
+    categories: t("book.categories"),
+    clearCategories: t("book.clearCategories"),
+    addNormal: t("book.addNormal"),
+    addMerged: t("book.addMerged"),
+    roleLabel: t("book.roleLabel"),
+    baseLabel: t("book.baseLabel"),
+    categoriesLabel: t("book.categoriesLabel"),
+    ownerLabel: t("book.ownerLabel"),
+    records: (count: number) => t("book.records", { count }),
+    matchedRecords: (matched: number, total: number) =>
+      t("book.matchedRecords", { matched, total }),
+  };
 
   const detailQuery = useQuery({
     queryKey: ["account-book", accountBookId],
@@ -120,14 +198,14 @@ export function AccountBookDetailPage() {
     filters.maxAmount !== defaultFilters.maxAmount ||
     filters.dateFrom !== defaultFilters.dateFrom ||
     filters.dateTo !== defaultFilters.dateTo ||
-    filters.datePreset !== defaultFilters.datePreset;
+    filters.datePreset !== defaultFilters.datePreset ||
+    filters.spentAtOrder !== defaultFilters.spentAtOrder;
   const memberMap = new Map(
     (membersQuery.data ?? []).map((member) => [member.user_id, member] as const),
   );
-  const ownerName =
-    detailQuery.data?.owner_user_id
-      ? memberMap.get(detailQuery.data.owner_user_id)?.name ?? shortID(detailQuery.data.owner_user_id)
-      : "-";
+  const ownerName = detailQuery.data?.owner_user_id
+    ? memberMap.get(detailQuery.data.owner_user_id)?.name ?? shortID(detailQuery.data.owner_user_id)
+    : "-";
   const totalPages = expensesQuery.data
     ? Math.max(1, Math.ceil(expensesQuery.data.total / expensesQuery.data.page_size))
     : 1;
@@ -167,14 +245,11 @@ export function AccountBookDetailPage() {
           default_account_book_id: null,
         });
       }
-      showToast("Account book deleted.", "success");
+      showToast(copy.bookDeleted, "success");
       navigate("/app/account-books");
     },
     onError: (error) => {
-      showToast(
-        error instanceof ApiError ? error.message : "Failed to delete the account book",
-        "error",
-      );
+      showToast(getApiErrorMessage(error, copy.bookDeleteFailed), "error");
     },
   });
 
@@ -189,14 +264,11 @@ export function AccountBookDetailPage() {
           default_account_book_id: null,
         });
       }
-      showToast("You left the account book.", "success");
+      showToast(copy.left, "success");
       navigate("/app/account-books", { replace: true });
     },
     onError: (error) => {
-      showToast(
-        error instanceof ApiError ? error.message : "Failed to leave the account book",
-        "error",
-      );
+      showToast(getApiErrorMessage(error, copy.leaveFailed), "error");
     },
   });
 
@@ -207,13 +279,10 @@ export function AccountBookDetailPage() {
       await queryClient.invalidateQueries({
         queryKey: ["account-book-expenses", accountBookId],
       });
-      showToast("Expense deleted.", "success");
+      showToast(copy.expenseDeleted, "success");
     },
     onError: (error) => {
-      showToast(
-        error instanceof ApiError ? error.message : "Failed to delete the expense",
-        "error",
-      );
+      showToast(getApiErrorMessage(error, copy.expenseDeleteFailed), "error");
     },
   });
 
@@ -278,7 +347,7 @@ export function AccountBookDetailPage() {
           onClick={goToPreviousPage}
           type="button"
         >
-          Previous
+          {copy.previous}
         </button>
         <span className="mono">
           {filters.page} / {totalPages}
@@ -289,7 +358,7 @@ export function AccountBookDetailPage() {
           onClick={goToNextPage}
           type="button"
         >
-          Next
+          {copy.next}
         </button>
       </div>
     );
@@ -297,7 +366,7 @@ export function AccountBookDetailPage() {
 
   function renderMemberName(expense: ExpenseSummary) {
     if (!expense.user_id) {
-      return "Deleted user";
+      return copy.deletedUser;
     }
     return memberMap.get(expense.user_id)?.name ?? shortID(expense.user_id);
   }
@@ -309,7 +378,7 @@ export function AccountBookDetailPage() {
     }
 
     const numericRate = Number(expense.exchange_rate_used);
-    return `rate ${Number.isFinite(numericRate) ? numericRate.toFixed(2) : expense.exchange_rate_used}`;
+    return `${copy.rate} ${Number.isFinite(numericRate) ? numericRate.toFixed(2) : expense.exchange_rate_used}`;
   }
 
   function isPartialMergedExpense(expense: ExpenseSummary) {
@@ -335,10 +404,10 @@ export function AccountBookDetailPage() {
   function handleDeleteExpense(expense: ExpenseSummary) {
     const confirmed = window.confirm(
       isPartialMergedExpense(expense)
-        ? "This merged expense is partially matched by current filters. Deleting it will also delete child items currently hidden by filters. Continue?"
+        ? copy.deletePartialConfirm
         : expense.expense_type === "merged_parent"
-          ? "Delete this merged expense and all child items?"
-          : "Delete this expense?",
+          ? copy.deleteMergedConfirm
+          : copy.deleteExpenseConfirm,
     );
     if (!confirmed) {
       return;
@@ -352,12 +421,12 @@ export function AccountBookDetailPage() {
     }
 
     const typedName = window.prompt(
-      `Type "${detailQuery.data.name}" to delete this account book.`,
+      t("book.bookDeleteConfirm", { name: detailQuery.data.name }),
       "",
     );
     if (typedName !== detailQuery.data.name) {
       if (typedName !== null) {
-        showToast("Account book name did not match. Delete cancelled.", "error");
+        showToast(copy.nameMismatch, "error");
       }
       return;
     }
@@ -366,7 +435,7 @@ export function AccountBookDetailPage() {
   }
 
   function handleLeaveBook() {
-    if (!window.confirm("Leave this account book?")) {
+    if (!window.confirm(copy.leaveConfirm)) {
       return;
     }
     leaveBookMutation.mutate();
@@ -374,7 +443,8 @@ export function AccountBookDetailPage() {
 
   function renderExpenseCard(expense: ExpenseSummary) {
     const category = categoryMap.get(expense.category_id);
-    const deletingThisExpense = deleteExpenseMutation.isPending && deleteExpenseMutation.variables === expense.id;
+    const deletingThisExpense =
+      deleteExpenseMutation.isPending && deleteExpenseMutation.variables === expense.id;
     const exchangeRateLabel = renderExchangeRate(expense);
     const showConvertedAmount =
       !!detailQuery.data?.base_currency && expense.original_currency !== detailQuery.data.base_currency;
@@ -387,11 +457,14 @@ export function AccountBookDetailPage() {
               <span className="category-badge">
                 {category ? (
                   <>
-                    <span className="color-swatch color-swatch-lg" style={{ backgroundColor: category.color }} />
+                    <span
+                      className="color-swatch color-swatch-lg"
+                      style={{ backgroundColor: category.color }}
+                    />
                     {category.name}
                   </>
                 ) : (
-                  "unknown category"
+                  copy.unknownCategory
                 )}
               </span>
               {expense.expandable ? (
@@ -399,11 +472,13 @@ export function AccountBookDetailPage() {
                   {hasCategoryFilter &&
                   expense.matched_children_count > 0 &&
                   expense.matched_children_count < expense.children_count
-                    ? `${expense.matched_children_count}/${expense.children_count} records`
-                    : `${expense.children_count} records`}
+                    ? copy.matchedRecords(expense.matched_children_count, expense.children_count)
+                    : copy.records(expense.children_count)}
                 </span>
               ) : null}
-              <span className="meta-inline">by {renderMemberName(expense)}</span>
+              <span className="meta-inline">
+                {copy.by} {renderMemberName(expense)}
+              </span>
             </div>
 
             <div className="expense-name-row">
@@ -436,7 +511,7 @@ export function AccountBookDetailPage() {
                 onClick={() => handleEditExpense(expense)}
                 type="button"
               >
-                Edit
+                {copy.edit}
               </button>
               <button
                 className="button button-xs button-danger-strong"
@@ -444,7 +519,7 @@ export function AccountBookDetailPage() {
                 onClick={() => handleDeleteExpense(expense)}
                 type="button"
               >
-                {deletingThisExpense ? "Deleting..." : "Delete"}
+                {deletingThisExpense ? copy.deleting : copy.delete}
               </button>
             </div>
           ) : null}
@@ -468,7 +543,7 @@ export function AccountBookDetailPage() {
                           {childCategory.name}
                         </>
                       ) : (
-                        "unknown category"
+                        copy.unknownCategory
                       )}
                     </span>
                     <strong>{child.name}</strong>
@@ -491,14 +566,14 @@ export function AccountBookDetailPage() {
       <header className="page-header page-header-compact">
         <div className="stack-sm">
           <div className="title-row">
-            <h1>{detailQuery.data?.name ?? "Account Book Workspace"}</h1>
+            <h1>{detailQuery.data?.name ?? copy.titleFallback}</h1>
             {canEdit ? (
               <button
                 className="button button-sm"
                 onClick={() => setIsEditingMetadata((current) => !current)}
                 type="button"
               >
-                Edit
+                {copy.edit}
               </button>
             ) : null}
             {canDeleteBook ? (
@@ -508,7 +583,7 @@ export function AccountBookDetailPage() {
                 onClick={handleDeleteBook}
                 type="button"
               >
-                {deleteBookMutation.isPending ? "Deleting..." : "Delete Book"}
+                {deleteBookMutation.isPending ? copy.deleting : copy.deleteBook}
               </button>
             ) : null}
             {detailQuery.data && detailQuery.data.my_role !== "owner" ? (
@@ -518,15 +593,23 @@ export function AccountBookDetailPage() {
                 onClick={handleLeaveBook}
                 type="button"
               >
-                {leaveBookMutation.isPending ? "Leaving..." : "Leave"}
+                {leaveBookMutation.isPending ? copy.leaving : copy.leave}
               </button>
             ) : null}
           </div>
           <div className="meta-strip">
-            <span className="inline-stat">role: {detailQuery.data?.my_role ?? "-"}</span>
-            <span className="inline-stat">base: {detailQuery.data?.base_currency ?? "-"}</span>
-            <span className="inline-stat">categories: {categoriesQuery.data?.length ?? 0}</span>
-            <span className="inline-stat">owner: {ownerName}</span>
+            <span className="inline-stat">
+              {copy.roleLabel}: {detailQuery.data?.my_role ?? "-"}
+            </span>
+            <span className="inline-stat">
+              {copy.baseLabel}: {detailQuery.data?.base_currency ?? "-"}
+            </span>
+            <span className="inline-stat">
+              {copy.categoriesLabel}: {categoriesQuery.data?.length ?? 0}
+            </span>
+            <span className="inline-stat">
+              {copy.ownerLabel}: {ownerName}
+            </span>
           </div>
           {detailQuery.data?.description ? (
             <p className="page-subtext">{detailQuery.data.description}</p>
@@ -542,7 +625,7 @@ export function AccountBookDetailPage() {
           >
             <div className="inline-grid inline-grid-3">
               <div className="field field-compact">
-                <label htmlFor="account-book-name">Name</label>
+                <label htmlFor="account-book-name">{copy.name}</label>
                 <input
                   disabled={!canEdit || updateMutation.isPending}
                   id="account-book-name"
@@ -551,7 +634,7 @@ export function AccountBookDetailPage() {
                 />
               </div>
               <div className="field field-compact inline-grid-span-2">
-                <label htmlFor="account-book-description">Description</label>
+                <label htmlFor="account-book-description">{copy.description}</label>
                 <input
                   disabled={!canEdit || updateMutation.isPending}
                   id="account-book-description"
@@ -569,13 +652,11 @@ export function AccountBookDetailPage() {
             ) : null}
             {updateMutation.isError ? (
               <div className="error-banner">
-                {updateMutation.error instanceof ApiError
-                  ? updateMutation.error.message
-                  : "Failed to update the account book"}
+                {getApiErrorMessage(updateMutation.error, copy.updateFailed)}
               </div>
             ) : null}
             {updateMutation.isSuccess ? (
-              <div className="success-banner compact-banner">Account book updated.</div>
+              <div className="success-banner compact-banner">{copy.updated}</div>
             ) : null}
 
             <div className="form-actions">
@@ -584,22 +665,24 @@ export function AccountBookDetailPage() {
                 disabled={!canEdit || updateMutation.isPending}
                 type="submit"
               >
-                {updateMutation.isPending ? "Saving..." : "Save"}
+                {updateMutation.isPending ? copy.saving : copy.save}
               </button>
-              <button className="button button-sm" onClick={() => setIsEditingMetadata(false)} type="button">
-                Close
+              <button
+                className="button button-sm"
+                onClick={() => setIsEditingMetadata(false)}
+                type="button"
+              >
+                {copy.close}
               </button>
             </div>
           </form>
         </article>
       ) : null}
 
-      {detailQuery.isLoading ? <div className="info-banner compact-banner">Loading account book...</div> : null}
+      {detailQuery.isLoading ? <div className="info-banner compact-banner">{copy.loadingBook}</div> : null}
       {detailQuery.isError ? (
         <div className="error-banner">
-          {detailQuery.error instanceof ApiError
-            ? detailQuery.error.message
-            : "Failed to load the account book"}
+          {getApiErrorMessage(detailQuery.error, copy.loadBookFailed)}
         </div>
       ) : null}
 
@@ -607,14 +690,15 @@ export function AccountBookDetailPage() {
         <article className="detail-card compact-card">
           <div className="compact-header-row">
             <div>
-              <h3>Expense Records</h3>
+              <h3>{copy.expensesTitle}</h3>
             </div>
             <div className="header-actions-column">
               <div className="badge-row badge-row-tight header-actions-badges">
-                <span className="badge badge-tight">total {expensesQuery.data?.total ?? 0}</span>
-                <span className="badge badge-tight">page {filters.page}</span>
                 <span className="badge badge-tight">
-                  total amount{" "}
+                  {copy.total} {expensesQuery.data?.total ?? 0}
+                </span>
+                <span className="badge badge-tight">
+                  {copy.totalAmount}{" "}
                   {formatMoney(
                     expensesQuery.data?.total_converted_amount ?? "0.00",
                     detailQuery.data?.base_currency ?? "JPY",
@@ -628,7 +712,7 @@ export function AccountBookDetailPage() {
                   onClick={clearFilters}
                   type="button"
                 >
-                  Clear All Filters
+                  {copy.clearAll}
                 </button>
                 {renderPaginationControls()}
               </div>
@@ -638,24 +722,24 @@ export function AccountBookDetailPage() {
           <div className="filter-panel filter-panel-compact">
             <div className="filter-grid filter-grid-ledger-extended">
               <div className="field field-compact">
-                <label htmlFor="expense-keyword">Keyword</label>
+                <label htmlFor="expense-keyword">{copy.keyword}</label>
                 <input
                   id="expense-keyword"
                   onChange={(event) => updateFilter("keyword", event.target.value)}
-                  placeholder="store, lunch, ticket..."
+                  placeholder={copy.keywordPlaceholder}
                   type="text"
                   value={filters.keyword}
                 />
               </div>
 
               <div className="field field-compact">
-                <label htmlFor="expense-user">User</label>
+                <label htmlFor="expense-user">{copy.user}</label>
                 <select
                   id="expense-user"
                   onChange={(event) => updateFilter("userID", event.target.value)}
                   value={filters.userID}
                 >
-                  <option value="">All members</option>
+                  <option value="">{copy.allUsers}</option>
                   {(membersQuery.data ?? []).map((member: AccountBookMember) => (
                     <option key={member.user_id} value={member.user_id}>
                       {member.name}
@@ -665,11 +749,13 @@ export function AccountBookDetailPage() {
               </div>
 
               <div className="field field-compact">
-                <label htmlFor="expense-currency">Currency</label>
+                <label htmlFor="expense-currency">{copy.currency}</label>
                 <input
                   id="expense-currency"
                   maxLength={3}
-                  onChange={(event) => updateFilter("originalCurrency", event.target.value.toUpperCase())}
+                  onChange={(event) =>
+                    updateFilter("originalCurrency", event.target.value.toUpperCase())
+                  }
                   placeholder="JPY"
                   type="text"
                   value={filters.originalCurrency}
@@ -677,21 +763,23 @@ export function AccountBookDetailPage() {
               </div>
 
               <div className="field field-compact">
-                <label htmlFor="expense-order">Order</label>
+                <label htmlFor="expense-order">{copy.order}</label>
                 <select
                   id="expense-order"
-                  onChange={(event) => updateFilter("spentAtOrder", event.target.value as "asc" | "desc")}
+                  onChange={(event) =>
+                    updateFilter("spentAtOrder", event.target.value as "asc" | "desc")
+                  }
                   value={filters.spentAtOrder}
                 >
-                  <option value="desc">Newest first</option>
-                  <option value="asc">Oldest first</option>
+                  <option value="desc">{copy.orderDesc}</option>
+                  <option value="asc">{copy.orderAsc}</option>
                 </select>
               </div>
             </div>
 
             <div className="date-filter-row">
               <div className="field field-compact amount-filter-field">
-                <label htmlFor="expense-min-amount">Min Amount</label>
+                <label htmlFor="expense-min-amount">{copy.minAmount}</label>
                 <input
                   className="amount-filter-input"
                   id="expense-min-amount"
@@ -702,7 +790,7 @@ export function AccountBookDetailPage() {
                 />
               </div>
               <div className="field field-compact amount-filter-field">
-                <label htmlFor="expense-max-amount">Max Amount</label>
+                <label htmlFor="expense-max-amount">{copy.maxAmount}</label>
                 <input
                   className="amount-filter-input"
                   id="expense-max-amount"
@@ -713,7 +801,7 @@ export function AccountBookDetailPage() {
                 />
               </div>
               <div className="field field-compact">
-                <label htmlFor="expense-date-from">Date From</label>
+                <label htmlFor="expense-date-from">{copy.dateFrom}</label>
                 <input
                   id="expense-date-from"
                   onChange={(event) =>
@@ -729,7 +817,7 @@ export function AccountBookDetailPage() {
                 />
               </div>
               <div className="field field-compact">
-                <label htmlFor="expense-date-to">Date To</label>
+                <label htmlFor="expense-date-to">{copy.dateTo}</label>
                 <input
                   id="expense-date-to"
                   onChange={(event) =>
@@ -745,7 +833,7 @@ export function AccountBookDetailPage() {
                 />
               </div>
               <div className="field field-compact date-preset-field">
-                <label>Date Range</label>
+                <label>{copy.dateRange}</label>
                 <div className="inline-radio-group">
                   <label className="radio-chip">
                     <input
@@ -754,7 +842,7 @@ export function AccountBookDetailPage() {
                       onChange={() => applyDatePreset("last7")}
                       type="radio"
                     />
-                    <span>Last 7 Days</span>
+                    <span>{copy.last7Days}</span>
                   </label>
                   <label className="radio-chip">
                     <input
@@ -763,7 +851,7 @@ export function AccountBookDetailPage() {
                       onChange={() => applyDatePreset("last30")}
                       type="radio"
                     />
-                    <span>Last 30 Days</span>
+                    <span>{copy.last30Days}</span>
                   </label>
                 </div>
               </div>
@@ -771,14 +859,14 @@ export function AccountBookDetailPage() {
 
             <div className="stack-sm">
               <div className="helper-row">
-                <strong>Categories</strong>
+                <strong>{copy.categories}</strong>
                 <button
                   className="button button-xs"
                   disabled={filters.categoryIDs.length === 0}
                   onClick={clearCategoryFilters}
                   type="button"
                 >
-                  Clear Categories
+                  {copy.clearCategories}
                 </button>
               </div>
 
@@ -809,37 +897,34 @@ export function AccountBookDetailPage() {
                     className="button primary button-sm"
                     to={`/app/account-books/${accountBookId}/expenses/new-normal`}
                   >
-                    Add Normal
+                    {copy.addNormal}
                   </Link>
                   <Link
                     className="button primary button-sm"
                     to={`/app/account-books/${accountBookId}/expenses/new-merged`}
                   >
-                    Add Merged
+                    {copy.addMerged}
                   </Link>
                 </div>
               ) : null}
             </div>
           </div>
 
-          {expensesQuery.isLoading ? <div className="info-banner compact-banner">Loading expenses...</div> : null}
+          {expensesQuery.isLoading ? <div className="info-banner compact-banner">{copy.loadExpenses}</div> : null}
           {expensesQuery.isError ? (
             <div className="error-banner">
-              {expensesQuery.error instanceof ApiError
-                ? expensesQuery.error.message
-                : "Failed to load expenses"}
+              {getApiErrorMessage(expensesQuery.error, copy.loadExpensesFailed)}
             </div>
           ) : null}
 
           {expensesQuery.data?.items.length ? (
             <div className="stack stack-tight" style={{ marginTop: 10 }}>
               {expensesQuery.data.items.map(renderExpenseCard)}
-
               {renderPaginationControls()}
             </div>
           ) : expensesQuery.isSuccess ? (
             <div className="empty-state" style={{ marginTop: 10 }}>
-              No expenses matched the current filters.
+              {copy.emptyExpenses}
             </div>
           ) : null}
         </article>
@@ -847,18 +932,18 @@ export function AccountBookDetailPage() {
         <article className="detail-card compact-card">
           <div className="compact-header-row">
             <div>
-              <h3>Category Snapshot</h3>
-              <p>Use the dedicated category page when you need CRUD operations.</p>
+              <h3>{copy.snapshotTitle}</h3>
+              <p>{copy.snapshotDescription}</p>
             </div>
             {accountBookId ? (
               <Link className="button button-sm" to={`/app/account-books/${accountBookId}/categories`}>
-                Manage
+                {copy.manage}
               </Link>
             ) : null}
           </div>
           <div className="stack-sm">
             <div>
-              <strong>Merge</strong>
+              <strong>{copy.merge}</strong>
               <div className="pill-checklist" style={{ marginTop: 8 }}>
                 {mergeCategories.map((category) => (
                   <div className="category-chip category-chip-compact" key={category.id}>
@@ -873,7 +958,7 @@ export function AccountBookDetailPage() {
             </div>
 
             <div>
-              <strong>Normal</strong>
+              <strong>{copy.normal}</strong>
               <div className="pill-checklist" style={{ marginTop: 8 }}>
                 {normalCategories.map((category) => (
                   <div className="category-chip category-chip-compact" key={category.id}>

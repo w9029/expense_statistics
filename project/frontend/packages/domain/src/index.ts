@@ -7,6 +7,7 @@ export type User = {
   email: string;
   name: string;
   preferred_currency: string;
+  language: "zh-CN" | "en" | "ja";
   user_role: string;
   default_account_book_id: string | null;
   avatar_path: string | null;

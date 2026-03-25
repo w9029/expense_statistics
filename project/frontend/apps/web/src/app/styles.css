@@ -102,6 +102,29 @@ select {
   align-items: center;
 }
 
+.language-switcher {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.language-switcher-label {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.language-switcher-select {
+  width: auto;
+  min-width: 112px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: #fffaf4;
+  color: var(--ink);
+}
+
 .ghost-link,
 .solid-link {
   padding: 10px 16px;
@@ -354,6 +377,18 @@ select {
 
 .content {
   padding: 30px;
+}
+
+.content-shell {
+  min-width: 0;
+  display: grid;
+  grid-template-rows: auto 1fr;
+}
+
+.content-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  padding: 18px 30px 0;
 }
 
 .page-header {
@@ -1213,6 +1248,11 @@ select {
   .auth-shell,
   .content,
   .page-section {
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+
+  .content-toolbar {
     padding-left: 18px;
     padding-right: 18px;
   }

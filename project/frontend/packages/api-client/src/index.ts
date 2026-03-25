@@ -77,12 +77,14 @@ export type RegisterInput = {
   name: string;
   password: string;
   preferred_currency: string;
+  language: "zh-CN" | "en" | "ja";
   verification_token: string;
 };
 
 export type UpdateProfileInput = {
   name: string;
   preferred_currency: string;
+  language: "zh-CN" | "en" | "ja";
   avatar_path: string | null;
 };
 

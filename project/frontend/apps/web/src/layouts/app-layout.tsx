@@ -2,15 +2,13 @@ import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { NavLink, Outlet, matchPath, useLocation } from "react-router-dom";
 import { useAuth } from "@/features/auth/auth-context";
+import { LanguageSwitcher } from "@/features/i18n/language-switcher";
+import { useI18n } from "@/features/i18n/i18n-context";
 import { apiClient } from "@/lib/api";
-
-const navItems = [
-  { to: "/app/account-books", label: "Account Books" },
-  { to: "/app/profile", label: "Profile" },
-];
 
 export function AppLayout() {
   const auth = useAuth();
+  const { t } = useI18n();
   const location = useLocation();
   const accountBookMatch =
     matchPath("/app/account-books/:accountBookId/*", location.pathname) ??
@@ -34,11 +32,16 @@ export function AppLayout() {
     enabled: Boolean(auth.accessToken && currentBookId),
   });
 
+  const navItems = [
+    { to: "/app/account-books", label: t("app.nav.accountBooks"), end: true },
+    { to: "/app/profile", label: t("app.nav.profile") },
+  ];
+
   const currentBookItems = currentBookId
     ? [
-        { to: `/app/account-books/${currentBookId}`, label: "Overview", end: true },
-        { to: `/app/account-books/${currentBookId}/categories`, label: "Categories" },
-        { to: `/app/account-books/${currentBookId}/collaboration`, label: "Members" },
+        { to: `/app/account-books/${currentBookId}`, label: t("app.nav.overview"), end: true },
+        { to: `/app/account-books/${currentBookId}/categories`, label: t("app.nav.categories") },
+        { to: `/app/account-books/${currentBookId}/collaboration`, label: t("app.nav.members") },
       ]
     : [];
 
@@ -49,25 +52,26 @@ export function AppLayout() {
           <div className="brand-mark">EA</div>
           <div>
             <div>Expense Atlas</div>
-            <div className="meta-line">frontend_base shell</div>
+            <div className="meta-line">{t("public.tagline")}</div>
           </div>
         </div>
 
         <div className="surface-card" style={{ marginTop: 18, padding: 18 }}>
-          <h3 style={{ marginTop: 0 }}>{auth.user?.name ?? "Signed-in user"}</h3>
+          <h3 style={{ marginTop: 0 }}>{auth.user?.name ?? t("app.sidebar.signedInUser")}</h3>
           <p className="list-note">{auth.user?.email}</p>
           <div className="badge-row">
             <span className="badge">{auth.user?.preferred_currency ?? "N/A"}</span>
             <span className="badge">{auth.user?.user_role ?? "user"}</span>
           </div>
           <button className="button" onClick={auth.logout} style={{ marginTop: 16 }} type="button">
-            Sign Out
+            {t("app.signOut")}
           </button>
         </div>
 
         <nav className="sidebar-nav">
           {navItems.map((item) => (
             <NavLink
+              end={item.end}
               key={item.to}
               className={({ isActive }) =>
                 `sidebar-link${isActive ? " active" : ""}`
@@ -82,7 +86,7 @@ export function AppLayout() {
         {currentBookId ? (
           <section className="sidebar-section">
             <div className="sidebar-section-label">
-              {accountBookQuery.data?.name ?? "Current Book"}
+              {accountBookQuery.data?.name ?? t("app.currentBook")}
             </div>
             <nav className="sidebar-nav sidebar-nav-section">
               {currentBookItems.map((item) => (
@@ -102,9 +106,14 @@ export function AppLayout() {
         ) : null}
       </aside>
 
-      <main className="content">
-        <Outlet />
-      </main>
+      <div className="content-shell">
+        <div className="content-toolbar">
+          <LanguageSwitcher />
+        </div>
+        <main className="content">
+          <Outlet />
+        </main>
+      </div>
     </div>
   );
 }

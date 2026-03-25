@@ -2,21 +2,14 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { useForm } from "react-hook-form";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { z } from "zod";
 import type { AccountBookMember, Invitation } from "@expense-statistics/domain";
-import { ApiError } from "@expense-statistics/api-client";
 import { useAuth } from "@/features/auth/auth-context";
 import { useToast } from "@/features/feedback/toast-context";
+import { useI18n } from "@/features/i18n/i18n-context";
 import { apiClient } from "@/lib/api";
-
-const invitationSchema = z.object({
-  account_role: z.enum(["viewer", "editor", "admin"]),
-  max_usage: z.coerce.number().int().min(1, "Min 1").max(100, "Max 100"),
-  expires_in_hours: z.coerce.number().int().min(1, "Min 1").max(720, "Max 720"),
-});
-
-type InvitationFormValues = z.input<typeof invitationSchema>;
+import { getApiErrorMessage } from "@/lib/api-errors";
 
 const roleRank: Record<string, number> = {
   owner: 0,
@@ -31,6 +24,21 @@ export function AccountBookCollaborationPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { showToast } = useToast();
+  const { t } = useI18n();
+
+  const invitationSchema = z.object({
+    account_role: z.enum(["viewer", "editor", "admin"]),
+    max_usage: z.coerce.number().int().min(1, t("collab.min1")).max(100, t("collab.max100")),
+    expires_in_hours: z
+      .coerce
+      .number()
+      .int()
+      .min(1, t("collab.min1"))
+      .max(720, t("collab.max720")),
+  });
+
+  type InvitationFormValues = z.input<typeof invitationSchema>;
+
   const invitationForm = useForm<InvitationFormValues>({
     resolver: zodResolver(invitationSchema),
     defaultValues: {
@@ -90,7 +98,7 @@ export function AccountBookCollaborationPage() {
       await queryClient.invalidateQueries({
         queryKey: ["account-book-invitations", accountBookId],
       });
-      showToast("Invitation created.", "success");
+      showToast(t("collab.invitationCreated"), "success");
       invitationForm.reset({
         account_role:
           invitation.account_role === "admin" || invitation.account_role === "editor"
@@ -101,10 +109,7 @@ export function AccountBookCollaborationPage() {
       });
     },
     onError: (error) => {
-      showToast(
-        error instanceof ApiError ? error.message : "Failed to create invitation",
-        "error",
-      );
+      showToast(getApiErrorMessage(error, t("collab.invitationCreateFailed")), "error");
     },
   });
 
@@ -115,13 +120,10 @@ export function AccountBookCollaborationPage() {
       await queryClient.invalidateQueries({
         queryKey: ["account-book-invitations", accountBookId],
       });
-      showToast("Invitation deleted.", "success");
+      showToast(t("collab.invitationDeleted"), "success");
     },
     onError: (error) => {
-      showToast(
-        error instanceof ApiError ? error.message : "Failed to delete invitation",
-        "error",
-      );
+      showToast(getApiErrorMessage(error, t("collab.invitationDeleteFailed")), "error");
     },
   });
 
@@ -134,13 +136,10 @@ export function AccountBookCollaborationPage() {
       await queryClient.invalidateQueries({ queryKey: ["account-book", accountBookId] });
       await queryClient.invalidateQueries({ queryKey: ["account-book-members", accountBookId] });
       await queryClient.invalidateQueries({ queryKey: ["account-books"] });
-      showToast("Ownership transferred.", "success");
+      showToast(t("collab.transferred"), "success");
     },
     onError: (error) => {
-      showToast(
-        error instanceof ApiError ? error.message : "Failed to transfer ownership",
-        "error",
-      );
+      showToast(getApiErrorMessage(error, t("collab.transferFailed")), "error");
     },
   });
 
@@ -150,13 +149,10 @@ export function AccountBookCollaborationPage() {
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["account-book-members", accountBookId] });
       await queryClient.invalidateQueries({ queryKey: ["account-books"] });
-      showToast("Member removed.", "success");
+      showToast(t("collab.removed"), "success");
     },
     onError: (error) => {
-      showToast(
-        error instanceof ApiError ? error.message : "Failed to remove member",
-        "error",
-      );
+      showToast(getApiErrorMessage(error, t("collab.removeFailed")), "error");
     },
   });
 
@@ -171,11 +167,11 @@ export function AccountBookCollaborationPage() {
           default_account_book_id: null,
         });
       }
-      showToast("You left the account book.", "success");
+      showToast(t("collab.left"), "success");
       navigate("/app/account-books", { replace: true });
     },
     onError: (error) => {
-      showToast(error instanceof ApiError ? error.message : "Failed to leave account book", "error");
+      showToast(getApiErrorMessage(error, t("collab.leaveFailed")), "error");
     },
   });
 
@@ -188,35 +184,35 @@ export function AccountBookCollaborationPage() {
   async function copyInvitationURL(invitation: Invitation) {
     try {
       await navigator.clipboard.writeText(resolveInvitationURL(invitation));
-      showToast("Invitation link copied.", "success");
+      showToast(t("collab.copySuccess"), "success");
     } catch {
-      showToast("Failed to copy invitation link", "error");
+      showToast(t("collab.copyFailed"), "error");
     }
   }
 
   function handleDeleteInvitation(invitation: Invitation) {
-    if (!window.confirm(`Delete invitation for ${invitation.account_role}?`)) {
+    if (!window.confirm(t("collab.deleteInvitationConfirm", { role: invitation.account_role }))) {
       return;
     }
     deleteInvitationMutation.mutate(invitation.id);
   }
 
   function handleTransferOwner(member: AccountBookMember) {
-    if (!window.confirm(`Transfer owner to ${member.name}? You will become admin.`)) {
+    if (!window.confirm(t("collab.transferConfirm", { name: member.name }))) {
       return;
     }
     transferOwnerMutation.mutate(member.user_id);
   }
 
   function handleRemoveMember(member: AccountBookMember) {
-    if (!window.confirm(`Remove ${member.name} from this account book?`)) {
+    if (!window.confirm(t("collab.removeConfirm", { name: member.name }))) {
       return;
     }
     removeMemberMutation.mutate(member.user_id);
   }
 
   function handleLeaveBook() {
-    if (!window.confirm("Leave this account book?")) {
+    if (!window.confirm(t("collab.leaveConfirm"))) {
       return;
     }
     leaveMutation.mutate();
@@ -227,20 +223,18 @@ export function AccountBookCollaborationPage() {
       <header className="page-header page-header-compact">
         <div className="stack-sm">
           <div className="title-row">
-            <h1>{detailQuery.data?.name ?? "Collaboration"}</h1>
+            <h1>{detailQuery.data?.name ?? t("collab.titleFallback")}</h1>
           </div>
-          <p className="page-subtext">
-            Invitations and member management for this account book.
-          </p>
+          <p className="page-subtext">{t("collab.subtitle")}</p>
         </div>
       </header>
 
-      {detailQuery.isLoading ? <div className="info-banner compact-banner">Loading account book...</div> : null}
+      {detailQuery.isLoading ? (
+        <div className="info-banner compact-banner">{t("collab.loadingBook")}</div>
+      ) : null}
       {detailQuery.isError ? (
         <div className="error-banner">
-          {detailQuery.error instanceof ApiError
-            ? detailQuery.error.message
-            : "Failed to load the account book"}
+          {getApiErrorMessage(detailQuery.error, t("collab.loadBookFailed"))}
         </div>
       ) : null}
 
@@ -248,8 +242,8 @@ export function AccountBookCollaborationPage() {
         <article className="detail-card compact-card">
           <div className="compact-header-row">
             <div>
-              <h3>Members</h3>
-              <p>Owner can transfer ownership or remove members. Non-owner members can leave.</p>
+              <h3>{t("collab.membersTitle")}</h3>
+              <p>{t("collab.membersDescription")}</p>
             </div>
             {detailQuery.data && detailQuery.data.my_role !== "owner" ? (
               <button
@@ -258,17 +252,17 @@ export function AccountBookCollaborationPage() {
                 onClick={handleLeaveBook}
                 type="button"
               >
-                {leaveMutation.isPending ? "Leaving..." : "Leave Book"}
+                {leaveMutation.isPending ? t("collab.leavingBook") : t("collab.leaveBook")}
               </button>
             ) : null}
           </div>
 
-          {membersQuery.isLoading ? <div className="info-banner compact-banner">Loading members...</div> : null}
+          {membersQuery.isLoading ? (
+            <div className="info-banner compact-banner">{t("collab.membersLoading")}</div>
+          ) : null}
           {membersQuery.isError ? (
             <div className="error-banner">
-              {membersQuery.error instanceof ApiError
-                ? membersQuery.error.message
-                : "Failed to load members"}
+              {getApiErrorMessage(membersQuery.error, t("collab.membersLoadFailed"))}
             </div>
           ) : null}
 
@@ -294,12 +288,14 @@ export function AccountBookCollaborationPage() {
                     </div>
                     <div className="badge-row badge-row-tight">
                       <span className="badge">{member.account_role}</span>
-                      {member.is_me ? <span className="badge">me</span> : null}
+                      {member.is_me ? <span className="badge">{t("collab.me")}</span> : null}
                     </div>
                   </div>
 
                   <div className="helper-row" style={{ marginTop: 14, justifyContent: "space-between" }}>
-                    <span className="meta-line">joined {member.joined_at.slice(0, 10)}</span>
+                    <span className="meta-line">
+                      {t("collab.joined", { date: member.joined_at.slice(0, 10) })}
+                    </span>
                     <div className="helper-row">
                       {canTransfer ? (
                         <button
@@ -308,7 +304,7 @@ export function AccountBookCollaborationPage() {
                           onClick={() => handleTransferOwner(member)}
                           type="button"
                         >
-                          {isTransferTarget ? "Transferring..." : "Make Owner"}
+                          {isTransferTarget ? t("collab.transferring") : t("collab.makeOwner")}
                         </button>
                       ) : null}
                       {canRemove ? (
@@ -318,7 +314,7 @@ export function AccountBookCollaborationPage() {
                           onClick={() => handleRemoveMember(member)}
                           type="button"
                         >
-                          {isRemovingThisMember ? "Removing..." : "Remove"}
+                          {isRemovingThisMember ? t("collab.removing") : t("collab.remove")}
                         </button>
                       ) : null}
                     </div>
@@ -332,8 +328,8 @@ export function AccountBookCollaborationPage() {
         <article className="detail-card compact-card">
           <div className="compact-header-row">
             <div>
-              <h3>Invitations</h3>
-              <p>Admins and owner can create and delete invitation links.</p>
+              <h3>{t("collab.invitationsTitle")}</h3>
+              <p>{t("collab.invitationsDescription")}</p>
             </div>
           </div>
 
@@ -344,7 +340,7 @@ export function AccountBookCollaborationPage() {
             >
               <div className="inline-grid inline-grid-3">
                 <div className="field field-compact">
-                  <label htmlFor="invitation-role">Role</label>
+                  <label htmlFor="invitation-role">{t("collab.role")}</label>
                   <select id="invitation-role" {...invitationForm.register("account_role")}>
                     <option value="viewer">viewer</option>
                     <option value="editor">editor</option>
@@ -352,7 +348,7 @@ export function AccountBookCollaborationPage() {
                   </select>
                 </div>
                 <div className="field field-compact">
-                  <label htmlFor="invitation-max-usage">Max Usage</label>
+                  <label htmlFor="invitation-max-usage">{t("collab.maxUsage")}</label>
                   <input
                     id="invitation-max-usage"
                     inputMode="numeric"
@@ -361,7 +357,7 @@ export function AccountBookCollaborationPage() {
                   />
                 </div>
                 <div className="field field-compact">
-                  <label htmlFor="invitation-expiry">Expires In Hours</label>
+                  <label htmlFor="invitation-expiry">{t("collab.expiresInHours")}</label>
                   <input
                     id="invitation-expiry"
                     inputMode="numeric"
@@ -387,26 +383,24 @@ export function AccountBookCollaborationPage() {
                   disabled={createInvitationMutation.isPending}
                   type="submit"
                 >
-                  {createInvitationMutation.isPending ? "Creating..." : "Create Invitation"}
+                  {createInvitationMutation.isPending
+                    ? t("collab.creatingInvitation")
+                    : t("collab.createInvitation")}
                 </button>
               </div>
             </form>
           ) : (
-            <div className="info-banner compact-banner">
-              Your role cannot manage invitations for this account book.
-            </div>
+            <div className="info-banner compact-banner">{t("collab.noPermission")}</div>
           )}
 
           {canManageInvitations && invitationsQuery.isLoading ? (
             <div className="info-banner compact-banner" style={{ marginTop: 16 }}>
-              Loading invitations...
+              {t("collab.invitationsLoading")}
             </div>
           ) : null}
           {canManageInvitations && invitationsQuery.isError ? (
             <div className="error-banner" style={{ marginTop: 16 }}>
-              {invitationsQuery.error instanceof ApiError
-                ? invitationsQuery.error.message
-                : "Failed to load invitations"}
+              {getApiErrorMessage(invitationsQuery.error, t("collab.invitationsLoadFailed"))}
             </div>
           ) : null}
 
@@ -435,14 +429,16 @@ export function AccountBookCollaborationPage() {
                     </p>
 
                     <div className="helper-row" style={{ marginTop: 14, justifyContent: "space-between" }}>
-                      <span className="meta-line">created by {invitation.inviter_name}</span>
+                      <span className="meta-line">
+                        {t("collab.createdBy", { name: invitation.inviter_name })}
+                      </span>
                       <div className="helper-row">
                         <button
                           className="button button-sm"
                           onClick={() => void copyInvitationURL(invitation)}
                           type="button"
                         >
-                          Copy Link
+                          {t("collab.copyLink")}
                         </button>
                         <button
                           className="button button-sm button-danger-strong"
@@ -450,7 +446,7 @@ export function AccountBookCollaborationPage() {
                           onClick={() => handleDeleteInvitation(invitation)}
                           type="button"
                         >
-                          {isDeletingThisInvitation ? "Deleting..." : "Delete"}
+                          {isDeletingThisInvitation ? t("collab.deleting") : t("common.delete")}
                         </button>
                       </div>
                     </div>
@@ -459,7 +455,7 @@ export function AccountBookCollaborationPage() {
               })}
 
               {invitationsQuery.isSuccess && invitationsQuery.data?.length === 0 ? (
-                <div className="empty-state">No invitations yet.</div>
+                <div className="empty-state">{t("collab.noInvitations")}</div>
               ) : null}
             </div>
           ) : null}

@@ -2,6 +2,7 @@ import { PropsWithChildren, useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "@/features/auth/auth-context";
 import { ToastProvider } from "@/features/feedback/toast-context";
+import { I18nProvider } from "@/features/i18n/i18n-context";
 
 export function AppProviders({ children }: PropsWithChildren) {
   const [queryClient] = useState(
@@ -20,7 +21,9 @@ export function AppProviders({ children }: PropsWithChildren) {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <ToastProvider>{children}</ToastProvider>
+        <I18nProvider>
+          <ToastProvider>{children}</ToastProvider>
+        </I18nProvider>
       </AuthProvider>
     </QueryClientProvider>
   );

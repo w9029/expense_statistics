@@ -28,6 +28,7 @@ type AuthContextValue = {
     name: string;
     password: string;
     preferred_currency: string;
+    language: "zh-CN" | "en" | "ja";
     verification_token: string;
   }) => Promise<AuthSession>;
   logout: () => void;

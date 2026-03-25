@@ -1,9 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
-import { ApiError } from "@expense-statistics/api-client";
 import { useAuth } from "@/features/auth/auth-context";
 import { useToast } from "@/features/feedback/toast-context";
+import { useI18n } from "@/features/i18n/i18n-context";
 import { apiClient } from "@/lib/api";
+import { getApiErrorMessage } from "@/lib/api-errors";
 
 export function InvitationPage() {
   const { token } = useParams();
@@ -12,6 +13,7 @@ export function InvitationPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { showToast } = useToast();
+  const { t } = useI18n();
   const currentPath = `${location.pathname}${location.search}`;
 
   const invitationQuery = useQuery({
@@ -31,32 +33,24 @@ export function InvitationPage() {
           default_account_book_id: result.account_book_id,
         });
       }
-      showToast("Invitation accepted.", "success");
+      showToast(t("invite.accepted"), "success");
       navigate(`/app/account-books/${result.account_book_id}`, { replace: true });
     },
     onError: (error) => {
-      showToast(
-        error instanceof ApiError ? error.message : "Failed to accept invitation",
-        "error",
-      );
+      showToast(getApiErrorMessage(error, t("invite.acceptFailed")), "error");
     },
   });
 
   return (
     <section className="hero-grid">
       <div className="hero-panel">
-        <h1>Invitation</h1>
-        <p>
-          Open a shared account book invite, review the granted role, then accept it
-          after authentication.
-        </p>
+        <h1>{t("invite.title")}</h1>
+        <p>{t("invite.description")}</p>
 
-        {invitationQuery.isLoading ? <div className="info-banner">Loading invitation...</div> : null}
+        {invitationQuery.isLoading ? <div className="info-banner">{t("invite.loading")}</div> : null}
         {invitationQuery.isError ? (
           <div className="error-banner">
-            {invitationQuery.error instanceof ApiError
-              ? invitationQuery.error.message
-              : "Failed to load invitation"}
+            {getApiErrorMessage(invitationQuery.error, t("invite.loadFailed"))}
           </div>
         ) : null}
 
@@ -71,8 +65,12 @@ export function InvitationPage() {
             </div>
 
             <h3 style={{ marginTop: 14 }}>{invitationQuery.data.account_book_name}</h3>
-            <p className="list-note">Invited by {invitationQuery.data.inviter_name}</p>
-            <p className="list-note">Expires at {invitationQuery.data.expires_at}</p>
+            <p className="list-note">
+              {t("invite.invitedBy", { name: invitationQuery.data.inviter_name })}
+            </p>
+            <p className="list-note">
+              {t("invite.expiresAt", { value: invitationQuery.data.expires_at })}
+            </p>
 
             {auth.isAuthenticated ? (
               <div className="form-actions" style={{ marginTop: 18 }}>
@@ -82,26 +80,33 @@ export function InvitationPage() {
                   onClick={() => acceptMutation.mutate()}
                   type="button"
                 >
-                  {acceptMutation.isPending ? "Accepting..." : "Accept Invitation"}
+                  {acceptMutation.isPending ? t("invite.accepting") : t("invite.accept")}
                 </button>
-                <Link className="button" to={auth.user?.default_account_book_id ? `/app/account-books/${auth.user.default_account_book_id}` : "/app/account-books"}>
-                  Open App
+                <Link
+                  className="button"
+                  to={
+                    auth.user?.default_account_book_id
+                      ? `/app/account-books/${auth.user.default_account_book_id}`
+                      : "/app/account-books"
+                  }
+                >
+                  {t("invite.openApp")}
                 </Link>
               </div>
             ) : (
               <div className="form-actions" style={{ marginTop: 18 }}>
                 <Link className="button primary" state={{ from: currentPath }} to="/auth/login">
-                  Sign In To Accept
+                  {t("invite.signIn")}
                 </Link>
                 <Link className="button" state={{ from: currentPath }} to="/auth/register">
-                  Create Account
+                  {t("invite.createAccount")}
                 </Link>
               </div>
             )}
 
             {!invitationQuery.data.acceptable ? (
               <div className="info-banner compact-banner" style={{ marginTop: 16 }}>
-                This invitation is currently not acceptable. Status or usage limits may have changed.
+                {t("invite.notAcceptable")}
               </div>
             ) : null}
           </div>

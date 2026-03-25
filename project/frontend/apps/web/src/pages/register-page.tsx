@@ -1,45 +1,64 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { z } from "zod";
 import { ApiError } from "@expense-statistics/api-client";
 import { useAuth } from "@/features/auth/auth-context";
+import { useI18n } from "@/features/i18n/i18n-context";
 import { apiClient } from "@/lib/api";
 import { getPostAuthPath } from "@/lib/auth";
 
 const purpose = "register";
 
-const emailSchema = z.object({
-  email: z.string().trim().email("Enter a valid email"),
-});
+type EmailFormValues = {
+  email: string;
+};
 
-const verifySchema = z.object({
-  code: z.string().trim().length(6, "Verification code must be 6 digits"),
-});
+type VerifyFormValues = {
+  code: string;
+};
 
-const registerSchema = z.object({
-  name: z.string().trim().min(1, "Name is required").max(100, "Name is too long"),
-  password: z.string().min(8, "Password must be at least 8 characters").max(72),
-  preferred_currency: z
-    .string()
-    .trim()
-    .length(3, "Use a 3-letter currency code")
-    .transform((value) => value.toUpperCase()),
-});
-
-type EmailFormValues = z.infer<typeof emailSchema>;
-type VerifyFormValues = z.infer<typeof verifySchema>;
-type RegisterFormValues = z.input<typeof registerSchema>;
+type RegisterFormValues = {
+  name: string;
+  password: string;
+  preferred_currency: string;
+  language: "zh-CN" | "en" | "ja";
+};
 
 export function RegisterPage() {
   const auth = useAuth();
+  const { language, t } = useI18n();
   const location = useLocation();
   const navigate = useNavigate();
   const [verifiedEmail, setVerifiedEmail] = useState<string | null>(null);
   const [verificationToken, setVerificationToken] = useState<string | null>(null);
   const [verificationExpiry, setVerificationExpiry] = useState<string | null>(null);
+  const [now, setNow] = useState(() => Date.now());
+
+  const emailSchema = z.object({
+    email: z.string().trim().email(t("register.error.email")),
+  });
+
+  const verifySchema = z.object({
+    code: z.string().trim().length(6, t("register.error.code")),
+  });
+
+  const registerSchema = z.object({
+    name: z
+      .string()
+      .trim()
+      .min(1, t("register.error.name"))
+      .max(100, t("register.error.nameLong")),
+    password: z.string().min(8, t("register.error.password")).max(72),
+    preferred_currency: z
+      .string()
+      .trim()
+      .length(3, t("register.error.currency"))
+      .transform((value) => value.toUpperCase()),
+    language: z.enum(["zh-CN", "en", "ja"]),
+  });
 
   const emailForm = useForm<EmailFormValues>({
     resolver: zodResolver(emailSchema),
@@ -47,20 +66,41 @@ export function RegisterPage() {
       email: "",
     },
   });
+
   const verifyForm = useForm<VerifyFormValues>({
     resolver: zodResolver(verifySchema),
     defaultValues: {
       code: "",
     },
   });
+
   const registerForm = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
       name: "",
       password: "",
       preferred_currency: "JPY",
+      language,
     },
   });
+
+  useEffect(() => {
+    if (!registerForm.formState.isDirty) {
+      registerForm.setValue("language", language);
+    }
+  }, [language, registerForm]);
+
+  useEffect(() => {
+    if (!verificationToken || !verificationExpiry) {
+      return;
+    }
+
+    const intervalID = window.setInterval(() => {
+      setNow(Date.now());
+    }, 1000);
+
+    return () => window.clearInterval(intervalID);
+  }, [verificationToken, verificationExpiry]);
 
   const sendCodeMutation = useMutation({
     mutationFn: async (values: EmailFormValues) => {
@@ -100,7 +140,7 @@ export function RegisterPage() {
     mutationFn: async (values: RegisterFormValues) => {
       const parsed = registerSchema.parse(values);
       if (!verifiedEmail || !verificationToken) {
-        throw new Error("Email verification has not been completed");
+        throw new Error(t("register.error.verificationMissing"));
       }
 
       return auth.register({
@@ -108,6 +148,7 @@ export function RegisterPage() {
         name: parsed.name.trim(),
         password: parsed.password,
         preferred_currency: parsed.preferred_currency,
+        language: parsed.language,
         verification_token: verificationToken,
       });
     },
@@ -126,27 +167,39 @@ export function RegisterPage() {
   }
 
   const currentEmail = verifiedEmail ?? emailForm.watch("email");
-  const isVerified = Boolean(verificationToken);
+  const verificationExpiryTime = useMemo(
+    () => (verificationExpiry ? new Date(verificationExpiry).getTime() : null),
+    [verificationExpiry],
+  );
+  const isVerified = Boolean(
+    verificationToken &&
+      verificationExpiryTime &&
+      Number.isFinite(verificationExpiryTime) &&
+      verificationExpiryTime > now,
+  );
+  const isVerificationExpired = Boolean(
+    verificationToken &&
+      verificationExpiryTime &&
+      Number.isFinite(verificationExpiryTime) &&
+      verificationExpiryTime <= now,
+  );
 
   return (
     <div className="auth-shell">
       <section className="auth-card auth-card-wide">
-        <h1>Create your account</h1>
-        <p>
-          Registration now follows the real backend flow: send email code, verify it,
-          then finish profile and password setup.
-        </p>
+        <h1>{t("register.title")}</h1>
+        <p>{t("register.description")}</p>
 
         <div className="step-stack">
           <div className="step-card">
             <div className="split-header">
               <div>
-                <h3 style={{ marginTop: 0 }}>Step 1: Email</h3>
-                <p className="list-note">Enter your email to receive a registration code.</p>
+                <h3 style={{ marginTop: 0 }}>{t("register.step1.title")}</h3>
+                <p className="list-note">{t("register.step1.description")}</p>
               </div>
               {verifiedEmail ? (
                 <button className="button" onClick={resetEmailStep} type="button">
-                  Change Email
+                  {t("register.changeEmail")}
                 </button>
               ) : null}
             </div>
@@ -156,11 +209,11 @@ export function RegisterPage() {
               onSubmit={emailForm.handleSubmit((values) => sendCodeMutation.mutate(values))}
             >
               <div className="field">
-                <label htmlFor="register-email">Email</label>
+                <label htmlFor="register-email">{t("register.email")}</label>
                 <input
                   disabled={sendCodeMutation.isPending || Boolean(verifiedEmail)}
                   id="register-email"
-                  placeholder="joshua@example.com"
+                  placeholder={t("login.placeholder.email")}
                   type="email"
                   {...emailForm.register("email")}
                 />
@@ -173,13 +226,13 @@ export function RegisterPage() {
                 <div className="error-banner">
                   {sendCodeMutation.error instanceof ApiError
                     ? sendCodeMutation.error.message
-                    : "Failed to send verification code"}
+                    : t("register.error.sendCode")}
                 </div>
               ) : null}
 
               {verifiedEmail ? (
                 <div className="success-banner">
-                  Verification code sent to <span className="mono">{verifiedEmail}</span>.
+                  {t("register.codeSent", { email: verifiedEmail })}
                 </div>
               ) : null}
 
@@ -188,25 +241,22 @@ export function RegisterPage() {
                 disabled={sendCodeMutation.isPending || Boolean(verifiedEmail)}
                 type="submit"
               >
-                {sendCodeMutation.isPending ? "Sending..." : "Send Verification Code"}
+                {sendCodeMutation.isPending ? t("register.sendingCode") : t("register.sendCode")}
               </button>
             </form>
           </div>
 
           {verifiedEmail ? (
             <div className="step-card">
-              <h3 style={{ marginTop: 0 }}>Step 2: Verify Code</h3>
-              <p className="list-note">
-                Enter the 6-digit code from your email. Only after verification do the
-                remaining registration fields appear.
-              </p>
+              <h3 style={{ marginTop: 0 }}>{t("register.step2.title")}</h3>
+              <p className="list-note">{t("register.step2.description")}</p>
 
               <form
                 className="form-grid"
                 onSubmit={verifyForm.handleSubmit((values) => verifyCodeMutation.mutate(values))}
               >
                 <div className="field">
-                  <label htmlFor="register-code">Verification Code</label>
+                  <label htmlFor="register-code">{t("register.code")}</label>
                   <input
                     disabled={verifyCodeMutation.isPending || isVerified}
                     id="register-code"
@@ -225,14 +275,18 @@ export function RegisterPage() {
                   <div className="error-banner">
                     {verifyCodeMutation.error instanceof ApiError
                       ? verifyCodeMutation.error.message
-                      : "Failed to verify the code"}
+                      : t("register.error.verifyCode")}
                   </div>
                 ) : null}
 
                 {isVerified ? (
                   <div className="success-banner">
-                    Email verified. Token expires at <span className="mono">{verificationExpiry}</span>.
+                    {t("register.verified", { expiresAt: verificationExpiry ?? "" })}
                   </div>
+                ) : null}
+
+                {isVerificationExpired ? (
+                  <div className="info-banner">{t("register.verifiedExpired")}</div>
                 ) : null}
 
                 <div className="form-actions">
@@ -241,11 +295,13 @@ export function RegisterPage() {
                     disabled={verifyCodeMutation.isPending || isVerified}
                     type="submit"
                   >
-                    {verifyCodeMutation.isPending ? "Verifying..." : "Verify Code"}
+                    {verifyCodeMutation.isPending
+                      ? t("register.verifyingCode")
+                      : t("register.verifyCode")}
                   </button>
                   <button
                     className="button"
-                    disabled={sendCodeMutation.isPending}
+                    disabled={sendCodeMutation.isPending || isVerified}
                     onClick={() =>
                       sendCodeMutation.mutate({
                         email: verifiedEmail,
@@ -253,7 +309,7 @@ export function RegisterPage() {
                     }
                     type="button"
                   >
-                    Resend Code
+                    {t("register.resendCode")}
                   </button>
                 </div>
               </form>
@@ -262,30 +318,32 @@ export function RegisterPage() {
 
           {isVerified ? (
             <div className="step-card">
-              <h3 style={{ marginTop: 0 }}>Step 3: Account Details</h3>
-              <p className="list-note">
-                Finish the profile fields. Successful registration will create the user
-                and enter a logged-in session immediately.
-              </p>
+              <h3 style={{ marginTop: 0 }}>{t("register.step3.title")}</h3>
+              <p className="list-note">{t("register.step3.description")}</p>
 
               <form
                 className="form-grid"
                 onSubmit={registerForm.handleSubmit((values) => registerMutation.mutate(values))}
               >
                 <div className="field">
-                  <label htmlFor="register-name">Name</label>
-                  <input id="register-name" placeholder="Joshua" type="text" {...registerForm.register("name")} />
+                  <label htmlFor="register-name">{t("register.name")}</label>
+                  <input
+                    id="register-name"
+                    placeholder={t("register.placeholder.name")}
+                    type="text"
+                    {...registerForm.register("name")}
+                  />
                   {registerForm.formState.errors.name ? (
                     <div className="error-banner">{registerForm.formState.errors.name.message}</div>
                   ) : null}
                 </div>
 
                 <div className="field">
-                  <label htmlFor="register-currency">Preferred Currency</label>
+                  <label htmlFor="register-currency">{t("register.preferredCurrency")}</label>
                   <input
                     id="register-currency"
                     maxLength={3}
-                    placeholder="JPY"
+                    placeholder={t("register.placeholder.currency")}
                     type="text"
                     {...registerForm.register("preferred_currency")}
                   />
@@ -297,15 +355,27 @@ export function RegisterPage() {
                 </div>
 
                 <div className="field">
-                  <label htmlFor="register-password">Password</label>
+                  <label htmlFor="register-password">{t("register.password")}</label>
                   <input
                     id="register-password"
-                    placeholder="Create a strong password"
+                    placeholder={t("register.placeholder.password")}
                     type="password"
                     {...registerForm.register("password")}
                   />
                   {registerForm.formState.errors.password ? (
                     <div className="error-banner">{registerForm.formState.errors.password.message}</div>
+                  ) : null}
+                </div>
+
+                <div className="field">
+                  <label htmlFor="register-language">{t("register.language")}</label>
+                  <select id="register-language" {...registerForm.register("language")}>
+                    <option value="zh-CN">{t("common.language.zh-CN")}</option>
+                    <option value="en">{t("common.language.en")}</option>
+                    <option value="ja">{t("common.language.ja")}</option>
+                  </select>
+                  {registerForm.formState.errors.language ? (
+                    <div className="error-banner">{registerForm.formState.errors.language.message}</div>
                   ) : null}
                 </div>
 
@@ -315,7 +385,7 @@ export function RegisterPage() {
                       ? registerMutation.error.message
                       : registerMutation.error instanceof Error
                         ? registerMutation.error.message
-                        : "Failed to register"}
+                        : t("register.error.register")}
                   </div>
                 ) : null}
 
@@ -324,7 +394,7 @@ export function RegisterPage() {
                   disabled={registerMutation.isPending}
                   type="submit"
                 >
-                  {registerMutation.isPending ? "Creating Account..." : "Create Account"}
+                  {registerMutation.isPending ? t("register.submitting") : t("register.submit")}
                 </button>
               </form>
             </div>
@@ -332,17 +402,17 @@ export function RegisterPage() {
         </div>
 
         <p className="list-note" style={{ marginTop: 18 }}>
-          Already registered?{" "}
-          <Link
-            state={location.state}
-            to="/auth/login"
-          >
-            Sign in
+          
+          <Link state={location.state} to="/auth/login">
+            {t("register.alreadyRegistered")}{" "}
+            {t("register.signIn")}
           </Link>
         </p>
 
         <p className="list-note" style={{ marginTop: 10 }}>
-          Current email: <span className="mono">{currentEmail || "not entered yet"}</span>
+          {t("register.currentEmail", {
+            email: currentEmail || t("register.currentEmail.empty"),
+          })}
         </p>
       </section>
     </div>

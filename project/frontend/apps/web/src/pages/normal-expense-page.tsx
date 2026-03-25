@@ -7,6 +7,7 @@ import { z } from "zod";
 import { ApiError } from "@expense-statistics/api-client";
 import { useAuth } from "@/features/auth/auth-context";
 import { useToast } from "@/features/feedback/toast-context";
+import { useI18n } from "@/features/i18n/i18n-context";
 import { apiClient } from "@/lib/api";
 import {
   buildExpenseListNavigationState,
@@ -17,23 +18,6 @@ import { todayNaturalDate } from "@/lib/ledger";
 const amountPattern = /^\d+(\.\d{1,2})?$/;
 const naturalDatePattern = /^\d{4}-\d{2}-\d{2}$/;
 
-const normalExpenseSchema = z.object({
-  category_id: z.string().min(1, "Category is required"),
-  name: z.string().trim().min(1, "Name is required").max(200, "Name is too long"),
-  description: z.string().max(400, "Description is too long").optional(),
-  original_amount: z
-    .string()
-    .trim()
-    .regex(amountPattern, "Use a valid amount with up to 2 decimals"),
-  original_currency: z
-    .string()
-    .trim()
-    .length(3, "Use a 3-letter currency code")
-    .transform((value) => value.toUpperCase()),
-  spent_at: z.string().regex(naturalDatePattern, "Use YYYY-MM-DD"),
-});
-
-type NormalExpenseFormValues = z.input<typeof normalExpenseSchema>;
 type SubmitMode = "back" | "next";
 
 export function NormalExpensePage() {
@@ -43,6 +27,7 @@ export function NormalExpensePage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { showToast } = useToast();
+  const { t } = useI18n();
   const isEditMode = Boolean(expenseId);
   const returnFilters = readExpenseListFiltersFromState(location.state);
   const backToBookState = returnFilters
@@ -54,6 +39,28 @@ export function NormalExpensePage() {
     tone: "success" | "error";
     text: string;
   } | null>(null);
+
+  const normalExpenseSchema = z.object({
+    category_id: z.string().min(1, t("normalExpense.categoryRequired")),
+    name: z
+      .string()
+      .trim()
+      .min(1, t("normalExpense.nameRequired"))
+      .max(200, t("normalExpense.nameLong")),
+    description: z.string().max(400, t("common.error.descriptionLong")).optional(),
+    original_amount: z
+      .string()
+      .trim()
+      .regex(amountPattern, t("normalExpense.amountInvalid")),
+    original_currency: z
+      .string()
+      .trim()
+      .length(3, t("normalExpense.currencyInvalid"))
+      .transform((value) => value.toUpperCase()),
+    spent_at: z.string().regex(naturalDatePattern, t("normalExpense.dateInvalid")),
+  });
+
+  type NormalExpenseFormValues = z.input<typeof normalExpenseSchema>;
 
   const form = useForm<NormalExpenseFormValues>({
     resolver: zodResolver(normalExpenseSchema),
@@ -143,7 +150,7 @@ export function NormalExpensePage() {
           original_currency: savedExpense.original_currency,
           spent_at: savedExpense.spent_at,
         });
-        showToast("Expense updated.", "success");
+        showToast(t("normalExpense.updated"), "success");
         navigate(`/app/account-books/${accountBookId}`, {
           replace: true,
           state: backToBookState,
@@ -166,12 +173,12 @@ export function NormalExpensePage() {
         }, 0);
         setFlashMessage({
           tone: "success",
-          text: "Expense created. Ready for the next one.",
+          text: t("normalExpense.createdNext"),
         });
         return;
       }
 
-      showToast("Expense created.", "success");
+      showToast(t("normalExpense.created"), "success");
       navigate(`/app/account-books/${accountBookId}`, { replace: true });
     },
     onError: (error) => {
@@ -179,8 +186,8 @@ export function NormalExpensePage() {
         error instanceof ApiError
           ? error.message
           : isEditMode
-            ? "Failed to update the expense"
-            : "Failed to create the expense";
+            ? t("normalExpense.updateFailed")
+            : t("normalExpense.createFailed");
       setFlashMessage({ tone: "error", text });
       showToast(text, "error");
     },
@@ -224,11 +231,12 @@ export function NormalExpensePage() {
       <header className="page-header page-header-compact">
         <div>
           <div className="title-row">
-            <h1>{isEditMode ? "Edit Normal Expense" : "New Normal Expense"}</h1>
+            <h1>{isEditMode ? t("normalExpense.titleEdit") : t("normalExpense.titleCreate")}</h1>
           </div>
           <p>
-            {isEditMode ? "Update mode for " : "Fast entry mode for "}
-            <span className="mono">{detailQuery.data?.name ?? "this book"}</span>.
+            {t(isEditMode ? "normalExpense.subtitleEdit" : "normalExpense.subtitleCreate", {
+              book: detailQuery.data?.name ?? "this book",
+            })}
           </p>
         </div>
       </header>
@@ -236,27 +244,28 @@ export function NormalExpensePage() {
       <div className="compact-form-shell">
         <article className="detail-card compact-card">
           {flashMessage ? (
-            <div
-              className={`inline-toast inline-toast-${flashMessage.tone}`}
-              role="status"
-            >
+            <div className={`inline-toast inline-toast-${flashMessage.tone}`} role="status">
               {flashMessage.text}
             </div>
           ) : null}
 
           <div className="compact-header-row">
             <div>
-              <h3>Expense Form</h3>
+              <h3>{t("normalExpense.formTitle")}</h3>
               <p>
                 {isEditMode
-                  ? "Enter submits the update."
-                  : "Enter submits. Ctrl+Enter creates and keeps you on the form."}
+                  ? t("normalExpense.formDescriptionEdit")
+                  : t("normalExpense.formDescriptionCreate")}
               </p>
             </div>
             <div className="helper-row">
-              <span className="badge">base {detailQuery.data?.base_currency ?? "..."}</span>
-              <span className="badge">{normalCategories.length} categories</span>
-              {isEditMode ? <span className="badge">editing</span> : null}
+              <span className="badge">
+                {t("normalExpense.base", { value: detailQuery.data?.base_currency ?? "..." })}
+              </span>
+              <span className="badge">
+                {t("normalExpense.categories", { value: normalCategories.length })}
+              </span>
+              {isEditMode ? <span className="badge">{t("normalExpense.editing")}</span> : null}
             </div>
           </div>
 
@@ -270,9 +279,9 @@ export function NormalExpensePage() {
           >
             <div className="inline-grid inline-grid-4">
               <div className="field field-compact">
-                <label htmlFor="normal-category">Category</label>
+                <label htmlFor="normal-category">{t("normalExpense.category")}</label>
                 <select id="normal-category" {...form.register("category_id")}>
-                  <option value="">Choose a category</option>
+                  <option value="">{t("normalExpense.chooseCategory")}</option>
                   {normalCategories.map((category) => (
                     <option key={category.id} value={category.id}>
                       {category.name}
@@ -285,7 +294,7 @@ export function NormalExpensePage() {
               </div>
 
               <div className="field field-compact">
-                <label htmlFor="normal-name">Name</label>
+                <label htmlFor="normal-name">{t("normalExpense.name")}</label>
                 <input
                   id="normal-name"
                   ref={(element) => {
@@ -301,7 +310,7 @@ export function NormalExpensePage() {
               </div>
 
               <div className="field field-compact">
-                <label htmlFor="normal-amount">Original Amount</label>
+                <label htmlFor="normal-amount">{t("normalExpense.amount")}</label>
                 <input id="normal-amount" type="text" {...form.register("original_amount")} />
                 {form.formState.errors.original_amount ? (
                   <div className="error-banner">
@@ -311,7 +320,7 @@ export function NormalExpensePage() {
               </div>
 
               <div className="field field-compact">
-                <label htmlFor="normal-currency">Currency</label>
+                <label htmlFor="normal-currency">{t("normalExpense.currency")}</label>
                 <input
                   id="normal-currency"
                   maxLength={3}
@@ -328,7 +337,7 @@ export function NormalExpensePage() {
 
             <div className="inline-grid inline-grid-3">
               <div className="field field-compact">
-                <label htmlFor="normal-spent-at">Spent At</label>
+                <label htmlFor="normal-spent-at">{t("normalExpense.spentAt")}</label>
                 <input id="normal-spent-at" type="date" {...form.register("spent_at")} />
                 {form.formState.errors.spent_at ? (
                   <div className="error-banner">{form.formState.errors.spent_at.message}</div>
@@ -336,7 +345,7 @@ export function NormalExpensePage() {
               </div>
 
               <div className="field field-compact inline-grid-span-2">
-                <label htmlFor="normal-description">Description</label>
+                <label htmlFor="normal-description">{t("normalExpense.description")}</label>
                 <input id="normal-description" type="text" {...form.register("description")} />
                 {form.formState.errors.description ? (
                   <div className="error-banner">{form.formState.errors.description.message}</div>
@@ -345,14 +354,14 @@ export function NormalExpensePage() {
             </div>
 
             {expenseDetailQuery.isLoading && isEditMode ? (
-              <div className="info-banner">Loading expense...</div>
+              <div className="info-banner">{t("normalExpense.loadingExpense")}</div>
             ) : null}
 
             {expenseDetailQuery.isError && isEditMode ? (
               <div className="error-banner">
                 {expenseDetailQuery.error instanceof ApiError
                   ? expenseDetailQuery.error.message
-                  : "Failed to load the expense"}
+                  : t("normalExpense.loadExpenseFailed")}
               </div>
             ) : null}
 
@@ -361,8 +370,8 @@ export function NormalExpensePage() {
                 {saveMutation.error instanceof ApiError
                   ? saveMutation.error.message
                   : isEditMode
-                    ? "Failed to update the expense"
-                    : "Failed to create the expense"}
+                    ? t("normalExpense.updateFailed")
+                    : t("normalExpense.createFailed")}
               </div>
             ) : null}
 
@@ -374,7 +383,7 @@ export function NormalExpensePage() {
                   state={backToBookState}
                   to={`/app/account-books/${accountBookId}`}
                 >
-                  Cancel
+                  {t("common.cancel")}
                 </Link>
               </div>
               <div className="form-actions-group">
@@ -386,8 +395,8 @@ export function NormalExpensePage() {
                     type="button"
                   >
                     {saveMutation.isPending && submitModeRef.current === "next"
-                      ? "Creating..."
-                      : "Create Expense And Next"}
+                      ? t("normalExpense.creating")
+                      : t("normalExpense.createAndNext")}
                   </button>
                 ) : null}
                 <button
@@ -400,11 +409,11 @@ export function NormalExpensePage() {
                 >
                   {saveMutation.isPending && submitModeRef.current === "back"
                     ? isEditMode
-                      ? "Saving..."
-                      : "Creating..."
+                      ? t("normalExpense.saving")
+                      : t("normalExpense.creating")
                     : isEditMode
-                      ? "Save Expense"
-                      : "Create Expense"}
+                      ? t("normalExpense.save")
+                      : t("normalExpense.create")}
                 </button>
               </div>
             </div>
@@ -412,25 +421,20 @@ export function NormalExpensePage() {
         </article>
 
         <article className="detail-card compact-card compact-side-card">
-          <h3>Write Notes</h3>
+          <h3>{t("normalExpense.notesTitle")}</h3>
           <div className="stack-sm">
+            <div className="info-banner compact-banner">{t("normalExpense.notesDate")}</div>
             <div className="info-banner compact-banner">
-              Default date uses the current local system date.
-            </div>
-            <div className="info-banner compact-banner">
-              Normal categories: {normalCategories.length}
+              {t("normalExpense.notesCategories", { value: normalCategories.length })}
             </div>
             {normalCategories.length === 0 ? (
-              <div className="error-banner">
-                This account book currently has no usable normal category for direct
-                expense entry.
-              </div>
+              <div className="error-banner">{t("normalExpense.notesNoCategory")}</div>
             ) : null}
             {categoriesQuery.isError ? (
               <div className="error-banner">
                 {categoriesQuery.error instanceof ApiError
                   ? categoriesQuery.error.message
-                  : "Failed to load categories"}
+                  : t("normalExpense.notesLoadCategoriesFailed")}
               </div>
             ) : null}
           </div>
