@@ -1,14 +1,21 @@
 import type {
   AccountBookMember,
   AccountBookDetail,
+  AccountBookLeaveResult,
+  AccountBookMemberRemovalResult,
+  AccountBookOwnerTransferResult,
   AccountBookSummary,
+  AcceptInvitationResult,
   DeleteAccountBookResult,
+  DeleteInvitationResult,
   AuthSession,
   ExpenseCategory,
   ExpenseDetail,
   ExpenseList,
   Expense,
   DeleteExpenseResult,
+  Invitation,
+  InvitationDetail,
   MergedExpenseCreateResult,
   User,
   VerificationResult,
@@ -92,6 +99,17 @@ export type CreateAccountBookInput = {
   name: string;
   base_currency: string;
   description: string | null;
+};
+
+export type CreateInvitationInput = {
+  account_book_id: string;
+  account_role: "viewer" | "editor" | "admin";
+  max_usage?: number;
+  expires_in_hours?: number;
+};
+
+export type TransferAccountBookOwnerInput = {
+  target_user_id: string;
 };
 
 export type ListExpensesInput = {
@@ -182,6 +200,22 @@ export function createApiClient(options: ApiClientOptions) {
         method: "POST",
         body: { refresh_token: refreshToken },
       }),
+    getInvitationByToken: (token: string) =>
+      requestWithAuthHandling<InvitationDetail>(`${apiBaseUrl}/invitations/${token}`),
+    createInvitation: (accessToken: string, input: CreateInvitationInput) =>
+      requestWithAuthHandling<Invitation>(`${apiBaseUrl}/invitations`, {
+        method: "POST",
+        body: input,
+        accessToken,
+      }),
+    acceptInvitation: (accessToken: string, token: string) =>
+      requestWithAuthHandling<AcceptInvitationResult>(
+        `${apiBaseUrl}/invitations/${token}/accept`,
+        {
+          method: "POST",
+          accessToken,
+        },
+      ),
     listAccountBooks: (accessToken: string) =>
       requestWithAuthHandling<AccountBookSummary[]>(`${apiBaseUrl}/account-books`, {
         accessToken,
@@ -203,6 +237,58 @@ export function createApiClient(options: ApiClientOptions) {
       requestWithAuthHandling<AccountBookMember[]>(`${apiBaseUrl}/account-books/${accountBookId}/members`, {
         accessToken,
       }),
+    listAccountBookInvitations: (accessToken: string, accountBookId: string) =>
+      requestWithAuthHandling<Invitation[]>(
+        `${apiBaseUrl}/account-books/${accountBookId}/invitations`,
+        {
+          accessToken,
+        },
+      ),
+    deleteAccountBookInvitation: (
+      accessToken: string,
+      accountBookId: string,
+      invitationId: string,
+    ) =>
+      requestWithAuthHandling<DeleteInvitationResult>(
+        `${apiBaseUrl}/account-books/${accountBookId}/invitations/${invitationId}`,
+        {
+          method: "DELETE",
+          accessToken,
+        },
+      ),
+    transferAccountBookOwner: (
+      accessToken: string,
+      accountBookId: string,
+      input: TransferAccountBookOwnerInput,
+    ) =>
+      requestWithAuthHandling<AccountBookOwnerTransferResult>(
+        `${apiBaseUrl}/account-books/${accountBookId}/owner-transfer`,
+        {
+          method: "POST",
+          body: input,
+          accessToken,
+        },
+      ),
+    removeAccountBookMember: (
+      accessToken: string,
+      accountBookId: string,
+      userId: string,
+    ) =>
+      requestWithAuthHandling<AccountBookMemberRemovalResult>(
+        `${apiBaseUrl}/account-books/${accountBookId}/members/${userId}`,
+        {
+          method: "DELETE",
+          accessToken,
+        },
+      ),
+    leaveAccountBook: (accessToken: string, accountBookId: string) =>
+      requestWithAuthHandling<AccountBookLeaveResult>(
+        `${apiBaseUrl}/account-books/${accountBookId}/leave`,
+        {
+          method: "POST",
+          accessToken,
+        },
+      ),
     listExpenseCategories: (accessToken: string, accountBookId: string) =>
       requestWithAuthHandling<ExpenseCategory[]>(
         `${apiBaseUrl}/account-books/${accountBookId}/expense-categories`,

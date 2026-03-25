@@ -2,7 +2,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { z } from "zod";
 import { ApiError } from "@expense-statistics/api-client";
 import { useAuth } from "@/features/auth/auth-context";
@@ -35,6 +35,7 @@ type RegisterFormValues = z.input<typeof registerSchema>;
 
 export function RegisterPage() {
   const auth = useAuth();
+  const location = useLocation();
   const navigate = useNavigate();
   const [verifiedEmail, setVerifiedEmail] = useState<string | null>(null);
   const [verificationToken, setVerificationToken] = useState<string | null>(null);
@@ -111,7 +112,9 @@ export function RegisterPage() {
       });
     },
     onSuccess: (session) => {
-      navigate(getPostAuthPath(session.user), { replace: true });
+      const redirectPath =
+        (location.state as { from?: string } | null)?.from ?? getPostAuthPath(session.user);
+      navigate(redirectPath, { replace: true });
     },
   });
 
@@ -329,7 +332,13 @@ export function RegisterPage() {
         </div>
 
         <p className="list-note" style={{ marginTop: 18 }}>
-          Already registered? <Link to="/auth/login">Sign in</Link>
+          Already registered?{" "}
+          <Link
+            state={location.state}
+            to="/auth/login"
+          >
+            Sign in
+          </Link>
         </p>
 
         <p className="list-note" style={{ marginTop: 10 }}>

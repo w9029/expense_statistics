@@ -178,6 +178,28 @@ export function AccountBookDetailPage() {
     },
   });
 
+  const leaveBookMutation = useMutation({
+    mutationFn: () => apiClient.leaveAccountBook(auth.accessToken!, accountBookId!),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["account-books"] });
+      const currentUser = auth.user;
+      if (currentUser && currentUser.default_account_book_id === accountBookId) {
+        auth.replaceUser({
+          ...currentUser,
+          default_account_book_id: null,
+        });
+      }
+      showToast("You left the account book.", "success");
+      navigate("/app/account-books", { replace: true });
+    },
+    onError: (error) => {
+      showToast(
+        error instanceof ApiError ? error.message : "Failed to leave the account book",
+        "error",
+      );
+    },
+  });
+
   const deleteExpenseMutation = useMutation({
     mutationFn: (expenseID: string) =>
       apiClient.deleteExpense(auth.accessToken!, accountBookId!, expenseID),
@@ -343,6 +365,13 @@ export function AccountBookDetailPage() {
     deleteBookMutation.mutate();
   }
 
+  function handleLeaveBook() {
+    if (!window.confirm("Leave this account book?")) {
+      return;
+    }
+    leaveBookMutation.mutate();
+  }
+
   function renderExpenseCard(expense: ExpenseSummary) {
     const category = categoryMap.get(expense.category_id);
     const deletingThisExpense = deleteExpenseMutation.isPending && deleteExpenseMutation.variables === expense.id;
@@ -483,6 +512,16 @@ export function AccountBookDetailPage() {
                   {deleteBookMutation.isPending ? "Deleting..." : "Delete Book"}
                 </button>
               ) : null}
+              {detailQuery.data && detailQuery.data.my_role !== "owner" ? (
+                <button
+                  className="button button-sm button-muted"
+                  disabled={leaveBookMutation.isPending}
+                  onClick={handleLeaveBook}
+                  type="button"
+                >
+                  {leaveBookMutation.isPending ? "Leaving..." : "Leave"}
+                </button>
+              ) : null}
             </div>
             <div className="meta-strip">
               <span className="inline-stat">role: {detailQuery.data?.my_role ?? "-"}</span>
@@ -504,6 +543,12 @@ export function AccountBookDetailPage() {
                 to={`/app/account-books/${accountBookId}/categories`}
               >
                 Categories
+              </Link>
+              <Link
+                className="button button-sm"
+                to={`/app/account-books/${accountBookId}/collaboration`}
+              >
+                Members
               </Link>
             </div>
           ) : null}
@@ -683,7 +728,7 @@ export function AccountBookDetailPage() {
                   className="amount-filter-input"
                   id="expense-max-amount"
                   onChange={(event) => updateFilter("maxAmount", event.target.value)}
-                  placeholder="9999.99"
+                  placeholder=""
                   type="text"
                   value={filters.maxAmount}
                 />

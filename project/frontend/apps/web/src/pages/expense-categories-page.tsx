@@ -266,11 +266,6 @@ export function ExpenseCategoriesPage() {
                 Back To Book
               </Link>
             ) : null}
-            {canEdit ? (
-              <button className="button primary button-sm" onClick={() => startCreate(false)} type="button">
-                New Category
-              </button>
-            ) : null}
           </div>
         </div>
       </header>

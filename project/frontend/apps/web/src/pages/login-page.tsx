@@ -86,7 +86,13 @@ export function LoginPage() {
         </form>
 
         <p className="list-note" style={{ marginTop: 18 }}>
-          Need an account? <Link to="/auth/register">Create one</Link>
+          Need an account?{" "}
+          <Link
+            state={location.state}
+            to="/auth/register"
+          >
+            Create one
+          </Link>
         </p>
       </section>
     </div>

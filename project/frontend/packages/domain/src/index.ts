@@ -62,6 +62,63 @@ export type AccountBookMember = {
   is_me: boolean;
 };
 
+export type Invitation = {
+  id: string;
+  account_book_id: string;
+  account_book_name: string;
+  inviter_user_id: string;
+  inviter_name: string;
+  account_role: AccountRole;
+  token: string;
+  status: string;
+  max_usage: number;
+  used_count: number;
+  expires_at: string;
+  created_at: string;
+  invite_url: string;
+};
+
+export type InvitationDetail = {
+  account_book_id: string;
+  account_book_name: string;
+  inviter_name: string;
+  account_role: AccountRole;
+  status: string;
+  max_usage: number;
+  used_count: number;
+  expires_at: string;
+  acceptable: boolean;
+};
+
+export type AcceptInvitationResult = {
+  account_book_id: string;
+  account_role: AccountRole;
+  joined: boolean;
+};
+
+export type DeleteInvitationResult = {
+  invitation_id: string;
+  deleted: boolean;
+};
+
+export type AccountBookOwnerTransferResult = {
+  account_book_id: string;
+  previous_owner_user_id: string;
+  new_owner_user_id: string;
+  transferred: boolean;
+};
+
+export type AccountBookMemberRemovalResult = {
+  account_book_id: string;
+  user_id: string;
+  removed: boolean;
+};
+
+export type AccountBookLeaveResult = {
+  account_book_id: string;
+  left: boolean;
+};
+
 export type ExpenseCategory = {
   id: string;
   account_book_id: string;

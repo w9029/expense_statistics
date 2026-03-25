@@ -12,6 +12,7 @@ import { apiClient } from "@/lib/api";
 import {
   loadStoredSession,
   storeSession,
+  subscribeToBrowserSessionChanges,
   subscribeToSessionChanges,
 } from "@/features/auth/storage";
 
@@ -46,6 +47,12 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
   useEffect(() => {
     return subscribeToSessionChanges((nextSession) => {
+      setSession(nextSession);
+    });
+  }, []);
+
+  useEffect(() => {
+    return subscribeToBrowserSessionChanges((nextSession) => {
       setSession(nextSession);
     });
   }, []);

@@ -37,9 +37,35 @@ export function storeSession(session: AuthSession | null) {
 }
 
 export function subscribeToSessionChanges(listener: (session: AuthSession | null) => void) {
-  listeners.add(listener);
+ listeners.add(listener);
+ return () => {
+   listeners.delete(listener);
+ };
+}
+
+export function subscribeToBrowserSessionChanges(listener: (session: AuthSession | null) => void) {
+  if (typeof window === "undefined") {
+    return () => {};
+  }
+
+  const handleStorage = (event: StorageEvent) => {
+    if (event.key !== storageKey) {
+      return;
+    }
+    if (!event.newValue) {
+      listener(null);
+      return;
+    }
+    try {
+      listener(JSON.parse(event.newValue) as AuthSession);
+    } catch {
+      listener(null);
+    }
+  };
+
+  window.addEventListener("storage", handleStorage);
   return () => {
-    listeners.delete(listener);
+    window.removeEventListener("storage", handleStorage);
   };
 }
 
