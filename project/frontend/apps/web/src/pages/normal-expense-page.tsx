@@ -222,22 +222,14 @@ export function NormalExpensePage() {
   return (
     <section className="stack">
       <header className="page-header page-header-compact">
-        <div className="split-header">
-          <div>
+        <div>
+          <div className="title-row">
             <h1>{isEditMode ? "Edit Normal Expense" : "New Normal Expense"}</h1>
-            <p>
-              {isEditMode ? "Update mode for " : "Fast entry mode for "}
-              <span className="mono">{detailQuery.data?.name ?? "this book"}</span>.
-            </p>
           </div>
-          <Link
-            className="button button-sm"
-            replace={isEditMode}
-            state={backToBookState}
-            to={`/app/account-books/${accountBookId}`}
-          >
-            Back To Book
-          </Link>
+          <p>
+            {isEditMode ? "Update mode for " : "Fast entry mode for "}
+            <span className="mono">{detailQuery.data?.name ?? "this book"}</span>.
+          </p>
         </div>
       </header>
 

@@ -2,7 +2,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
-import { Link, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { z } from "zod";
 import type { ExpenseCategory } from "@expense-statistics/domain";
 import { ApiError } from "@expense-statistics/api-client";
@@ -247,25 +247,17 @@ export function ExpenseCategoriesPage() {
   return (
     <section className="stack stack-tight">
       <header className="page-header page-header-compact">
-        <div className="split-header">
-          <div className="stack-sm">
+        <div className="stack-sm">
+          <div className="title-row">
             <h1>Expense Categories</h1>
-            <p>
-              Manage normal categories and merge parent categories for this account book.
-            </p>
-            <div className="meta-strip">
-              <span className="inline-stat">book: {detailQuery.data?.name ?? "-"}</span>
-              <span className="inline-stat">role: {detailQuery.data?.my_role ?? "-"}</span>
-              <span className="inline-stat">base: {detailQuery.data?.base_currency ?? "-"}</span>
-            </div>
           </div>
-
-          <div className="cta-row">
-            {accountBookId ? (
-              <Link className="button button-sm" to={`/app/account-books/${accountBookId}`}>
-                Back To Book
-              </Link>
-            ) : null}
+          <p>
+            Manage normal categories and merge parent categories for this account book.
+          </p>
+          <div className="meta-strip">
+            <span className="inline-stat">book: {detailQuery.data?.name ?? "-"}</span>
+            <span className="inline-stat">role: {detailQuery.data?.my_role ?? "-"}</span>
+            <span className="inline-stat">base: {detailQuery.data?.base_currency ?? "-"}</span>
           </div>
         </div>
       </header>

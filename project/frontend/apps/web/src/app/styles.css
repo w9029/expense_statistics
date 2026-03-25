@@ -310,6 +310,23 @@ select {
   margin-top: 28px;
 }
 
+.sidebar-nav-section {
+  margin-top: 10px;
+}
+
+.sidebar-section {
+  margin-top: 22px;
+}
+
+.sidebar-section-label {
+  padding: 0 4px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
 .sidebar-link {
   padding: 14px 16px;
   border-radius: 18px;

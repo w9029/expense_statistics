@@ -489,68 +489,47 @@ export function AccountBookDetailPage() {
   return (
     <section className="stack stack-tight">
       <header className="page-header page-header-compact">
-        <div className="split-header">
-          <div className="stack-sm">
-            <div className="title-row">
-              <h1>{detailQuery.data?.name ?? "Account Book Workspace"}</h1>
-              {canEdit ? (
-                <button
-                  className="button button-sm"
-                  onClick={() => setIsEditingMetadata((current) => !current)}
-                  type="button"
-                >
-                  Edit
-                </button>
-              ) : null}
-              {canDeleteBook ? (
-                <button
-                  className="button button-sm button-muted"
-                  disabled={deleteBookMutation.isPending}
-                  onClick={handleDeleteBook}
-                  type="button"
-                >
-                  {deleteBookMutation.isPending ? "Deleting..." : "Delete Book"}
-                </button>
-              ) : null}
-              {detailQuery.data && detailQuery.data.my_role !== "owner" ? (
-                <button
-                  className="button button-sm button-muted"
-                  disabled={leaveBookMutation.isPending}
-                  onClick={handleLeaveBook}
-                  type="button"
-                >
-                  {leaveBookMutation.isPending ? "Leaving..." : "Leave"}
-                </button>
-              ) : null}
-            </div>
-            <div className="meta-strip">
-              <span className="inline-stat">role: {detailQuery.data?.my_role ?? "-"}</span>
-              <span className="inline-stat">base: {detailQuery.data?.base_currency ?? "-"}</span>
-              <span className="inline-stat">categories: {categoriesQuery.data?.length ?? 0}</span>
-              <span className="inline-stat">owner: {ownerName}</span>
-            </div>
-            {detailQuery.data?.description ? (
-              <p className="page-subtext">{detailQuery.data.description}</p>
+        <div className="stack-sm">
+          <div className="title-row">
+            <h1>{detailQuery.data?.name ?? "Account Book Workspace"}</h1>
+            {canEdit ? (
+              <button
+                className="button button-sm"
+                onClick={() => setIsEditingMetadata((current) => !current)}
+                type="button"
+              >
+                Edit
+              </button>
+            ) : null}
+            {canDeleteBook ? (
+              <button
+                className="button button-sm button-muted"
+                disabled={deleteBookMutation.isPending}
+                onClick={handleDeleteBook}
+                type="button"
+              >
+                {deleteBookMutation.isPending ? "Deleting..." : "Delete Book"}
+              </button>
+            ) : null}
+            {detailQuery.data && detailQuery.data.my_role !== "owner" ? (
+              <button
+                className="button button-sm button-muted"
+                disabled={leaveBookMutation.isPending}
+                onClick={handleLeaveBook}
+                type="button"
+              >
+                {leaveBookMutation.isPending ? "Leaving..." : "Leave"}
+              </button>
             ) : null}
           </div>
-          {accountBookId ? (
-            <div className="cta-row">
-              <Link className="button button-sm" to="/app/account-books">
-                Books
-              </Link>
-              <Link
-                className="button button-sm"
-                to={`/app/account-books/${accountBookId}/categories`}
-              >
-                Categories
-              </Link>
-              <Link
-                className="button button-sm"
-                to={`/app/account-books/${accountBookId}/collaboration`}
-              >
-                Members
-              </Link>
-            </div>
+          <div className="meta-strip">
+            <span className="inline-stat">role: {detailQuery.data?.my_role ?? "-"}</span>
+            <span className="inline-stat">base: {detailQuery.data?.base_currency ?? "-"}</span>
+            <span className="inline-stat">categories: {categoriesQuery.data?.length ?? 0}</span>
+            <span className="inline-stat">owner: {ownerName}</span>
+          </div>
+          {detailQuery.data?.description ? (
+            <p className="page-subtext">{detailQuery.data.description}</p>
           ) : null}
         </div>
       </header>

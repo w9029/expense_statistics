@@ -1,5 +1,7 @@
-import { NavLink, Outlet } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { NavLink, Outlet, matchPath, useLocation } from "react-router-dom";
 import { useAuth } from "@/features/auth/auth-context";
+import { apiClient } from "@/lib/api";
 
 const navItems = [
   { to: "/app/account-books", label: "Account Books" },
@@ -8,6 +10,25 @@ const navItems = [
 
 export function AppLayout() {
   const auth = useAuth();
+  const location = useLocation();
+  const accountBookMatch =
+    matchPath("/app/account-books/:accountBookId/*", location.pathname) ??
+    matchPath("/app/account-books/:accountBookId", location.pathname);
+  const accountBookId = accountBookMatch?.params.accountBookId ?? null;
+
+  const accountBookQuery = useQuery({
+    queryKey: ["account-book", accountBookId],
+    queryFn: () => apiClient.getAccountBook(auth.accessToken!, accountBookId!),
+    enabled: Boolean(auth.accessToken && accountBookId),
+  });
+
+  const currentBookItems = accountBookId
+    ? [
+        { to: `/app/account-books/${accountBookId}`, label: "Overview", end: true },
+        { to: `/app/account-books/${accountBookId}/categories`, label: "Categories" },
+        { to: `/app/account-books/${accountBookId}/collaboration`, label: "Members" },
+      ]
+    : [];
 
   return (
     <div className="app-shell">
@@ -33,6 +54,28 @@ export function AppLayout() {
             </NavLink>
           ))}
         </nav>
+
+        {accountBookId ? (
+          <section className="sidebar-section">
+            <div className="sidebar-section-label">
+              {accountBookQuery.data?.name ?? "Current Book"}
+            </div>
+            <nav className="sidebar-nav sidebar-nav-section">
+              {currentBookItems.map((item) => (
+                <NavLink
+                  end={item.end}
+                  key={item.to}
+                  className={({ isActive }) =>
+                    `sidebar-link${isActive ? " active" : ""}`
+                  }
+                  to={item.to}
+                >
+                  {item.label}
+                </NavLink>
+              ))}
+            </nav>
+          </section>
+        ) : null}
 
         <div className="surface-card" style={{ marginTop: 18, padding: 18 }}>
           <h3 style={{ marginTop: 0 }}>{auth.user?.name ?? "Signed-in user"}</h3>

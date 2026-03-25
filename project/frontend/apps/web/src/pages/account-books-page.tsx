@@ -95,6 +95,50 @@ export function AccountBooksPage() {
     },
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: (accountBookId: string) =>
+      apiClient.deleteAccountBook(auth.accessToken!, accountBookId),
+    onSuccess: async (_, accountBookId) => {
+      await queryClient.invalidateQueries({ queryKey: ["account-books"] });
+      const currentUser = auth.user;
+      if (currentUser && currentUser.default_account_book_id === accountBookId) {
+        auth.replaceUser({
+          ...currentUser,
+          default_account_book_id: null,
+        });
+      }
+      showToast("Account book deleted.", "success");
+    },
+    onError: (error) => {
+      showToast(
+        error instanceof ApiError ? error.message : "Failed to delete the account book",
+        "error",
+      );
+    },
+  });
+
+  const leaveMutation = useMutation({
+    mutationFn: (accountBookId: string) =>
+      apiClient.leaveAccountBook(auth.accessToken!, accountBookId),
+    onSuccess: async (_, accountBookId) => {
+      await queryClient.invalidateQueries({ queryKey: ["account-books"] });
+      const currentUser = auth.user;
+      if (currentUser && currentUser.default_account_book_id === accountBookId) {
+        auth.replaceUser({
+          ...currentUser,
+          default_account_book_id: null,
+        });
+      }
+      showToast("Left account book.", "success");
+    },
+    onError: (error) => {
+      showToast(
+        error instanceof ApiError ? error.message : "Failed to leave the account book",
+        "error",
+      );
+    },
+  });
+
   const sortedAccountBooks = accountBooksQuery.data
     ? [...accountBooksQuery.data].sort((left, right) => {
         if (left.is_default === right.is_default) {
@@ -103,6 +147,24 @@ export function AccountBooksPage() {
         return left.is_default ? -1 : 1;
       })
     : [];
+
+  function handleDeleteBook(accountBookId: string, name: string) {
+    const typedName = window.prompt(`Type "${name}" to delete this account book.`, "");
+    if (typedName !== name) {
+      if (typedName !== null) {
+        showToast("Account book name did not match. Delete cancelled.", "error");
+      }
+      return;
+    }
+    deleteMutation.mutate(accountBookId);
+  }
+
+  function handleLeaveBook(accountBookId: string, name: string) {
+    if (!window.confirm(`Leave "${name}"?`)) {
+      return;
+    }
+    leaveMutation.mutate(accountBookId);
+  }
 
   return (
     <section>
@@ -203,6 +265,10 @@ export function AccountBooksPage() {
         <div className="card-grid">
           {sortedAccountBooks.map((book) => {
             const isCurrentMutation = defaultMutation.variables === book.id;
+            const isDeletingThisBook =
+              deleteMutation.isPending && deleteMutation.variables === book.id;
+            const isLeavingThisBook =
+              leaveMutation.isPending && leaveMutation.variables === book.id;
 
             return (
               <article
@@ -214,6 +280,30 @@ export function AccountBooksPage() {
                     <span className="badge">{book.my_role}</span>
                     <span className="badge">{book.base_currency}</span>
                     {book.is_default ? <span className="badge badge-default-book">default</span> : null}
+                  </div>
+                  <div className="helper-row" style={{ justifyContent: "flex-end" }}>
+                    <Link className="button button-sm" to={`/app/account-books/${book.id}/collaboration`}>
+                      Members
+                    </Link>
+                    {book.my_role === "owner" ? (
+                      <button
+                        className="button button-sm button-muted"
+                        disabled={isDeletingThisBook}
+                        onClick={() => handleDeleteBook(book.id, book.name)}
+                        type="button"
+                      >
+                        {isDeletingThisBook ? "Deleting..." : "Delete"}
+                      </button>
+                    ) : (
+                      <button
+                        className="button button-sm button-muted"
+                        disabled={isLeavingThisBook}
+                        onClick={() => handleLeaveBook(book.id, book.name)}
+                        type="button"
+                      >
+                        {isLeavingThisBook ? "Leaving..." : "Leave"}
+                      </button>
+                    )}
                   </div>
                 </div>
 

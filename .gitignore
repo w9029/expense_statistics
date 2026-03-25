@@ -29,3 +29,5 @@ dist
 .turbo
 .pnpm-store
 .DS_Store
+
+project/frontend/**/.vite/

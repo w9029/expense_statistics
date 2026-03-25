@@ -225,18 +225,13 @@ export function AccountBookCollaborationPage() {
   return (
     <section className="stack stack-tight">
       <header className="page-header page-header-compact">
-        <div className="split-header">
-          <div className="stack-sm">
+        <div className="stack-sm">
+          <div className="title-row">
             <h1>{detailQuery.data?.name ?? "Collaboration"}</h1>
-            <p className="page-subtext">
-              Invitations and member management for this account book.
-            </p>
           </div>
-          <div className="cta-row">
-            <Link className="button button-sm" to={`/app/account-books/${accountBookId}`}>
-              Back To Book
-            </Link>
-          </div>
+          <p className="page-subtext">
+            Invitations and member management for this account book.
+          </p>
         </div>
       </header>
 
