@@ -45,6 +45,9 @@ func (s *Service) Create(ctx context.Context, userID uuid.UUID, req CreateAccoun
 		if err != nil {
 			return err
 		}
+		if err := repo.CopyActiveCategoryTemplates(ctx, record.ID); err != nil {
+			return err
+		}
 		if err := repo.AddPermission(ctx, record.ID, userID, "owner"); err != nil {
 			return err
 		}
