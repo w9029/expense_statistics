@@ -16,6 +16,8 @@ go.work
 # build output
 # bin/
 # dist/
+project/backend/release/
+project/backend/release/server
 
 # Go cache
 .gocache/
