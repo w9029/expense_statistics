@@ -16,6 +16,8 @@ go.work
 # build output
 # bin/
 # dist/
+project/backend/release/
+project/backend/release/server
 
 # Go cache
 .gocache/
@@ -31,3 +33,4 @@ dist
 .DS_Store
 
 project/frontend/**/.vite/
+

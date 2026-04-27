@@ -31,6 +31,28 @@ func (r *Repository) CreateAccountBook(ctx context.Context, ownerUserID uuid.UUI
 	return &record, nil
 }
 
+func (r *Repository) CopyActiveCategoryTemplates(ctx context.Context, accountBookID uuid.UUID) error {
+	return r.db.WithContext(ctx).Exec(`
+        INSERT INTO expense_categories (
+            account_book_id,
+            name,
+            description,
+            is_merge_category,
+            color,
+            is_system_seed
+        )
+        SELECT
+            ?,
+            ct.name,
+            ct.description,
+            ct.is_merge_category,
+            ct.color,
+            TRUE
+        FROM category_templates ct
+        WHERE ct.is_active = TRUE
+    `, accountBookID).Error
+}
+
 func (r *Repository) UpdateAccountBook(ctx context.Context, accountBookID uuid.UUID, name string, description *string) error {
 	result := r.db.WithContext(ctx).Exec(`
         UPDATE account_books
