@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"log"
 
 	httpRouter "expense-statistics-server/internal/http/router"
@@ -11,7 +12,10 @@ import (
 )
 
 func main() {
-	cfg, err := config.Load("internal/platform/config/config.yaml")
+	configPath := flag.String("config", "internal/platform/config/config.dev.yaml", "path to config yaml file")
+	flag.Parse()
+
+	cfg, err := config.Load(*configPath)
 	if err != nil {
 		log.Fatalf("load config: %v", err)
 	}
@@ -36,7 +40,7 @@ func main() {
 	})
 
 	addr := ":" + cfg.ServerPort
-	logger.Info("server starting", "addr", addr, "env", cfg.Env)
+	logger.Info("server starting", "addr", addr, "env", cfg.Env, "config_path", *configPath)
 
 	if err := engine.Run(addr); err != nil {
 		logger.Error("server stopped", "error", err)

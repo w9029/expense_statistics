@@ -7,14 +7,14 @@ db:
   host: "localhost"
   port: 5432
   user: "postgres"
-  password: "191969"
+  password: "your_db_password_here"
   name: "expense_statistics_proj"
   sslmode: "disable"
   timezone: "Asia/Tokyo"
 
 mail:
-  from: "joshua_wjh@foxmail.com"
-  host: "smtp.qq.com"
+  from: "your email"
+  host: "smtp server"
   port: 465
-  username: "joshua_wjh@foxmail.com"
-  password: "fahosasurjadbffj"
+  username: "your email"
+  password: "your email_password_here"
