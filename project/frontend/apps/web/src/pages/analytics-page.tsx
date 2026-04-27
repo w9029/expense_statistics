@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { useParams } from "react-router-dom";
-import type { SpendingTrendPoint } from "@expense-statistics/domain";
+import type { ExpenseCategory, SpendingTrendPoint } from "@expense-statistics/domain";
 import { useAuth } from "@/features/auth/auth-context";
 import { useI18n } from "@/features/i18n/i18n-context";
 import {
@@ -13,6 +13,7 @@ import {
 } from "@/lib/analytics";
 import { apiClient } from "@/lib/api";
 import { getApiErrorMessage } from "@/lib/api-errors";
+import { normalizeSelectedIDsForQuery } from "@/lib/category-filters";
 import { formatMoney } from "@/lib/ledger";
 
 type DayRange = {
@@ -32,6 +33,7 @@ export function AnalyticsPage() {
   const [bucket, setBucket] = useState<TrendBucket>("day");
   const [dayRange, setDayRange] = useState<DayRange>(createDefaultDayTrendRange);
   const [monthRange, setMonthRange] = useState<MonthRange>(createDefaultMonthTrendRange);
+  const [categoryIDs, setCategoryIDs] = useState<string[]>([]);
 
   const copy = {
     title: t("analytics.title"),
@@ -50,6 +52,8 @@ export function AnalyticsPage() {
     monthHint: t("analytics.monthHint"),
     invalidDayRange: t("analytics.invalidDayRange"),
     invalidMonthRange: t("analytics.invalidMonthRange"),
+    categories: t("book.categories"),
+    clearCategories: t("book.clearCategories"),
   };
 
   const bookQuery = useQuery({
@@ -58,22 +62,49 @@ export function AnalyticsPage() {
     enabled: Boolean(auth.accessToken && accountBookId),
   });
 
+  const categoriesQuery = useQuery({
+    queryKey: ["account-book-expense-categories", accountBookId],
+    queryFn: () => apiClient.listExpenseCategories(auth.accessToken!, accountBookId!),
+    enabled: Boolean(auth.accessToken && accountBookId),
+  });
+
   const activeRange = bucket === "day" ? dayRange : monthRange;
+  const availableCategoryIDs = (categoriesQuery.data ?? []).map((category) => category.id);
+  const effectiveCategoryIDs = normalizeSelectedIDsForQuery(categoryIDs, availableCategoryIDs);
   const rangeError =
     bucket === "day"
       ? validateDayRange(dayRange, copy.invalidDayRange)
       : validateMonthRange(monthRange, copy.invalidMonthRange);
 
   const trendQuery = useQuery({
-    queryKey: ["account-book-spending-trend", accountBookId, bucket, activeRange],
+    queryKey: [
+      "account-book-spending-trend",
+      accountBookId,
+      bucket,
+      activeRange,
+      effectiveCategoryIDs ?? [],
+    ],
     queryFn: () =>
       apiClient.getSpendingTrend(auth.accessToken!, accountBookId!, {
         bucket,
         date_from: activeRange.dateFrom,
         date_to: activeRange.dateTo,
+        category_ids: effectiveCategoryIDs,
       }),
     enabled: Boolean(auth.accessToken && accountBookId && !rangeError),
   });
+
+  function toggleCategory(categoryID: string) {
+    setCategoryIDs((current) =>
+      current.includes(categoryID)
+        ? current.filter((id) => id !== categoryID)
+        : [...current, categoryID],
+    );
+  }
+
+  function clearCategoryFilters() {
+    setCategoryIDs([]);
+  }
 
   return (
     <section className="stack stack-tight">
@@ -176,6 +207,41 @@ export function AnalyticsPage() {
               </div>
             </div>
           )}
+
+          <div className="stack-sm">
+            <div className="helper-row">
+              <strong>{copy.categories}</strong>
+              <button
+                className="button button-xs"
+                disabled={categoryIDs.length === 0}
+                onClick={clearCategoryFilters}
+                type="button"
+              >
+                {copy.clearCategories}
+              </button>
+            </div>
+
+            <div className="pill-checklist">
+              {(categoriesQuery.data ?? []).map((category: ExpenseCategory) => {
+                const active = categoryIDs.includes(category.id);
+
+                return (
+                  <button
+                    className={`checkbox-pill checkbox-pill-compact${active ? " active" : ""}`}
+                    key={category.id}
+                    onClick={() => toggleCategory(category.id)}
+                    type="button"
+                  >
+                    <span
+                      className="color-swatch color-swatch-lg"
+                      style={{ backgroundColor: category.color }}
+                    />
+                    {category.name}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         </div>
 
         {rangeError ? <div className="info-banner compact-banner">{rangeError}</div> : null}

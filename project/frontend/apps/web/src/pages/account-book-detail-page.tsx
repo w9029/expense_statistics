@@ -16,6 +16,7 @@ import { useToast } from "@/features/feedback/toast-context";
 import { useI18n } from "@/features/i18n/i18n-context";
 import { apiClient } from "@/lib/api";
 import { getApiErrorMessage } from "@/lib/api-errors";
+import { normalizeSelectedIDsForQuery } from "@/lib/category-filters";
 import {
   buildExpenseListNavigationState,
   createDefaultExpenseListFilters,
@@ -147,15 +148,25 @@ export function AccountBookDetailPage() {
     enabled: Boolean(auth.accessToken && accountBookId),
   });
 
+  const availableCategoryIDs = (categoriesQuery.data ?? []).map((category) => category.id);
+  const effectiveCategoryIDs = normalizeSelectedIDsForQuery(
+    filters.categoryIDs,
+    availableCategoryIDs,
+  );
+  const expenseQueryKeyFilters = {
+    ...filters,
+    categoryIDs: effectiveCategoryIDs ?? [],
+  };
+
   const expensesQuery = useQuery({
-    queryKey: ["account-book-expenses", accountBookId, filters],
+    queryKey: ["account-book-expenses", accountBookId, expenseQueryKeyFilters],
     queryFn: () =>
       apiClient.listExpenses(auth.accessToken!, accountBookId!, {
         include_children: true,
         page: filters.page,
         page_size: 10,
         keyword: filters.keyword.trim() || undefined,
-        category_ids: filters.categoryIDs.length > 0 ? filters.categoryIDs : undefined,
+        category_ids: effectiveCategoryIDs,
         user_id: filters.userID || undefined,
         min_amount: filters.minAmount.trim() || undefined,
         max_amount: filters.maxAmount.trim() || undefined,
@@ -194,7 +205,7 @@ export function AccountBookDetailPage() {
   const hasActiveFilters =
     filters.keyword !== defaultFilters.keyword ||
     filters.originalCurrency !== defaultFilters.originalCurrency ||
-    filters.categoryIDs.length > 0 ||
+    Boolean(effectiveCategoryIDs?.length) ||
     filters.userID !== defaultFilters.userID ||
     filters.minAmount !== defaultFilters.minAmount ||
     filters.maxAmount !== defaultFilters.maxAmount ||
@@ -215,7 +226,7 @@ export function AccountBookDetailPage() {
   const normalCategories = (categoriesQuery.data ?? []).filter(
     (category) => !category.is_merge_category,
   );
-  const hasCategoryFilter = filters.categoryIDs.length > 0;
+  const hasCategoryFilter = Boolean(effectiveCategoryIDs?.length);
 
   const updateMutation = useMutation({
     mutationFn: (values: AccountBookFormValues) =>

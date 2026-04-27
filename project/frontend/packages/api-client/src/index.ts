@@ -180,6 +180,7 @@ export type GetSpendingTrendInput = {
   bucket: "day" | "month";
   date_from?: string;
   date_to?: string;
+  category_ids?: string[];
 };
 
 export function createApiClient(options: ApiClientOptions) {
