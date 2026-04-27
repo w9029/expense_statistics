@@ -44,6 +44,7 @@ func RegisterRoutes(group *gin.RouterGroup, service *Service) {
 		assignOptionalQueryString(c, "bucket", &query.Bucket)
 		assignOptionalQueryString(c, "date_from", &query.DateFrom)
 		assignOptionalQueryString(c, "date_to", &query.DateTo)
+		assignOptionalQueryString(c, "category_ids", &query.CategoryIDs)
 		result, err := service.GetSpendingTrend(c.Request.Context(), userID, accountBookID, query)
 		if err != nil {
 			renderError(c, err)

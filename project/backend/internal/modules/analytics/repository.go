@@ -58,11 +58,15 @@ func (r *Repository) ListTrendPoints(ctx context.Context, params trendParams) ([
 }
 
 func (r *Repository) leafExpenseBaseQuery(ctx context.Context, filters analyticsFilters) *gorm.DB {
-	return r.db.WithContext(ctx).Table("expenses AS e").
+	query := r.db.WithContext(ctx).Table("expenses AS e").
 		Joins("INNER JOIN expense_categories c ON c.id = e.category_id").
 		Where("e.account_book_id = ?", filters.AccountBookID).
 		Where("e.deleted_at IS NULL").
 		Where("e.expense_type IN ?", []string{"normal", "merged_child"}).
 		Where("c.deleted_at IS NULL").
 		Where("e.spent_at >= ? AND e.spent_at <= ?", filters.DateFrom.Format("2006-01-02"), filters.DateTo.Format("2006-01-02"))
+	if len(filters.CategoryIDs) > 0 {
+		query = query.Where("e.category_id IN ?", filters.CategoryIDs)
+	}
+	return query
 }

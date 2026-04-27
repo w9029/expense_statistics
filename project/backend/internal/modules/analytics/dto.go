@@ -12,9 +12,10 @@ type CategoryShareQuery struct {
 }
 
 type SpendingTrendQuery struct {
-	Bucket   *string `form:"bucket"`
-	DateFrom *string `form:"date_from"`
-	DateTo   *string `form:"date_to"`
+	Bucket      *string `form:"bucket"`
+	DateFrom    *string `form:"date_from"`
+	DateTo      *string `form:"date_to"`
+	CategoryIDs *string `form:"category_ids"`
 }
 
 type CategoryShareItemResponse struct {
@@ -49,6 +50,7 @@ type analyticsFilters struct {
 	AccountBookID uuid.UUID
 	DateFrom      time.Time
 	DateTo        time.Time
+	CategoryIDs   []uuid.UUID
 }
 
 type trendParams struct {

@@ -126,6 +126,13 @@ func (s *Service) normalizeTrendParams(accountBookID uuid.UUID, query SpendingTr
 	if err != nil {
 		return trendParams{}, err
 	}
+	categoryIDs, err := parseCategoryIDs(query.CategoryIDs)
+	if err != nil {
+		return trendParams{}, err
+	}
+	if len(categoryIDs) > 0 {
+		filters.CategoryIDs = categoryIDs
+	}
 
 	if bucket == "day" {
 		if filters.DateTo.Sub(filters.DateFrom).Hours() > 24*60 {
@@ -224,6 +231,31 @@ func defaultTrendValue(values map[string]string, key string) string {
 	return "0.00"
 }
 
+func parseCategoryIDs(categoryIDsInput *string) ([]uuid.UUID, error) {
+	if categoryIDsInput == nil || strings.TrimSpace(*categoryIDsInput) == "" {
+		return nil, nil
+	}
+	values := strings.Split(strings.TrimSpace(*categoryIDsInput), ",")
+	seen := make(map[uuid.UUID]struct{}, len(values))
+	categoryIDs := make([]uuid.UUID, 0, len(values))
+	for _, value := range values {
+		trimmed := strings.TrimSpace(value)
+		if trimmed == "" {
+			continue
+		}
+		categoryID, err := uuid.Parse(trimmed)
+		if err != nil {
+			return nil, invalidRequest("invalid category_ids")
+		}
+		if _, exists := seen[categoryID]; exists {
+			continue
+		}
+		seen[categoryID] = struct{}{}
+		categoryIDs = append(categoryIDs, categoryID)
+	}
+	return categoryIDs, nil
+}
+
 func parseDate(value string) (time.Time, error) {
 	parsed, err := time.Parse("2006-01-02", strings.TrimSpace(value))
 	if err != nil {
@@ -266,4 +298,3 @@ func mapAuthorizationError(err error) *AppError {
 func wrapServiceError(message string, err error) *AppError {
 	return internalError(message + ": " + err.Error())
 }
-
