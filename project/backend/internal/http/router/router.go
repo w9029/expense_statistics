@@ -9,6 +9,7 @@ import (
 	"expense-statistics-server/internal/http/middleware"
 	"expense-statistics-server/internal/http/response"
 	"expense-statistics-server/internal/modules/accountbook"
+	"expense-statistics-server/internal/modules/analytics"
 	"expense-statistics-server/internal/modules/authorization"
 	"expense-statistics-server/internal/modules/exchange"
 	"expense-statistics-server/internal/modules/identity"
@@ -80,12 +81,15 @@ func registerModuleRoutes(r *gin.Engine, deps Deps) {
 	protected.Use(middleware.Authenticate(jwtService))
 
 	identity.RegisterProtectedRoutes(protected.Group("/identity"), identityService)
-
 	authorization.RegisterRoutes(protected.Group("/authorization"), authorizationService)
 
 	accountbookRepo := accountbook.NewRepository(deps.DB)
 	accountbookService := accountbook.NewService(accountbookRepo, authorizationService, invitationService)
 	accountbook.RegisterRoutes(protected.Group("/account-books"), accountbookService)
+
+	analyticsRepo := analytics.NewRepository(deps.DB)
+	analyticsService := analytics.NewService(analyticsRepo, authorizationService)
+	analytics.RegisterRoutes(protected.Group("/account-books"), analyticsService)
 
 	ledgerRepo := ledger.NewRepository(deps.DB)
 	ledgerService := ledger.NewService(ledgerRepo, authorizationService, exchangeService)
