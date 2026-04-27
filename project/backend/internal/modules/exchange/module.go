@@ -23,6 +23,7 @@ func NewService(deps Deps) *Service {
 		repo:          deps.Repo,
 		apiKey:        strings.TrimSpace(deps.Config.APIKey),
 		historicalURL: strings.TrimSpace(deps.Config.HistoricalURL),
+		latestURL:     strings.TrimSpace(deps.Config.LatestURL),
 		client:        &http.Client{Timeout: timeout},
 	}
 }

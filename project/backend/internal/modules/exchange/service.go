@@ -16,10 +16,15 @@ type Service struct {
 	repo          *Repository
 	apiKey        string
 	historicalURL string
+	latestURL     string
 	client        *http.Client
 }
 
 type providerHistoricalResponse struct {
+	Data map[string]providerCurrencyRate `json:"data"`
+}
+
+type providerLatestResponse struct {
 	Data map[string]providerCurrencyRate `json:"data"`
 }
 
@@ -63,6 +68,38 @@ func (s *Service) ResolveRate(ctx context.Context, sourceCurrency string, target
 		return "", wrapRepoError("upsert fetched exchange rate", err)
 	}
 	return fetchedRate, nil
+}
+
+func (s *Service) SyncLatestRates(ctx context.Context, baseCurrency string, targetCurrencies []string, rateDate time.Time) (int, error) {
+	base := strings.ToUpper(strings.TrimSpace(baseCurrency))
+	if !isCurrencyCode(base) {
+		return 0, invalidRequest("base currency must be a 3-letter uppercase code")
+	}
+	targets := normalizeTargetCurrencies(targetCurrencies, base)
+	if len(targets) == 0 {
+		return 0, invalidRequest("at least one target currency is required")
+	}
+	if strings.TrimSpace(s.apiKey) == "" {
+		return 0, serviceUnavailable("exchange rate provider is not configured")
+	}
+
+	rates, err := s.fetchLatestRatesFromProvider(ctx, base, targets)
+	if err != nil {
+		return 0, err
+	}
+
+	upserted := 0
+	for _, target := range targets {
+		rate, ok := rates[target]
+		if !ok {
+			continue
+		}
+		if err := s.repo.UpsertRate(ctx, base, target, rate, rateDate); err != nil {
+			return upserted, wrapRepoError("upsert latest exchange rate", err)
+		}
+		upserted++
+	}
+	return upserted, nil
 }
 
 func (s *Service) rateFromRecord(record ExchangeRateRecord, sourceCurrency string, targetCurrency string) (string, error) {
@@ -138,6 +175,72 @@ func (s *Service) fetchRateFromProvider(ctx context.Context, sourceCurrency stri
 	return normalizedRate, nil
 }
 
+func (s *Service) fetchLatestRatesFromProvider(ctx context.Context, baseCurrency string, targetCurrencies []string) (map[string]string, error) {
+	if strings.TrimSpace(s.latestURL) == "" {
+		return nil, serviceUnavailable("exchange rate provider is not configured")
+	}
+
+	endpoint, err := url.Parse(s.latestURL)
+	if err != nil {
+		return nil, internalError(fmt.Sprintf("invalid exchange provider url: %v", err))
+	}
+	query := endpoint.Query()
+	query.Set("apikey", s.apiKey)
+	query.Set("currencies", strings.Join(targetCurrencies, ","))
+	query.Set("base_currency", baseCurrency)
+	endpoint.RawQuery = query.Encode()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint.String(), nil)
+	if err != nil {
+		return nil, internalError(fmt.Sprintf("build latest exchange rate request: %v", err))
+	}
+
+	resp, err := s.client.Do(req)
+	if err != nil {
+		return nil, serviceUnavailable("exchange rate provider is unavailable")
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusTooManyRequests {
+		return nil, rateLimited("exchange rate sync failed, please retry in 1 minute")
+	}
+	if resp.StatusCode >= http.StatusInternalServerError {
+		return nil, serviceUnavailable("exchange rate provider is unavailable")
+	}
+	if resp.StatusCode != http.StatusOK {
+		message := "failed to fetch latest exchange rates from provider"
+		var providerErr providerErrorResponse
+		if err := json.NewDecoder(resp.Body).Decode(&providerErr); err == nil && strings.TrimSpace(providerErr.Message) != "" {
+			message = providerErr.Message
+		}
+		return nil, serviceUnavailable(message)
+	}
+
+	decoder := json.NewDecoder(resp.Body)
+	decoder.UseNumber()
+	var payload providerLatestResponse
+	if err := decoder.Decode(&payload); err != nil {
+		return nil, serviceUnavailable("invalid exchange rate response from provider")
+	}
+
+	rates := make(map[string]string, len(targetCurrencies))
+	for _, target := range targetCurrencies {
+		ratePayload, ok := payload.Data[target]
+		if !ok || strings.TrimSpace(ratePayload.Value.String()) == "" {
+			continue
+		}
+		normalizedRate, err := normalizeExternalRateString(ratePayload.Value.String())
+		if err != nil {
+			return nil, serviceUnavailable("invalid exchange rate value from provider")
+		}
+		rates[target] = normalizedRate
+	}
+	if len(rates) == 0 {
+		return nil, notFound(fmt.Sprintf("latest exchange rates not found for %s -> %s", baseCurrency, strings.Join(targetCurrencies, ",")))
+	}
+	return rates, nil
+}
+
 func isCurrencyCode(code string) bool {
 	if len(code) != 3 {
 		return false
@@ -148,4 +251,21 @@ func isCurrencyCode(code string) bool {
 		}
 	}
 	return true
+}
+
+func normalizeTargetCurrencies(targetCurrencies []string, baseCurrency string) []string {
+	seen := make(map[string]struct{}, len(targetCurrencies))
+	normalized := make([]string, 0, len(targetCurrencies))
+	for _, currency := range targetCurrencies {
+		code := strings.ToUpper(strings.TrimSpace(currency))
+		if !isCurrencyCode(code) || code == baseCurrency {
+			continue
+		}
+		if _, exists := seen[code]; exists {
+			continue
+		}
+		seen[code] = struct{}{}
+		normalized = append(normalized, code)
+	}
+	return normalized
 }

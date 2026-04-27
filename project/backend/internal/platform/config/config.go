@@ -36,9 +36,20 @@ type MailConfig struct {
 }
 
 type ExchangeConfig struct {
-	APIKey                string `yaml:"api_key"`
-	HistoricalURL         string `yaml:"historical_url"`
-	RequestTimeoutSeconds int    `yaml:"request_timeout_seconds"`
+	APIKey                string                  `yaml:"api_key"`
+	HistoricalURL         string                  `yaml:"historical_url"`
+	LatestURL             string                  `yaml:"latest_url"`
+	RequestTimeoutSeconds int                     `yaml:"request_timeout_seconds"`
+	Scheduler             ExchangeSchedulerConfig `yaml:"scheduler"`
+}
+
+type ExchangeSchedulerConfig struct {
+	Enabled          bool     `yaml:"enabled"`
+	TimeZone         string   `yaml:"timezone"`
+	DailyRunAt       string   `yaml:"daily_run_at"`
+	BaseCurrency     string   `yaml:"base_currency"`
+	TargetCurrencies []string `yaml:"target_currencies"`
+	StartupSync      bool     `yaml:"startup_sync"`
 }
 
 func Load(path string) (*Config, error) {
@@ -79,8 +90,23 @@ func (c *Config) applyDefaults() {
 	if c.Exchange.HistoricalURL == "" {
 		c.Exchange.HistoricalURL = "https://api.currencyapi.com/v3/historical"
 	}
+	if c.Exchange.LatestURL == "" {
+		c.Exchange.LatestURL = "https://api.currencyapi.com/v3/latest"
+	}
 	if c.Exchange.RequestTimeoutSeconds <= 0 {
 		c.Exchange.RequestTimeoutSeconds = 15
+	}
+	if c.Exchange.Scheduler.TimeZone == "" {
+		c.Exchange.Scheduler.TimeZone = c.DB.TimeZone
+	}
+	if c.Exchange.Scheduler.DailyRunAt == "" {
+		c.Exchange.Scheduler.DailyRunAt = "00:00"
+	}
+	if c.Exchange.Scheduler.BaseCurrency == "" {
+		c.Exchange.Scheduler.BaseCurrency = "JPY"
+	}
+	if len(c.Exchange.Scheduler.TargetCurrencies) == 0 {
+		c.Exchange.Scheduler.TargetCurrencies = []string{"CNY", "USD"}
 	}
 }
 
