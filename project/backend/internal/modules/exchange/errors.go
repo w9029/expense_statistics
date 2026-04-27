@@ -22,6 +22,14 @@ func notFound(message string) *AppError {
 	return newAppError(http.StatusNotFound, "not_found", message)
 }
 
+func rateLimited(message string) *AppError {
+	return newAppError(http.StatusTooManyRequests, "rate_limited", message)
+}
+
+func serviceUnavailable(message string) *AppError {
+	return newAppError(http.StatusServiceUnavailable, "service_unavailable", message)
+}
+
 func internalError(message string) *AppError {
 	return newAppError(http.StatusInternalServerError, "internal_error", message)
 }

@@ -18,3 +18,8 @@ mail:
   port: 465
   username: "your email"
   password: "your email_password_here"
+
+exchange:
+  api_key: "your_currencyapi_key_here"
+  historical_url: "https://api.currencyapi.com/v3/historical"
+  request_timeout_seconds: 15

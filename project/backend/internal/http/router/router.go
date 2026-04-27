@@ -74,7 +74,7 @@ func registerModuleRoutes(r *gin.Engine, deps Deps) {
 	invitation.RegisterPublicRoutes(v1.Group("/invitations"), invitationService)
 
 	exchangeRepo := exchange.NewRepository(deps.DB)
-	exchangeService := exchange.NewService(exchangeRepo)
+	exchangeService := exchange.NewService(exchange.Deps{Repo: exchangeRepo, Config: deps.Config.Exchange})
 
 	protected := v1.Group("")
 	protected.Use(middleware.Authenticate(jwtService))
