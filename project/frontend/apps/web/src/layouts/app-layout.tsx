@@ -38,8 +38,9 @@ export function AppLayout() {
   ];
 
   const currentBookItems = currentBookId
-    ? [
+      ? [
         { to: `/app/account-books/${currentBookId}`, label: t("app.nav.overview"), end: true },
+        { to: `/app/account-books/${currentBookId}/analytics`, label: t("app.nav.analytics") },
         { to: `/app/account-books/${currentBookId}/categories`, label: t("app.nav.categories") },
         { to: `/app/account-books/${currentBookId}/collaboration`, label: t("app.nav.members") },
       ]

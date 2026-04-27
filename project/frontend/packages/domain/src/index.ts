@@ -184,6 +184,34 @@ export type DeleteExpenseResult = {
   deleted: boolean;
 };
 
+export type CategoryShareItem = {
+  category_id: string;
+  category_name: string;
+  category_color: string;
+  total_converted_amount: string;
+  percentage: number;
+};
+
+export type CategoryShare = {
+  date_from: string;
+  date_to: string;
+  total_converted_amount: string;
+  items: CategoryShareItem[];
+};
+
+export type SpendingTrendPoint = {
+  bucket: string;
+  total_converted_amount: string;
+};
+
+export type SpendingTrend = {
+  bucket: "day" | "month";
+  date_from: string;
+  date_to: string;
+  total_converted_amount: string;
+  items: SpendingTrendPoint[];
+};
+
 export function formatNaturalDateLabel(value: NaturalDateString) {
   return value;
 }

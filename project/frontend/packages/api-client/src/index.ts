@@ -6,6 +6,7 @@ import type {
   AccountBookOwnerTransferResult,
   AccountBookSummary,
   AcceptInvitationResult,
+  CategoryShare,
   DeleteAccountBookResult,
   DeleteInvitationResult,
   AuthSession,
@@ -17,6 +18,7 @@ import type {
   Invitation,
   InvitationDetail,
   MergedExpenseCreateResult,
+  SpendingTrend,
   User,
   VerificationResult,
 } from "@expense-statistics/domain";
@@ -168,6 +170,17 @@ export type CreateMergedExpenseInput = {
 export type UpdateNormalExpenseInput = CreateNormalExpenseInput;
 
 export type UpdateMergedExpenseInput = CreateMergedExpenseInput;
+
+export type GetCategoryShareInput = {
+  date_from?: string;
+  date_to?: string;
+};
+
+export type GetSpendingTrendInput = {
+  bucket: "day" | "month";
+  date_from?: string;
+  date_to?: string;
+};
 
 export function createApiClient(options: ApiClientOptions) {
   const apiBaseUrl = options.apiBaseUrl.replace(/\/$/, "");
@@ -341,6 +354,28 @@ export function createApiClient(options: ApiClientOptions) {
     ) =>
       requestWithAuthHandling<ExpenseList>(
         `${apiBaseUrl}/account-books/${accountBookId}/expenses${toQueryString(input)}`,
+        {
+          accessToken,
+        },
+      ),
+    getCategoryShare: (
+      accessToken: string,
+      accountBookId: string,
+      input: GetCategoryShareInput = {},
+    ) =>
+      requestWithAuthHandling<CategoryShare>(
+        `${apiBaseUrl}/account-books/${accountBookId}/analytics/category-share${toQueryString(input)}`,
+        {
+          accessToken,
+        },
+      ),
+    getSpendingTrend: (
+      accessToken: string,
+      accountBookId: string,
+      input: GetSpendingTrendInput,
+    ) =>
+      requestWithAuthHandling<SpendingTrend>(
+        `${apiBaseUrl}/account-books/${accountBookId}/analytics/spending-trend${toQueryString(input)}`,
         {
           accessToken,
         },

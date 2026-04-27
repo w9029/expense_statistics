@@ -16,6 +16,7 @@ import { NormalExpensePage } from "@/pages/normal-expense-page";
 import { MergedExpensePage } from "@/pages/merged-expense-page";
 import { InvitationPage } from "@/pages/invitation-page";
 import { ProfilePage } from "@/pages/profile-page";
+import { AnalyticsPage } from "@/pages/analytics-page";
 
 export const router = createBrowserRouter([
   {
@@ -50,6 +51,10 @@ export const router = createBrowserRouter([
           {
             path: "account-books/:accountBookId/categories",
             element: <ExpenseCategoriesPage />,
+          },
+          {
+            path: "account-books/:accountBookId/analytics",
+            element: <AnalyticsPage />,
           },
           {
             path: "account-books/:accountBookId/expenses/new-normal",
