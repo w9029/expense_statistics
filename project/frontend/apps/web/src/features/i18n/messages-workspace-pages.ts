@@ -169,6 +169,7 @@ export const workspacePageMessages = {
     "book.dateRange": "日期区间",
     "book.last7Days": "最近 7 天",
     "book.last30Days": "最近 30 天",
+    "book.previous30Days": "上一个 30 天",
     "book.categories": "类别",
     "book.clearCategories": "清空类别",
     "book.addNormal": "新增普通消费",
@@ -197,6 +198,7 @@ export const workspacePageMessages = {
     "analytics.monthHint": "按月模式前端限制为最多 24 个月，默认展示最近 12 个月。",
     "analytics.invalidDayRange": "按日模式最多只能查询 60 天，且开始日期不能晚于结束日期。",
     "analytics.invalidMonthRange": "按月模式最多只能查询 24 个月，且开始月份不能晚于结束月份。",
+    "analytics.last12Months": "最近 12 个月",
   },
   en: {
     "mergedExpense.titleCreate": "New Merged Expense",
@@ -368,6 +370,7 @@ export const workspacePageMessages = {
     "book.dateRange": "Date Range",
     "book.last7Days": "Last 7 Days",
     "book.last30Days": "Last 30 Days",
+    "book.previous30Days": "Previous 30 Days",
     "book.categories": "Categories",
     "book.clearCategories": "Clear Categories",
     "book.addNormal": "Add Normal",
@@ -396,6 +399,7 @@ export const workspacePageMessages = {
     "analytics.monthHint": "Month mode is limited to 24 months in the frontend and defaults to the last 12 months.",
     "analytics.invalidDayRange": "Day mode supports at most 60 days, and the start date must not be after the end date.",
     "analytics.invalidMonthRange": "Month mode supports at most 24 months, and the start month must not be after the end month.",
+    "analytics.last12Months": "Last 12 Months",
   },
   ja: {
     "mergedExpense.titleCreate": "合算支出を追加",
@@ -567,6 +571,7 @@ export const workspacePageMessages = {
     "book.dateRange": "日付範囲",
     "book.last7Days": "直近 7 日",
     "book.last30Days": "直近 30 日",
+    "book.previous30Days": "その前の 30 日",
     "book.categories": "カテゴリ",
     "book.clearCategories": "カテゴリをクリア",
     "book.addNormal": "通常支出を追加",
@@ -595,5 +600,6 @@ export const workspacePageMessages = {
     "analytics.monthHint": "月別モードはフロント側で最大 24 か月まで、初期値は直近 12 か月です。",
     "analytics.invalidDayRange": "日別モードは最大 60 日までで、開始日は終了日より後にできません。",
     "analytics.invalidMonthRange": "月別モードは最大 24 か月までで、開始月は終了月より後にできません。",
+    "analytics.last12Months": "直近 12 か月",
   },
 } as const;

@@ -1,10 +1,13 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"log"
 
 	httpRouter "expense-statistics-server/internal/http/router"
+	"expense-statistics-server/internal/modules/exchange"
+	"expense-statistics-server/internal/modules/scheduler"
 	"expense-statistics-server/internal/platform/clock"
 	"expense-statistics-server/internal/platform/config"
 	"expense-statistics-server/internal/platform/db"
@@ -32,11 +35,26 @@ func main() {
 		}
 	}()
 
+	appClock := clock.NewRealClock()
+	exchangeService := exchange.NewService(exchange.Deps{
+		Repo:   exchange.NewRepository(database),
+		Config: cfg.Exchange,
+	})
+	schedulerService := scheduler.NewService(scheduler.Deps{
+		Logger:   logger,
+		Clock:    appClock,
+		Exchange: exchangeService,
+		Config:   cfg.Exchange.Scheduler,
+	})
+	schedulerCtx, schedulerCancel := context.WithCancel(context.Background())
+	defer schedulerCancel()
+	schedulerService.Start(schedulerCtx)
+
 	engine := httpRouter.New(httpRouter.Deps{
 		Config: cfg,
 		Logger: logger,
 		DB:     database,
-		Clock:  clock.NewRealClock(),
+		Clock:  appClock,
 	})
 
 	addr := ":" + cfg.ServerPort

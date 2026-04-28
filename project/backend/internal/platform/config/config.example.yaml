@@ -22,4 +22,12 @@ mail:
 exchange:
   api_key: "your_currencyapi_key_here"
   historical_url: "https://api.currencyapi.com/v3/historical"
+  latest_url: "https://api.currencyapi.com/v3/latest"
   request_timeout_seconds: 15
+  scheduler:
+    enabled: true
+    timezone: "Asia/Tokyo"
+    daily_run_at: "00:00"
+    base_currency: "JPY"
+    target_currencies: ["CNY", "USD"]
+    startup_sync: true

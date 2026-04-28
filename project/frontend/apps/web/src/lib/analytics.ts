@@ -1,9 +1,23 @@
 import { trailingNaturalDateRange, todayNaturalDate } from "@/lib/ledger";
 
 export type TrendBucket = "day" | "month";
+export type DayRangePreset = "last30" | "previous30" | null;
+export type MonthRangePreset = "last12" | null;
 
 export function createDefaultCategoryShareRange() {
   return trailingNaturalDateRange(30);
+}
+
+export function createPrevious30DayRange() {
+  const end = new Date();
+  end.setDate(end.getDate() - 30);
+  const start = new Date(end);
+  start.setDate(start.getDate() - 29);
+
+  return {
+    dateFrom: formatNaturalDate(start),
+    dateTo: formatNaturalDate(end),
+  };
 }
 
 export function createDefaultDayTrendRange() {
@@ -56,4 +70,11 @@ function formatNaturalMonth(value: Date) {
   const year = value.getFullYear();
   const month = String(value.getMonth() + 1).padStart(2, "0");
   return `${year}-${month}`;
+}
+
+function formatNaturalDate(value: Date) {
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, "0");
+  const day = String(value.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }

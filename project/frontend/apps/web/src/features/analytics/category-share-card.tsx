@@ -2,7 +2,11 @@ import { useQuery } from "@tanstack/react-query";
 import type { CategoryShareItem } from "@expense-statistics/domain";
 import { useState } from "react";
 import { useI18n } from "@/features/i18n/i18n-context";
-import { createDefaultCategoryShareRange } from "@/lib/analytics";
+import {
+  createDefaultCategoryShareRange,
+  createPrevious30DayRange,
+  type DayRangePreset,
+} from "@/lib/analytics";
 import { getApiErrorMessage } from "@/lib/api-errors";
 import { apiClient } from "@/lib/api";
 import { formatMoney } from "@/lib/ledger";
@@ -16,6 +20,7 @@ type CategoryShareCardProps = {
 export function CategoryShareCard(props: CategoryShareCardProps) {
   const { t } = useI18n();
   const [range, setRange] = useState(createDefaultCategoryShareRange);
+  const [preset, setPreset] = useState<DayRangePreset>("last30");
 
   const query = useQuery({
     queryKey: ["account-book-category-share", props.accountBookId, range],
@@ -36,7 +41,15 @@ export function CategoryShareCard(props: CategoryShareCardProps) {
     loading: t("book.categoryShareLoading"),
     empty: t("book.categoryShareEmpty"),
     failed: t("book.categoryShareFailed"),
+    dateRange: t("book.dateRange"),
+    last30Days: t("book.last30Days"),
+    previous30Days: t("book.previous30Days"),
   };
+
+  function applyPreset(nextPreset: Exclude<DayRangePreset, null>) {
+    setPreset(nextPreset);
+    setRange(nextPreset === "last30" ? createDefaultCategoryShareRange() : createPrevious30DayRange());
+  }
 
   const chartItems = (query.data?.items ?? []).filter(
     (item) => Number(item.total_converted_amount) > 0,
@@ -63,9 +76,10 @@ export function CategoryShareCard(props: CategoryShareCardProps) {
           <label htmlFor="category-share-date-from">{copy.dateFrom}</label>
           <input
             id="category-share-date-from"
-            onChange={(event) =>
-              setRange((current) => ({ ...current, dateFrom: event.target.value }))
-            }
+            onChange={(event) => {
+              setPreset(null);
+              setRange((current) => ({ ...current, dateFrom: event.target.value }));
+            }}
             type="date"
             value={range.dateFrom}
           />
@@ -74,12 +88,37 @@ export function CategoryShareCard(props: CategoryShareCardProps) {
           <label htmlFor="category-share-date-to">{copy.dateTo}</label>
           <input
             id="category-share-date-to"
-            onChange={(event) =>
-              setRange((current) => ({ ...current, dateTo: event.target.value }))
-            }
+            onChange={(event) => {
+              setPreset(null);
+              setRange((current) => ({ ...current, dateTo: event.target.value }));
+            }}
             type="date"
             value={range.dateTo}
           />
+        </div>
+      </div>
+
+      <div className="field field-compact analytics-preset-field">
+        <label>{copy.dateRange}</label>
+        <div className="inline-radio-group">
+          <label className="radio-chip">
+            <input
+              checked={preset === "last30"}
+              name="category-share-date-preset"
+              onChange={() => applyPreset("last30")}
+              type="radio"
+            />
+            <span>{copy.last30Days}</span>
+          </label>
+          <label className="radio-chip">
+            <input
+              checked={preset === "previous30"}
+              name="category-share-date-preset"
+              onChange={() => applyPreset("previous30")}
+              type="radio"
+            />
+            <span>{copy.previous30Days}</span>
+          </label>
         </div>
       </div>
 
