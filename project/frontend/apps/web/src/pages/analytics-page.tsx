@@ -9,6 +9,9 @@ import {
   countInclusiveMonths,
   createDefaultDayTrendRange,
   createDefaultMonthTrendRange,
+  createPrevious30DayRange,
+  type DayRangePreset,
+  type MonthRangePreset,
   type TrendBucket,
 } from "@/lib/analytics";
 import { apiClient } from "@/lib/api";
@@ -33,6 +36,8 @@ export function AnalyticsPage() {
   const [bucket, setBucket] = useState<TrendBucket>("day");
   const [dayRange, setDayRange] = useState<DayRange>(createDefaultDayTrendRange);
   const [monthRange, setMonthRange] = useState<MonthRange>(createDefaultMonthTrendRange);
+  const [dayPreset, setDayPreset] = useState<DayRangePreset>("last30");
+  const [monthPreset, setMonthPreset] = useState<MonthRangePreset>("last12");
   const [categoryIDs, setCategoryIDs] = useState<string[]>([]);
 
   const copy = {
@@ -54,6 +59,10 @@ export function AnalyticsPage() {
     invalidMonthRange: t("analytics.invalidMonthRange"),
     categories: t("book.categories"),
     clearCategories: t("book.clearCategories"),
+    dateRange: t("book.dateRange"),
+    last30Days: t("book.last30Days"),
+    previous30Days: t("book.previous30Days"),
+    last12Months: t("analytics.last12Months"),
   };
 
   const bookQuery = useQuery({
@@ -104,6 +113,18 @@ export function AnalyticsPage() {
 
   function clearCategoryFilters() {
     setCategoryIDs([]);
+  }
+
+  function applyDayPreset(nextPreset: Exclude<DayRangePreset, null>) {
+    setDayPreset(nextPreset);
+    setDayRange(nextPreset === "last30" ? createDefaultDayTrendRange() : createPrevious30DayRange());
+  }
+
+  function applyMonthPreset(nextPreset: Exclude<MonthRangePreset, null>) {
+    setMonthPreset(nextPreset);
+    if (nextPreset === "last12") {
+      setMonthRange(createDefaultMonthTrendRange());
+    }
   }
 
   return (
@@ -162,9 +183,10 @@ export function AnalyticsPage() {
                 <label htmlFor="analytics-day-from">{copy.from}</label>
                 <input
                   id="analytics-day-from"
-                  onChange={(event) =>
-                    setDayRange((current) => ({ ...current, dateFrom: event.target.value }))
-                  }
+                  onChange={(event) => {
+                    setDayPreset(null);
+                    setDayRange((current) => ({ ...current, dateFrom: event.target.value }));
+                  }}
                   type="date"
                   value={dayRange.dateFrom}
                 />
@@ -173,9 +195,10 @@ export function AnalyticsPage() {
                 <label htmlFor="analytics-day-to">{copy.to}</label>
                 <input
                   id="analytics-day-to"
-                  onChange={(event) =>
-                    setDayRange((current) => ({ ...current, dateTo: event.target.value }))
-                  }
+                  onChange={(event) => {
+                    setDayPreset(null);
+                    setDayRange((current) => ({ ...current, dateTo: event.target.value }));
+                  }}
                   type="date"
                   value={dayRange.dateTo}
                 />
@@ -187,9 +210,10 @@ export function AnalyticsPage() {
                 <label htmlFor="analytics-month-from">{copy.from}</label>
                 <input
                   id="analytics-month-from"
-                  onChange={(event) =>
-                    setMonthRange((current) => ({ ...current, dateFrom: event.target.value }))
-                  }
+                  onChange={(event) => {
+                    setMonthPreset(null);
+                    setMonthRange((current) => ({ ...current, dateFrom: event.target.value }));
+                  }}
                   type="month"
                   value={monthRange.dateFrom}
                 />
@@ -198,15 +222,54 @@ export function AnalyticsPage() {
                 <label htmlFor="analytics-month-to">{copy.to}</label>
                 <input
                   id="analytics-month-to"
-                  onChange={(event) =>
-                    setMonthRange((current) => ({ ...current, dateTo: event.target.value }))
-                  }
+                  onChange={(event) => {
+                    setMonthPreset(null);
+                    setMonthRange((current) => ({ ...current, dateTo: event.target.value }));
+                  }}
                   type="month"
                   value={monthRange.dateTo}
                 />
               </div>
             </div>
           )}
+
+          <div className="field field-compact analytics-preset-field">
+            <label>{copy.dateRange}</label>
+            <div className="inline-radio-group">
+              {bucket === "day" ? (
+                <>
+                  <label className="radio-chip">
+                    <input
+                      checked={dayPreset === "last30"}
+                      name="analytics-date-preset-day"
+                      onChange={() => applyDayPreset("last30")}
+                      type="radio"
+                    />
+                    <span>{copy.last30Days}</span>
+                  </label>
+                  <label className="radio-chip">
+                    <input
+                      checked={dayPreset === "previous30"}
+                      name="analytics-date-preset-day"
+                      onChange={() => applyDayPreset("previous30")}
+                      type="radio"
+                    />
+                    <span>{copy.previous30Days}</span>
+                  </label>
+                </>
+              ) : (
+                <label className="radio-chip">
+                  <input
+                    checked={monthPreset === "last12"}
+                    name="analytics-date-preset-month"
+                    onChange={() => applyMonthPreset("last12")}
+                    type="radio"
+                  />
+                  <span>{copy.last12Months}</span>
+                </label>
+              )}
+            </div>
+          </div>
 
           <div className="stack-sm">
             <div className="helper-row">
