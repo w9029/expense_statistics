@@ -36,3 +36,7 @@ project/frontend/**/.vite/
 
 config.dev.yaml
 config.prod.yaml
+
+__pycache__
+
+importdata.xlsx
