@@ -1,4 +1,4 @@
-package exchange
+package analytics
 
 import "net/http"
 
@@ -18,16 +18,8 @@ func invalidRequest(message string) *AppError {
 	return newAppError(http.StatusBadRequest, "invalid_request", message)
 }
 
-func notFound(message string) *AppError {
-	return newAppError(http.StatusNotFound, "not_found", message)
-}
-
-func rateLimited(message string) *AppError {
-	return newAppError(http.StatusTooManyRequests, "rate_limited", message)
-}
-
-func serviceUnavailable(message string) *AppError {
-	return newAppError(http.StatusServiceUnavailable, "service_unavailable", message)
+func forbidden(message string) *AppError {
+	return newAppError(http.StatusForbidden, "forbidden", message)
 }
 
 func internalError(message string) *AppError {

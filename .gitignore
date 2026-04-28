@@ -34,3 +34,5 @@ dist
 
 project/frontend/**/.vite/
 
+config.dev.yaml
+config.prod.yaml

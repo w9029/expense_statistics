@@ -11,10 +11,12 @@ import type {
   ExpenseSummary,
 } from "@expense-statistics/domain";
 import { useAuth } from "@/features/auth/auth-context";
+import { CategoryShareCard } from "@/features/analytics/category-share-card";
 import { useToast } from "@/features/feedback/toast-context";
 import { useI18n } from "@/features/i18n/i18n-context";
 import { apiClient } from "@/lib/api";
 import { getApiErrorMessage } from "@/lib/api-errors";
+import { normalizeSelectedIDsForQuery } from "@/lib/category-filters";
 import {
   buildExpenseListNavigationState,
   createDefaultExpenseListFilters,
@@ -82,6 +84,7 @@ export function AccountBookDetailPage() {
     emptyExpenses: t("book.emptyExpenses"),
     snapshotTitle: t("book.snapshotTitle"),
     snapshotDescription: t("book.snapshotDescription"),
+    categoryShareTitle: t("book.categoryShareTitle"),
     manage: t("book.manage"),
     merge: t("book.merge"),
     normal: t("book.normal"),
@@ -145,15 +148,25 @@ export function AccountBookDetailPage() {
     enabled: Boolean(auth.accessToken && accountBookId),
   });
 
+  const availableCategoryIDs = (categoriesQuery.data ?? []).map((category) => category.id);
+  const effectiveCategoryIDs = normalizeSelectedIDsForQuery(
+    filters.categoryIDs,
+    availableCategoryIDs,
+  );
+  const expenseQueryKeyFilters = {
+    ...filters,
+    categoryIDs: effectiveCategoryIDs ?? [],
+  };
+
   const expensesQuery = useQuery({
-    queryKey: ["account-book-expenses", accountBookId, filters],
+    queryKey: ["account-book-expenses", accountBookId, expenseQueryKeyFilters],
     queryFn: () =>
       apiClient.listExpenses(auth.accessToken!, accountBookId!, {
         include_children: true,
         page: filters.page,
         page_size: 10,
         keyword: filters.keyword.trim() || undefined,
-        category_ids: filters.categoryIDs.length > 0 ? filters.categoryIDs : undefined,
+        category_ids: effectiveCategoryIDs,
         user_id: filters.userID || undefined,
         min_amount: filters.minAmount.trim() || undefined,
         max_amount: filters.maxAmount.trim() || undefined,
@@ -192,7 +205,7 @@ export function AccountBookDetailPage() {
   const hasActiveFilters =
     filters.keyword !== defaultFilters.keyword ||
     filters.originalCurrency !== defaultFilters.originalCurrency ||
-    filters.categoryIDs.length > 0 ||
+    Boolean(effectiveCategoryIDs?.length) ||
     filters.userID !== defaultFilters.userID ||
     filters.minAmount !== defaultFilters.minAmount ||
     filters.maxAmount !== defaultFilters.maxAmount ||
@@ -213,7 +226,7 @@ export function AccountBookDetailPage() {
   const normalCategories = (categoriesQuery.data ?? []).filter(
     (category) => !category.is_merge_category,
   );
-  const hasCategoryFilter = filters.categoryIDs.length > 0;
+  const hasCategoryFilter = Boolean(effectiveCategoryIDs?.length);
 
   const updateMutation = useMutation({
     mutationFn: (values: AccountBookFormValues) =>
@@ -929,50 +942,60 @@ export function AccountBookDetailPage() {
           ) : null}
         </article>
 
-        <article className="detail-card compact-card">
-          <div className="compact-header-row">
-            <div>
-              <h3>{copy.snapshotTitle}</h3>
-              <p>{copy.snapshotDescription}</p>
-            </div>
-            {accountBookId ? (
-              <Link className="button button-sm" to={`/app/account-books/${accountBookId}/categories`}>
-                {copy.manage}
-              </Link>
-            ) : null}
-          </div>
-          <div className="stack-sm">
-            <div>
-              <strong>{copy.merge}</strong>
-              <div className="pill-checklist" style={{ marginTop: 8 }}>
-                {mergeCategories.map((category) => (
-                  <div className="category-chip category-chip-compact" key={category.id}>
-                    <span
-                      className="color-swatch color-swatch-lg"
-                      style={{ backgroundColor: category.color }}
-                    />
-                    {category.name}
-                  </div>
-                ))}
-              </div>
-            </div>
+        <div className="detail-side-stack">
+          {accountBookId && auth.accessToken && detailQuery.data?.base_currency ? (
+            <CategoryShareCard
+              accessToken={auth.accessToken}
+              accountBookId={accountBookId}
+              baseCurrency={detailQuery.data.base_currency}
+            />
+          ) : null}
 
-            <div>
-              <strong>{copy.normal}</strong>
-              <div className="pill-checklist" style={{ marginTop: 8 }}>
-                {normalCategories.map((category) => (
-                  <div className="category-chip category-chip-compact" key={category.id}>
-                    <span
-                      className="color-swatch color-swatch-lg"
-                      style={{ backgroundColor: category.color }}
-                    />
-                    {category.name}
-                  </div>
-                ))}
+          <article className="detail-card compact-card">
+            <div className="compact-header-row">
+              <div>
+                <h3>{copy.snapshotTitle}</h3>
+                <p>{copy.snapshotDescription}</p>
+              </div>
+              {accountBookId ? (
+                <Link className="button button-sm" to={`/app/account-books/${accountBookId}/categories`}>
+                  {copy.manage}
+                </Link>
+              ) : null}
+            </div>
+            <div className="stack-sm">
+              <div>
+                <strong>{copy.merge}</strong>
+                <div className="pill-checklist" style={{ marginTop: 8 }}>
+                  {mergeCategories.map((category) => (
+                    <div className="category-chip category-chip-compact" key={category.id}>
+                      <span
+                        className="color-swatch color-swatch-lg"
+                        style={{ backgroundColor: category.color }}
+                      />
+                      {category.name}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <strong>{copy.normal}</strong>
+                <div className="pill-checklist" style={{ marginTop: 8 }}>
+                  {normalCategories.map((category) => (
+                    <div className="category-chip category-chip-compact" key={category.id}>
+                      <span
+                        className="color-swatch color-swatch-lg"
+                        style={{ backgroundColor: category.color }}
+                      />
+                      {category.name}
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
-          </div>
-        </article>
+          </article>
+        </div>
       </div>
     </section>
   );

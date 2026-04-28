@@ -8,12 +8,13 @@ import (
 )
 
 type Config struct {
-	AppName    string     `yaml:"app_name"`
-	Env        string     `yaml:"env"`
-	ServerPort string     `yaml:"server_port"`
-	JWTSecret  string     `yaml:"jwt_secret"`
-	DB         DBConfig   `yaml:"db"`
-	Mail       MailConfig `yaml:"mail"`
+	AppName    string         `yaml:"app_name"`
+	Env        string         `yaml:"env"`
+	ServerPort string         `yaml:"server_port"`
+	JWTSecret  string         `yaml:"jwt_secret"`
+	DB         DBConfig       `yaml:"db"`
+	Mail       MailConfig     `yaml:"mail"`
+	Exchange   ExchangeConfig `yaml:"exchange"`
 }
 
 type DBConfig struct {
@@ -32,6 +33,12 @@ type MailConfig struct {
 	Port     int    `yaml:"port"`
 	Username string `yaml:"username"`
 	Password string `yaml:"password"`
+}
+
+type ExchangeConfig struct {
+	APIKey                string `yaml:"api_key"`
+	HistoricalURL         string `yaml:"historical_url"`
+	RequestTimeoutSeconds int    `yaml:"request_timeout_seconds"`
 }
 
 func Load(path string) (*Config, error) {
@@ -68,6 +75,12 @@ func (c *Config) applyDefaults() {
 	}
 	if c.DB.TimeZone == "" {
 		c.DB.TimeZone = "Asia/Tokyo"
+	}
+	if c.Exchange.HistoricalURL == "" {
+		c.Exchange.HistoricalURL = "https://api.currencyapi.com/v3/historical"
+	}
+	if c.Exchange.RequestTimeoutSeconds <= 0 {
+		c.Exchange.RequestTimeoutSeconds = 15
 	}
 }
 

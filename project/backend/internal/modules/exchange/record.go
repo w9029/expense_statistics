@@ -1,5 +1,10 @@
 package exchange
 
+import "time"
+
 type ExchangeRateRecord struct {
-	Rate string
+	BaseCurrency   string
+	TargetCurrency string
+	Rate           string
+	RateDate       time.Time
 }

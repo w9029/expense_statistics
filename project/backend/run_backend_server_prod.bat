@@ -1,0 +1,1 @@
+go run cmd\server\main.go -config internal\platform\config\config.prod.yaml

@@ -1,0 +1,25 @@
+app_name: "expense-statistics-server"
+env: "development"
+server_port: "8080"
+jwt_secret: "my_super_secret"
+
+db:
+  host: "localhost"
+  port: 5432
+  user: "postgres"
+  password: "your_db_password_here"
+  name: "expense_statistics_proj"
+  sslmode: "disable"
+  timezone: "Asia/Tokyo"
+
+mail:
+  from: "your email"
+  host: "smtp server"
+  port: 465
+  username: "your email"
+  password: "your email_password_here"
+
+exchange:
+  api_key: "your_currencyapi_key_here"
+  historical_url: "https://api.currencyapi.com/v3/historical"
+  request_timeout_seconds: 15
