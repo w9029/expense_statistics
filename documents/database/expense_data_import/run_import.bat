@@ -1,0 +1,1 @@
+python import_importdata.py --account-book-id 4e63ae61-2b5f-4e59-85a4-1e98541dd256 --email jiahua_www@outlook.com --password 145n987jmn
