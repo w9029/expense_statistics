@@ -25,12 +25,18 @@ A website to calculate and show the statistics of users' expenses
 
 # Deploy:
 
-1. Deploy the backend server:
+### 1-1. Deploy the backend server without Docker:
    - Copy the contents of the `project/backend/release` directory to your production server.
    - Ensure that the `config.prod.yaml` file is correctly configured on the production server.
    - Run `./server -config internal/platform/config/config.prod.yaml` to start the backend server.
 
-2. Deploy the frontend server:
+### 1-2. Deploy the backend server using Docker:
+   - Make sure you have Docker installed on your production server.
+   - Put `docker-compose.yml` and `release` directory in the same directory on your production server.
+   - Run the command: `docker-compose up -d` to start the backend server in a Docker container.
+   - To create tables, you should run `documents/sql_summary.sql` and `documents/triggers.sql` to create them.
+
+### 2. Deploy the frontend server:
     - Copy the contents of the `project/frontend/apps/web/dist` directory to your production server.
     - Serve the static files using a web server like Nginx or Apache.
     - As a sample, the configuration file of your Nginx should be like this:

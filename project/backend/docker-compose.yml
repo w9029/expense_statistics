@@ -1,14 +1,32 @@
 services:
+  postgres:
+    image: postgres:17
+    container_name: expense-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 191969
+      POSTGRES_DB: expense_statistics_proj
+      TZ: Asia/Tokyo
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - ./postgres_expense_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
   expense-backend:
     image: alpine:3.22
     container_name: expense-backend
     working_dir: /app
-    command: ["/bin/sh", "/app/start_backend.sh"]
+    command: ["/bin/sh", "/app/docker_start_backend.sh"]
+    depends_on:
+      - postgres
     ports:
-      - "8090:8090"
+      - "8090:8080"
     volumes:
       - ./release:/app
     restart: unless-stopped
     environment:
       TZ: Asia/Tokyo
 
+volumes:
+  postgres_expense_data:
