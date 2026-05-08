@@ -26,6 +26,7 @@ project/backend/release/server
 .vscode/
 .idea/
 
+# frontend
 node_modules
 dist
 .turbo
@@ -39,4 +40,6 @@ config.prod.yaml
 
 __pycache__
 
+# document
 importdata.xlsx
+exchange_rate_api_key.txt
