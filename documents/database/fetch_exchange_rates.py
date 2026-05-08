@@ -17,6 +17,17 @@ from psycopg2.extras import execute_values
 
 # command: python fetch_exchange_rates.py --api-key YOUR_API_KEY --start-date 2026-04-01 --end-date 2026-04-28 
 
+"""
+脚本逻辑：
+  - 先连接数据库                                                                  
+  - 查询 exchange_rates 里在指定时间区间内，base_currency + target_currencies 是否
+    已经齐全                                                                      
+  - 如果某一天已经有你要求的全部目标币种，比如你传的是 JPY -> CNY,USD，那一天两条 
+    都在，就直接跳过                                                              
+  - 只有缺任意一条的日期，才会真的去调用 API      
+
+"""
+
 API_URL_TEMPLATE = "https://v6.exchangerate-api.com/v6/{api_key}/history/{base_currency}/{year}/{month}/{day}"
 RATE_SCALE = Decimal("0.000001")
 DEFAULT_TARGETS = ("CNY", "USD")
@@ -213,6 +224,40 @@ def upsert_rates(connection, rows: list[ExchangeRateRow]) -> int:
     return len(rows)
 
 
+def load_existing_rate_dates(
+    connection,
+    base_currency: str,
+    target_currencies: tuple[str, ...],
+    start_date: date,
+    end_date: date,
+) -> set[date]:
+    if not target_currencies:
+        return set()
+
+    sql = """
+        SELECT rate_date
+        FROM exchange_rates
+        WHERE base_currency = %s
+          AND target_currency = ANY(%s)
+          AND rate_date BETWEEN %s AND %s
+        GROUP BY rate_date
+        HAVING COUNT(DISTINCT target_currency) = %s
+    """
+    with connection.cursor() as cursor:
+        cursor.execute(
+            sql,
+            (
+                base_currency,
+                list(target_currencies),
+                start_date.isoformat(),
+                end_date.isoformat(),
+                len(target_currencies),
+            ),
+        )
+        rows = cursor.fetchall()
+    return {row[0] for row in rows}
+
+
 def main() -> int:
     args = parse_args()
 
@@ -241,20 +286,40 @@ def main() -> int:
     connection = None
     total_inserted = 0
     total_days = 0
+    total_skipped_days = 0
 
     try:
-        if not args.dry_run:
-            connection = psycopg2.connect(
-                host=db_config["host"],
-                port=db_config["port"],
-                user=db_config["user"],
-                password=db_config["password"],
-                dbname=db_config["name"],
-            )
-            connection.autocommit = False
+        connection = psycopg2.connect(
+            host=db_config["host"],
+            port=db_config["port"],
+            user=db_config["user"],
+            password=db_config["password"],
+            dbname=db_config["name"],
+        )
+        connection.autocommit = False
 
-        pending_dates = list(daterange(start_date, end_date))
+        all_dates = list(daterange(start_date, end_date))
+        existing_dates = load_existing_rate_dates(
+            connection,
+            base_currency=base_currency,
+            target_currencies=target_currencies,
+            start_date=start_date,
+            end_date=end_date,
+        )
+        pending_dates = [current_date for current_date in all_dates if current_date not in existing_dates]
+        total_skipped_days = len(all_dates) - len(pending_dates)
         rows_by_date: dict[date, list[ExchangeRateRow]] = {}
+
+        print(f"Existing days: {len(existing_dates)}")
+        print(f"Skipped days : {total_skipped_days}")
+        print(f"Fetch days   : {len(pending_dates)}")
+
+        if not pending_dates:
+            if args.dry_run:
+                print("Nothing to fetch. All requested dates already have the required rates.")
+            else:
+                print("Nothing to fetch. All requested dates already have the required rates.")
+            return 0
 
         with ThreadPoolExecutor(max_workers=args.workers) as executor:
             future_map = {
@@ -304,9 +369,14 @@ def main() -> int:
             connection.close()
 
     if args.dry_run:
-        print(f"Completed dry run for {total_days} day(s).")
+        print(
+            f"Completed dry run. Fetched {total_days} day(s), skipped {total_skipped_days} existing day(s)."
+        )
     else:
-        print(f"Completed. Upserted {total_inserted} row(s) across {total_days} day(s).")
+        print(
+            f"Completed. Upserted {total_inserted} row(s) across {total_days} fetched day(s); "
+            f"skipped {total_skipped_days} existing day(s)."
+        )
     return 0
 
 
