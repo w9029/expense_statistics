@@ -10,7 +10,7 @@
 
 ## 2026-05-09
 
-- 提交: 待提交
+- 提交: `38bdd73` `chore(ios): restore metro debug workflow`
 - 范围: iOS Debug 开发流切回标准 Metro 模式
 - 说明: 恢复 `Debug + Metro` 的标准 React Native 开发方式，让 `App.tsx` 等 JS/TS 改动可以通过 Metro 实时刷新；同时补充中文 README，并新增一份“如何切回内嵌 bundle 调试模式”的文档。
 - 验证: 已执行 iOS Debug 模拟器 `xcodebuild` 构建，构建成功；构建日志明确显示 Debug + Simulator 跳过内嵌 bundle，改由 Metro 提供 JS bundle。
