@@ -1,4 +1,4 @@
-import {useEffect, useMemo, useRef, useState} from 'react';
+import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {
   Alert,
   Pressable,
@@ -15,6 +15,7 @@ import type {
 } from '@expense-statistics/domain';
 import type {BottomTabScreenProps} from '@react-navigation/bottom-tabs';
 import {ActionButton} from '@/components/action-button';
+import {DateField} from '@/components/date-field';
 import {AppTextInput, FormField} from '@/components/form-field';
 import {InlineBanner} from '@/components/inline-banner';
 import {PlaceholderCard} from '@/components/placeholder-card';
@@ -45,7 +46,7 @@ type MetadataErrors = Partial<Record<keyof MetadataForm, string>>;
 export function AccountBookDetailScreen({route}: Props) {
   const accountBookId = route.params?.accountBookId ?? '';
   const auth = useAuth();
-  const {setActiveAccountBookId} = useBookSession();
+  const {expenseRefreshSignal, setActiveAccountBookId} = useBookSession();
   const {showToast} = useToast();
   const {t} = useI18n();
   const isFocused = useIsFocused();
@@ -229,7 +230,7 @@ export function AccountBookDetailScreen({route}: Props) {
     let cancelled = false;
 
     void (async () => {
-      if (!auth.accessToken) {
+      if (!auth.accessToken || !isFocused) {
         return;
       }
 
@@ -287,6 +288,7 @@ export function AccountBookDetailScreen({route}: Props) {
     effectiveCategoryIDs,
     expenseQueryKey,
     filters,
+    isFocused,
     t,
   ]);
 
@@ -348,7 +350,7 @@ export function AccountBookDetailScreen({route}: Props) {
     return Object.keys(nextErrors).length === 0;
   }
 
-  async function refreshExpenses() {
+  const refreshExpenses = useCallback(async () => {
     if (!auth.accessToken) {
       return;
     }
@@ -382,7 +384,15 @@ export function AccountBookDetailScreen({route}: Props) {
     } finally {
       setIsLoadingExpenses(false);
     }
-  }
+  }, [accountBookId, auth.accessToken, effectiveCategoryIDs, filters, t]);
+
+  useEffect(() => {
+    if (!auth.accessToken || !isFocused || expenseRefreshSignal === 0) {
+      return;
+    }
+
+    void refreshExpenses();
+  }, [auth.accessToken, expenseRefreshSignal, isFocused, refreshExpenses]);
 
   async function handleSaveMetadata() {
     if (!auth.accessToken || !detail || isSavingMetadata || !validateMetadata()) {
@@ -1026,32 +1036,34 @@ export function AccountBookDetailScreen({route}: Props) {
             <View style={styles.filterRow}>
               <View style={styles.flexButton}>
                 <FormField label={t('book.dateFrom')}>
-                  <AppTextInput
-                    onChangeText={text =>
+                  <DateField
+                    onDateChange={event =>
                       setFilters(current => ({
                         ...current,
-                        dateFrom: text,
+                        dateFrom: event.nativeEvent.value,
                         datePreset: null,
                         page: 1,
                       }))
                     }
                     placeholder="2026-01-01"
+                    style={styles.dateField}
                     value={filters.dateFrom}
                   />
                 </FormField>
               </View>
               <View style={styles.flexButton}>
                 <FormField label={t('book.dateTo')}>
-                  <AppTextInput
-                    onChangeText={text =>
+                  <DateField
+                    onDateChange={event =>
                       setFilters(current => ({
                         ...current,
-                        dateTo: text,
+                        dateTo: event.nativeEvent.value,
                         datePreset: null,
                         page: 1,
                       }))
                     }
                     placeholder="2026-01-31"
+                    style={styles.dateField}
                     value={filters.dateTo}
                   />
                 </FormField>
@@ -1237,6 +1249,9 @@ const styles = StyleSheet.create({
   },
   flexButton: {
     flex: 1,
+  },
+  dateField: {
+    minHeight: 52,
   },
   headerActionRow: {
     flexDirection: 'row',

@@ -1,16 +1,21 @@
 import {useEffect, useMemo, useRef, useState} from 'react';
-import {Pressable, StyleSheet, Text, View} from 'react-native';
+import {StyleSheet, Text, View} from 'react-native';
 import type {
   AccountBookDetail,
   ExpenseCategory,
   ExpenseDetail,
 } from '@expense-statistics/domain';
-import type {NativeStackScreenProps} from '@react-navigation/native-stack';
+import type {
+  NativeStackNavigationProp,
+  NativeStackScreenProps,
+} from '@react-navigation/native-stack';
 import {ActionButton} from '@/components/action-button';
+import {DateField} from '@/components/date-field';
 import {AppTextInput, FormField} from '@/components/form-field';
 import {InlineBanner} from '@/components/inline-banner';
 import {PlaceholderCard} from '@/components/placeholder-card';
 import {ScreenShell} from '@/components/screen-shell';
+import {SelectField} from '@/components/select-field';
 import {useBookSession} from '@/features/account-books/book-session-context';
 import {useAuth} from '@/features/auth/auth-context';
 import {useToast} from '@/features/feedback/toast-context';
@@ -20,7 +25,18 @@ import {getApiErrorMessage} from '@/lib/api-errors';
 import type {RootStackParamList} from '@/navigation/types';
 import {colors} from '@/theme/colors';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'NormalExpenseEditor'>;
+type EditorNavigation = Pick<
+  NativeStackNavigationProp<RootStackParamList>,
+  'goBack'
+>;
+
+type Props = Omit<
+  NativeStackScreenProps<RootStackParamList, 'NormalExpenseEditor'>,
+  'navigation'
+> & {
+  embedded?: boolean;
+  navigation: EditorNavigation;
+};
 type SubmitMode = 'back' | 'next';
 
 type NormalExpenseForm = {
@@ -65,10 +81,10 @@ function buildFormFromExpense(expenseDetail: ExpenseDetail): NormalExpenseForm {
   };
 }
 
-export function NormalExpenseEditorScreen({navigation, route}: Props) {
+export function NormalExpenseEditorScreen({embedded = false, navigation, route}: Props) {
   const {accountBookId, expenseId} = route.params;
   const auth = useAuth();
-  const {setActiveAccountBookId} = useBookSession();
+  const {requestExpenseRefresh, setActiveAccountBookId} = useBookSession();
   const {showToast} = useToast();
   const {t} = useI18n();
   const isEditMode = Boolean(expenseId);
@@ -248,12 +264,14 @@ export function NormalExpenseEditorScreen({navigation, route}: Props) {
 
       if (isEditMode && expenseId) {
         await apiClient.updateNormalExpense(auth.accessToken, accountBookId, expenseId, payload);
+        requestExpenseRefresh();
         showToast(t('normalExpense.updated'), 'success');
         navigation.goBack();
         return;
       }
 
       await apiClient.createNormalExpense(auth.accessToken, accountBookId, payload);
+      requestExpenseRefresh();
 
       if (submitModeRef.current === 'next') {
         resetForNextExpense();
@@ -277,13 +295,8 @@ export function NormalExpenseEditorScreen({navigation, route}: Props) {
     }
   }
 
-  return (
-    <ScreenShell
-      title={isEditMode ? t('normalExpense.titleEdit') : t('normalExpense.titleCreate')}
-      description={t(
-        isEditMode ? 'normalExpense.subtitleEdit' : 'normalExpense.subtitleCreate',
-        {book: detail?.name ?? t('book.titleFallback')},
-      )}>
+  const content = (
+    <>
       {flashMessage ? <InlineBanner message={flashMessage.text} tone={flashMessage.tone} /> : null}
       {pageError ? <InlineBanner message={pageError} tone="error" /> : null}
       {isLoadingPage ? <InlineBanner message={t('book.loadingBook')} tone="info" /> : null}
@@ -310,38 +323,20 @@ export function NormalExpenseEditorScreen({navigation, route}: Props) {
             error={formErrors.category_id}
             errorTextStyle={styles.alertErrorText}
             label={t('normalExpense.category')}>
-            <View style={styles.selectRow}>
-              {normalCategories.length ? (
-                normalCategories.map(category => {
-                  const active = form.category_id === category.id;
-                  return (
-                    <Pressable
-                      key={category.id}
-                      onPress={() => updateForm('category_id', category.id)}
-                      style={[
-                        styles.selectChip,
-                        active ? styles.selectChipActive : undefined,
-                      ]}>
-                      <View
-                        style={[
-                          styles.categoryDot,
-                          {backgroundColor: category.color},
-                        ]}
-                      />
-                      <Text
-                        style={[
-                          styles.selectChipText,
-                          active ? styles.selectChipTextActive : undefined,
-                        ]}>
-                        {category.name}
-                      </Text>
-                    </Pressable>
-                  );
-                })
-              ) : (
-                <InlineBanner message={t('normalExpense.notesNoCategory')} tone="error" />
-              )}
-            </View>
+            {normalCategories.length ? (
+              <SelectField
+                onSelect={value => updateForm('category_id', value)}
+                options={normalCategories.map(category => ({
+                  color: category.color,
+                  label: category.name,
+                  value: category.id,
+                }))}
+                placeholder={t('normalExpense.chooseCategory')}
+                value={form.category_id}
+              />
+            ) : (
+              <InlineBanner message={t('normalExpense.notesNoCategory')} tone="error" />
+            )}
           </FormField>
 
           <FormField
@@ -386,9 +381,10 @@ export function NormalExpenseEditorScreen({navigation, route}: Props) {
             error={formErrors.spent_at}
             errorTextStyle={styles.alertErrorText}
             label={t('normalExpense.spentAt')}>
-            <AppTextInput
-              onChangeText={text => updateForm('spent_at', text)}
+            <DateField
+              onDateChange={event => updateForm('spent_at', event.nativeEvent.value)}
               placeholder="2026-05-10"
+              style={styles.dateField}
               value={form.spent_at}
             />
           </FormField>
@@ -457,6 +453,21 @@ export function NormalExpenseEditorScreen({navigation, route}: Props) {
           ) : null}
         </View>
       </PlaceholderCard>
+    </>
+  );
+
+  if (embedded) {
+    return content;
+  }
+
+  return (
+    <ScreenShell
+      title={isEditMode ? t('normalExpense.titleEdit') : t('normalExpense.titleCreate')}
+      description={t(
+        isEditMode ? 'normalExpense.subtitleEdit' : 'normalExpense.subtitleCreate',
+        {book: detail?.name ?? t('book.titleFallback')},
+      )}>
+      {content}
     </ScreenShell>
   );
 }
@@ -480,36 +491,6 @@ const styles = StyleSheet.create({
   form: {
     gap: 14,
   },
-  selectRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  selectChip: {
-    alignItems: 'center',
-    backgroundColor: colors.surfaceMuted,
-    borderRadius: 999,
-    flexDirection: 'row',
-    gap: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  selectChipActive: {
-    backgroundColor: colors.accent,
-  },
-  selectChipText: {
-    color: colors.accentDeep,
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  selectChipTextActive: {
-    color: colors.backgroundSoft,
-  },
-  categoryDot: {
-    borderRadius: 999,
-    height: 10,
-    width: 10,
-  },
   inlineRow: {
     flexDirection: 'row',
     gap: 12,
@@ -519,6 +500,9 @@ const styles = StyleSheet.create({
   },
   currencyField: {
     width: 112,
+  },
+  dateField: {
+    minHeight: 52,
   },
   multilineInput: {
     minHeight: 108,
