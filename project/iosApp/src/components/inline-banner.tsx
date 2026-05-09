@@ -1,4 +1,5 @@
 import {StyleSheet, Text, View} from 'react-native';
+import {colors} from '@/theme/colors';
 
 type InlineBannerProps = {
   tone: 'error' | 'success' | 'info';
@@ -38,25 +39,25 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   error: {
-    backgroundColor: '#f7e1dc',
+    backgroundColor: colors.dangerSoft,
   },
   success: {
-    backgroundColor: '#e1f0e6',
+    backgroundColor: colors.successSoft,
   },
   info: {
-    backgroundColor: '#e2edf7',
+    backgroundColor: colors.accentSoftMuted,
   },
   message: {
     fontSize: 14,
     lineHeight: 20,
   },
   errorText: {
-    color: '#73271f',
+    color: colors.danger,
   },
   successText: {
-    color: '#1f5b39',
+    color: colors.success,
   },
   infoText: {
-    color: '#1f4f7b',
+    color: colors.accentDeep,
   },
 });

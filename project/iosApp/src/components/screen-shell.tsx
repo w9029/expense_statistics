@@ -1,5 +1,6 @@
 import {PropsWithChildren} from 'react';
 import {SafeAreaView, ScrollView, StyleSheet, Text, View} from 'react-native';
+import {colors} from '@/theme/colors';
 
 type ScreenShellProps = PropsWithChildren<{
   eyebrow?: string;
@@ -31,7 +32,7 @@ export function ScreenShell({
 
 const styles = StyleSheet.create({
   safeArea: {
-    backgroundColor: '#f4efe7',
+    backgroundColor: colors.background,
     flex: 1,
   },
   content: {
@@ -39,25 +40,32 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   hero: {
-    backgroundColor: '#17324d',
+    backgroundColor: colors.panelStrong,
+    borderColor: colors.line,
+    borderWidth: 1,
     borderRadius: 24,
     gap: 10,
     padding: 24,
   },
   eyebrow: {
-    color: '#f3c98b',
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(202, 93, 43, 0.12)',
+    borderRadius: 999,
+    color: colors.accentDeep,
     fontSize: 13,
     fontWeight: '700',
     letterSpacing: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     textTransform: 'uppercase',
   },
   title: {
-    color: '#ffffff',
+    color: colors.ink,
     fontSize: 30,
     fontWeight: '700',
   },
   description: {
-    color: '#d4dfeb',
+    color: colors.muted,
     fontSize: 16,
     lineHeight: 22,
   },

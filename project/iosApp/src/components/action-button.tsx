@@ -1,4 +1,5 @@
 import {Pressable, StyleSheet, Text, ViewStyle} from 'react-native';
+import {colors} from '@/theme/colors';
 
 type ActionButtonProps = {
   label: string;
@@ -55,13 +56,15 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
   },
   primary: {
-    backgroundColor: '#17324d',
+    backgroundColor: colors.accent,
   },
   secondary: {
-    backgroundColor: '#efe6d8',
+    backgroundColor: colors.accentSoftMuted,
+    borderColor: colors.line,
+    borderWidth: 1,
   },
   destructive: {
-    backgroundColor: '#8a2e24',
+    backgroundColor: colors.danger,
   },
   disabled: {
     opacity: 0.55,
@@ -74,12 +77,12 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   primaryLabel: {
-    color: '#ffffff',
+    color: colors.backgroundSoft,
   },
   secondaryLabel: {
-    color: '#17324d',
+    color: colors.accentDeep,
   },
   destructiveLabel: {
-    color: '#ffffff',
+    color: colors.backgroundSoft,
   },
 });

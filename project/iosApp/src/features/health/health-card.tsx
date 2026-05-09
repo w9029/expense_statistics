@@ -3,6 +3,7 @@ import {ActivityIndicator, Pressable, StyleSheet, Text, View} from 'react-native
 import {apiClient} from '@/lib/api';
 import {PlaceholderCard} from '@/components/placeholder-card';
 import {useI18n} from '@/features/i18n/i18n-context';
+import {colors} from '@/theme/colors';
 
 type HealthState =
   | {status: 'idle'}
@@ -83,27 +84,27 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   stateText: {
-    color: '#44515e',
+    color: colors.muted,
     fontSize: 15,
   },
   resultBox: {
-    backgroundColor: '#f7f3ec',
+    backgroundColor: colors.surfaceSoft,
     borderRadius: 18,
     gap: 10,
     padding: 16,
   },
   successTitle: {
-    color: '#155b39',
+    color: colors.success,
     fontSize: 16,
     fontWeight: '700',
   },
   errorTitle: {
-    color: '#8e2b21',
+    color: colors.danger,
     fontSize: 16,
     fontWeight: '700',
   },
   errorText: {
-    color: '#61261f',
+    color: colors.danger,
     fontSize: 15,
     lineHeight: 21,
   },
@@ -112,26 +113,26 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   kvKey: {
-    color: '#66727d',
+    color: colors.muted,
     fontSize: 14,
     fontWeight: '700',
     textTransform: 'uppercase',
     width: 48,
   },
   kvValue: {
-    color: '#1d2733',
+    color: colors.ink,
     flex: 1,
     fontSize: 15,
   },
   button: {
     alignItems: 'center',
-    backgroundColor: '#17324d',
+    backgroundColor: colors.accent,
     borderRadius: 16,
     paddingHorizontal: 16,
     paddingVertical: 14,
   },
   buttonText: {
-    color: '#ffffff',
+    color: colors.backgroundSoft,
     fontSize: 15,
     fontWeight: '700',
   },

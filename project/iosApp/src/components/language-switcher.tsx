@@ -1,6 +1,7 @@
 import {Pressable, StyleSheet, Text, View} from 'react-native';
 import {useI18n} from '@/features/i18n/i18n-context';
 import type {AppLanguage} from '@/features/i18n/messages';
+import {colors} from '@/theme/colors';
 
 export function LanguageSwitcher() {
   const {language, setLanguage, t, supportedLanguages} = useI18n();
@@ -38,7 +39,7 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   label: {
-    color: '#4d5d6c',
+    color: colors.muted,
     fontSize: 14,
     fontWeight: '700',
   },
@@ -48,20 +49,20 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   chip: {
-    backgroundColor: '#f0e8dc',
+    backgroundColor: colors.surfaceMuted,
     borderRadius: 999,
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
   activeChip: {
-    backgroundColor: '#17324d',
+    backgroundColor: colors.accent,
   },
   chipText: {
-    color: '#30465d',
+    color: colors.accentDeep,
     fontSize: 13,
     fontWeight: '600',
   },
   activeChipText: {
-    color: '#ffffff',
+    color: colors.backgroundSoft,
   },
 });

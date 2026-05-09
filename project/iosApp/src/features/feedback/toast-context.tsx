@@ -1,5 +1,6 @@
 import {createContext, PropsWithChildren, useCallback, useContext, useMemo, useRef, useState} from 'react';
 import {StyleSheet, Text, View} from 'react-native';
+import {colors} from '@/theme/colors';
 
 type ToastTone = 'success' | 'error' | 'info';
 
@@ -75,16 +76,16 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
   },
   success: {
-    backgroundColor: '#1f6f43',
+    backgroundColor: colors.success,
   },
   error: {
-    backgroundColor: '#8a2e24',
+    backgroundColor: colors.danger,
   },
   info: {
-    backgroundColor: '#1f4f7b',
+    backgroundColor: colors.accent,
   },
   message: {
-    color: '#ffffff',
+    color: colors.backgroundSoft,
     fontSize: 14,
     fontWeight: '600',
   },

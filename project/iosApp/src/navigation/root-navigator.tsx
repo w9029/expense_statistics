@@ -6,6 +6,7 @@ import {AppTabsNavigator} from '@/navigation/tabs-navigator';
 import {PublicNavigator} from '@/navigation/public-navigator';
 import {AccountBookDetailPlaceholderScreen} from '@/screens/account-books/account-book-detail-placeholder-screen';
 import {InvitationScreen} from '@/screens/invitation/invitation-screen';
+import {colors} from '@/theme/colors';
 import type {RootStackParamList} from '@/navigation/types';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -47,13 +48,13 @@ export function RootNavigator() {
 const styles = StyleSheet.create({
   loadingScreen: {
     alignItems: 'center',
-    backgroundColor: '#f3eee6',
+    backgroundColor: colors.background,
     flex: 1,
     gap: 14,
     justifyContent: 'center',
   },
   loadingText: {
-    color: '#30465d',
+    color: colors.muted,
     fontSize: 15,
   },
 });

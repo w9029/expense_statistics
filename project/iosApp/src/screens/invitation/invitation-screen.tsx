@@ -15,6 +15,7 @@ import {apiClient} from '@/lib/api';
 import {getApiErrorMessage} from '@/lib/api-errors';
 import {navigationRef} from '@/lib/navigation';
 import type {RootStackParamList} from '@/navigation/types';
+import {colors} from '@/theme/colors';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Invitation'>;
 
@@ -221,9 +222,9 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   badge: {
-    backgroundColor: '#efe6d8',
+    backgroundColor: colors.surfaceMuted,
     borderRadius: 999,
-    color: '#17324d',
+    color: colors.accentDeep,
     fontSize: 13,
     fontWeight: '700',
     overflow: 'hidden',
@@ -231,12 +232,12 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   bookName: {
-    color: '#1d2733',
+    color: colors.ink,
     fontSize: 22,
     fontWeight: '700',
   },
   note: {
-    color: '#546575',
+    color: colors.muted,
     fontSize: 14,
     lineHeight: 20,
   },

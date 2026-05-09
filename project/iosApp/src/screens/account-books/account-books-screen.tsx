@@ -13,6 +13,7 @@ import {AppTextInput, FormField} from '@/components/form-field';
 import {InlineBanner} from '@/components/inline-banner';
 import {PlaceholderCard} from '@/components/placeholder-card';
 import {ScreenShell} from '@/components/screen-shell';
+import {SFSymbol} from '@/components/sf-symbol';
 import {useAuth} from '@/features/auth/auth-context';
 import {useToast} from '@/features/feedback/toast-context';
 import {useI18n} from '@/features/i18n/i18n-context';
@@ -20,6 +21,7 @@ import {apiClient} from '@/lib/api';
 import {getApiErrorMessage} from '@/lib/api-errors';
 import {navigationRef} from '@/lib/navigation';
 import type {AppTabParamList} from '@/navigation/types';
+import {colors} from '@/theme/colors';
 
 type BookForm = {
   name: string;
@@ -45,6 +47,7 @@ export function AccountBooksScreen({}: BottomTabScreenProps<AppTabParamList, 'Ac
   const [bookForm, setBookForm] = useState<BookForm>(defaultForm);
   const [formErrors, setFormErrors] = useState<ValidationErrors>({});
   const [isCreating, setIsCreating] = useState(false);
+  const [isCreatePanelVisible, setIsCreatePanelVisible] = useState(false);
   const [actionState, setActionState] = useState<{
     kind: 'default' | 'delete' | 'leave';
     bookId: string;
@@ -146,6 +149,8 @@ export function AccountBooksScreen({}: BottomTabScreenProps<AppTabParamList, 'Ac
         base_currency: auth.user?.preferred_currency ?? created.base_currency,
         description: '',
       });
+      setFormErrors({});
+      setIsCreatePanelVisible(false);
       if (!auth.user?.default_account_book_id) {
         await auth.replaceUser({
           ...auth.user!,
@@ -266,61 +271,88 @@ export function AccountBooksScreen({}: BottomTabScreenProps<AppTabParamList, 'Ac
 
   return (
     <ScreenShell eyebrow={t('root.module0Done')} title={t('accountBooks.title')} description={t('accountBooks.description')}>
-      <PlaceholderCard
-        description={t('accountBooks.create.description')}
-        title={t('accountBooks.create.title')}>
-        <View style={styles.form}>
-          <FormField error={formErrors.name} label={t('accountBooks.name')}>
-            <AppTextInput
-              onChangeText={text => {
-                setBookForm(current => ({...current, name: text}));
-                setFormErrors(current => ({...current, name: undefined}));
-              }}
-              placeholder={t('accountBooks.name')}
-              value={bookForm.name}
-            />
-          </FormField>
-          <FormField error={formErrors.base_currency} label={t('accountBooks.baseCurrency')}>
-            <AppTextInput
-              autoCapitalize="characters"
-              maxLength={3}
-              onChangeText={text => {
-                setBookForm(current => ({...current, base_currency: text}));
-                setFormErrors(current => ({...current, base_currency: undefined}));
-              }}
-              placeholder={auth.user?.preferred_currency ?? 'JPY'}
-              value={bookForm.base_currency}
-            />
-          </FormField>
-          <FormField error={formErrors.description} label={t('accountBooks.bookDescription')}>
-            <AppTextInput
-              onChangeText={text => {
-                setBookForm(current => ({...current, description: text}));
-                setFormErrors(current => ({...current, description: undefined}));
-              }}
-              placeholder={t('common.noDescription')}
-              value={bookForm.description}
-            />
-          </FormField>
-
-          {pageError ? <InlineBanner message={pageError} tone="error" /> : null}
-
-          <ActionButton
-            disabled={isCreating}
-            label={isCreating ? t('accountBooks.create.submitting') : t('accountBooks.create.submit')}
-            onPress={() => {
-              void handleCreateBook();
-            }}
-          />
-        </View>
-      </PlaceholderCard>
-
       {isLoading ? (
         <InlineBanner message={t('accountBooks.loading')} tone="info" />
       ) : null}
 
+      {isCreatePanelVisible ? (
+        <PlaceholderCard
+          description={t('accountBooks.create.description')}
+          title={t('accountBooks.create.title')}>
+          <View style={styles.form}>
+            <FormField error={formErrors.name} label={t('accountBooks.name')}>
+              <AppTextInput
+                onChangeText={text => {
+                  setBookForm(current => ({...current, name: text}));
+                  setFormErrors(current => ({...current, name: undefined}));
+                }}
+                placeholder={t('accountBooks.name')}
+                value={bookForm.name}
+              />
+            </FormField>
+            <FormField error={formErrors.base_currency} label={t('accountBooks.baseCurrency')}>
+              <AppTextInput
+                autoCapitalize="characters"
+                maxLength={3}
+                onChangeText={text => {
+                  setBookForm(current => ({...current, base_currency: text}));
+                  setFormErrors(current => ({...current, base_currency: undefined}));
+                }}
+                placeholder={auth.user?.preferred_currency ?? 'JPY'}
+                value={bookForm.base_currency}
+              />
+            </FormField>
+            <FormField error={formErrors.description} label={t('accountBooks.bookDescription')}>
+              <AppTextInput
+                onChangeText={text => {
+                  setBookForm(current => ({...current, description: text}));
+                  setFormErrors(current => ({...current, description: undefined}));
+                }}
+                placeholder={t('common.noDescription')}
+                value={bookForm.description}
+              />
+            </FormField>
+
+            {pageError ? <InlineBanner message={pageError} tone="error" /> : null}
+
+            <View style={styles.formActions}>
+              <ActionButton
+                disabled={isCreating}
+                label={isCreating ? t('accountBooks.create.submitting') : t('accountBooks.create.submit')}
+                onPress={() => {
+                  void handleCreateBook();
+                }}
+                style={styles.flexButton}
+              />
+              <ActionButton
+                disabled={isCreating}
+                label={t('accountBooks.create.cancel')}
+                onPress={() => {
+                  setIsCreatePanelVisible(false);
+                  setPageError(null);
+                  setFormErrors({});
+                }}
+                style={styles.flexButton}
+                tone="secondary"
+              />
+            </View>
+          </View>
+        </PlaceholderCard>
+      ) : null}
+
       {sortedBooks.length ? (
         <View style={styles.list}>
+          <View style={styles.listHeader}>
+            <Text style={styles.listTitle}>{t('accountBooks.title')}</Text>
+            <ActionButton
+              label={t('accountBooks.create.open')}
+              onPress={() => {
+                setIsCreatePanelVisible(true);
+                setPageError(null);
+              }}
+              style={styles.listHeaderButton}
+            />
+          </View>
           {sortedBooks.map(book => {
             const isPendingDefault = actionState?.kind === 'default' && actionState.bookId === book.id;
             const isPendingAction =
@@ -330,13 +362,37 @@ export function AccountBooksScreen({}: BottomTabScreenProps<AppTabParamList, 'Ac
             return (
               <PlaceholderCard
                 key={book.id}
-                description={book.description ?? t('common.noDescription')}
-                title={book.name}>
+                title={book.name}
+                headerAccessory={
+                  <Pressable
+                    accessibilityLabel={
+                      book.my_role === 'owner' ? t('accountBooks.delete') : t('accountBooks.leave')
+                    }
+                    disabled={isPendingAction}
+                    onPress={() => confirmDeleteOrLeave(book)}
+                    style={({pressed}) => [
+                      styles.iconButton,
+                      pressed && !isPendingAction ? styles.iconButtonPressed : undefined,
+                    ]}>
+                    <SFSymbol
+                      colorHex={
+                        book.my_role === 'owner' ? colors.danger : colors.accentDeep
+                      }
+                      name={book.my_role === 'owner' ? 'trash' : 'rectangle.portrait.and.arrow.right'}
+                      pointSize={16}
+                      scale="medium"
+                      style={styles.iconSymbol}
+                      weight="semibold"
+                    />
+                  </Pressable>
+                }>
                 <View style={styles.badges}>
                   <Text style={styles.badge}>{book.my_role}</Text>
                   <Text style={styles.badge}>{book.base_currency}</Text>
                   {book.is_default ? <Text style={styles.defaultBadge}>{t('accountBooks.default.badge')}</Text> : null}
                 </View>
+
+                {book.description ? <Text style={styles.bookDescription}>{book.description}</Text> : null}
 
                 <View style={styles.actions}>
                   <ActionButton
@@ -364,32 +420,23 @@ export function AccountBooksScreen({}: BottomTabScreenProps<AppTabParamList, 'Ac
                     tone="secondary"
                   />
                 </View>
-
-                <View style={styles.inlineLinks}>
-                  <Pressable
-                    onPress={() => confirmDeleteOrLeave(book)}
-                    disabled={isPendingAction}>
-                    <Text
-                      style={[
-                        styles.link,
-                        book.my_role === 'owner' ? styles.destructiveLink : undefined,
-                      ]}>
-                      {isPendingAction
-                        ? book.my_role === 'owner'
-                          ? t('accountBooks.deleting')
-                          : t('accountBooks.leaving')
-                        : book.my_role === 'owner'
-                          ? t('accountBooks.delete')
-                          : t('accountBooks.leave')}
-                    </Text>
-                  </Pressable>
-                </View>
               </PlaceholderCard>
             );
           })}
         </View>
       ) : !isLoading ? (
-        <InlineBanner message={t('accountBooks.empty')} tone="info" />
+        <PlaceholderCard title={t('accountBooks.title')} description={t('accountBooks.empty')}>
+          <View style={styles.listHeader}>
+            <ActionButton
+              label={t('accountBooks.create.open')}
+              onPress={() => {
+                setIsCreatePanelVisible(true);
+                setPageError(null);
+              }}
+              style={styles.listHeaderButton}
+            />
+          </View>
+        </PlaceholderCard>
       ) : null}
     </ScreenShell>
   );
@@ -399,8 +446,29 @@ const styles = StyleSheet.create({
   form: {
     gap: 16,
   },
+  formActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
   list: {
     gap: 14,
+  },
+  listHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 2,
+  },
+  listTitle: {
+    color: colors.ink,
+    fontSize: 22,
+    fontWeight: '700',
+  },
+  listHeaderButton: {
+    minHeight: 38,
+    minWidth: 108,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
   },
   badges: {
     flexDirection: 'row',
@@ -408,9 +476,9 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   badge: {
-    backgroundColor: '#efe6d8',
+    backgroundColor: colors.surfaceMuted,
     borderRadius: 999,
-    color: '#17324d',
+    color: colors.accentDeep,
     fontSize: 13,
     fontWeight: '700',
     overflow: 'hidden',
@@ -418,9 +486,9 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   defaultBadge: {
-    backgroundColor: '#17324d',
+    backgroundColor: colors.accent,
     borderRadius: 999,
-    color: '#ffffff',
+    color: colors.backgroundSoft,
     fontSize: 13,
     fontWeight: '700',
     overflow: 'hidden',
@@ -431,19 +499,35 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 12,
   },
+  bookDescription: {
+    color: colors.muted,
+    fontSize: 14,
+    lineHeight: 18,
+    marginTop: -2,
+  },
   flexButton: {
     flex: 1,
   },
-  inlineLinks: {
-    alignItems: 'flex-end',
-    marginTop: 8,
+  iconButton: {
+    alignItems: 'center',
+    backgroundColor: colors.accentSoftMuted,
+    borderColor: colors.line,
+    borderRadius: 12,
+    borderWidth: 1,
+    height: 34,
+    justifyContent: 'center',
+    width: 34,
   },
-  link: {
-    color: '#17324d',
-    fontSize: 13,
-    fontWeight: '700',
+  iconButtonPressed: {
+    opacity: 0.8,
+    transform: [{scale: 0.97}],
   },
-  destructiveLink: {
-    color: '#8a2e24',
+  iconButtonText: {
+    fontSize: 16,
+    lineHeight: 18,
+  },
+  iconSymbol: {
+    height: 16,
+    width: 16,
   },
 });
