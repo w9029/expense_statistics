@@ -336,7 +336,10 @@ export function NormalExpenseEditorPlaceholderScreen({navigation, route}: Normal
         </View>
 
         <View style={styles.form}>
-          <FormField error={formErrors.category_id} label={t('normalExpense.category')}>
+          <FormField
+            error={formErrors.category_id}
+            errorTextStyle={styles.alertErrorText}
+            label={t('normalExpense.category')}>
             <View style={styles.selectRow}>
               {normalCategories.length ? (
                 normalCategories.map(category => {
@@ -349,6 +352,12 @@ export function NormalExpenseEditorPlaceholderScreen({navigation, route}: Normal
                         styles.selectChip,
                         active ? styles.selectChipActive : undefined,
                       ]}>
+                      <View
+                        style={[
+                          styles.categoryDot,
+                          {backgroundColor: category.color},
+                        ]}
+                      />
                       <Text
                         style={[
                           styles.selectChipText,
@@ -365,7 +374,10 @@ export function NormalExpenseEditorPlaceholderScreen({navigation, route}: Normal
             </View>
           </FormField>
 
-          <FormField error={formErrors.name} label={t('normalExpense.name')}>
+          <FormField
+            error={formErrors.name}
+            errorTextStyle={styles.alertErrorText}
+            label={t('normalExpense.name')}>
             <AppTextInput
               onChangeText={text => updateForm('name', text)}
               value={form.name}
@@ -374,7 +386,10 @@ export function NormalExpenseEditorPlaceholderScreen({navigation, route}: Normal
 
           <View style={styles.inlineRow}>
             <View style={styles.flexField}>
-              <FormField error={formErrors.original_amount} label={t('normalExpense.amount')}>
+              <FormField
+                error={formErrors.original_amount}
+                errorTextStyle={styles.alertErrorText}
+                label={t('normalExpense.amount')}>
                 <AppTextInput
                   keyboardType="decimal-pad"
                   onChangeText={text => updateForm('original_amount', text)}
@@ -383,7 +398,10 @@ export function NormalExpenseEditorPlaceholderScreen({navigation, route}: Normal
               </FormField>
             </View>
             <View style={styles.currencyField}>
-              <FormField error={formErrors.original_currency} label={t('normalExpense.currency')}>
+              <FormField
+                error={formErrors.original_currency}
+                errorTextStyle={styles.alertErrorText}
+                label={t('normalExpense.currency')}>
                 <AppTextInput
                   autoCapitalize="characters"
                   maxLength={3}
@@ -394,7 +412,10 @@ export function NormalExpenseEditorPlaceholderScreen({navigation, route}: Normal
             </View>
           </View>
 
-          <FormField error={formErrors.spent_at} label={t('normalExpense.spentAt')}>
+          <FormField
+            error={formErrors.spent_at}
+            errorTextStyle={styles.alertErrorText}
+            label={t('normalExpense.spentAt')}>
             <AppTextInput
               onChangeText={text => updateForm('spent_at', text)}
               placeholder="2026-05-10"
@@ -402,7 +423,10 @@ export function NormalExpenseEditorPlaceholderScreen({navigation, route}: Normal
             />
           </FormField>
 
-          <FormField error={formErrors.description} label={t('normalExpense.description')}>
+          <FormField
+            error={formErrors.description}
+            errorTextStyle={styles.alertErrorText}
+            label={t('normalExpense.description')}>
             <AppTextInput
               multiline
               onChangeText={text => updateForm('description', text)}
@@ -507,8 +531,11 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   selectChip: {
+    alignItems: 'center',
     backgroundColor: colors.surfaceMuted,
     borderRadius: 999,
+    flexDirection: 'row',
+    gap: 8,
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
@@ -522,6 +549,11 @@ const styles = StyleSheet.create({
   },
   selectChipTextActive: {
     color: colors.backgroundSoft,
+  },
+  categoryDot: {
+    borderRadius: 999,
+    height: 10,
+    width: 10,
   },
   inlineRow: {
     flexDirection: 'row',
@@ -542,5 +574,8 @@ const styles = StyleSheet.create({
   },
   notes: {
     gap: 10,
+  },
+  alertErrorText: {
+    color: '#D60000',
   },
 });

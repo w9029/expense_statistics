@@ -127,3 +127,11 @@
 - 说明: 将普通消费编辑器从占位页替换为真实表单，接入账本详情、普通类别列表、消费详情、创建普通消费和更新普通消费接口；支持新增、编辑、表单校验、创建后返回账本，以及“创建并继续下一条”的连续录入模式；同时补齐普通消费相关的中英日文案和录入提示。
 - 验证: 已执行 `npx tsc --noEmit`、`npm run lint -- --quiet`、`npm test -- --runInBand --watchman=false`。
 - 后续: 模块 6 提交后，按计划进入模块 7 合并消费。
+
+## 2026-05-10
+
+- 提交: `fix(ios): refine category colors and expense form alerts`
+- 范围: 普通消费和类别编辑体验优化
+- 说明: 将普通消费里的类别选择改为带颜色点的胶囊按钮；把普通消费表单字段级错误提示改成更鲜红、更醒目的红色；在类别新增/编辑页移除预设色与十六进制输入，改接 iOS 原生 `UIColorWell` 取色器，并补上对应 React Native 原生桥与 Xcode 工程注册。
+- 验证: 已执行 `npx tsc --noEmit`、`npm run lint -- --quiet`、`npm test -- --runInBand --watchman=false`。
+- 后续: 这轮颜色与表单体验优化提交后，继续按计划进入模块 7 合并消费。

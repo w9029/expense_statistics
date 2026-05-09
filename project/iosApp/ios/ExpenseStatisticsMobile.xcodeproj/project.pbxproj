@@ -10,6 +10,8 @@
 		0C80B921A6F3F58F76C31292 /* libPods-ExpenseStatisticsMobile.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 5DCACB8F33CDC322A6C60F78 /* libPods-ExpenseStatisticsMobile.a */; };
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
 		61A462E93F3C8F716E97226D /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */; };
+		6A8D8D742E0B92E100A12201 /* ColorWellViewManager.m in Sources */ = {isa = PBXBuildFile; fileRef = 6A8D8D722E0B92E100A12201 /* ColorWellViewManager.m */; };
+		6A8D8D752E0B92E100A12201 /* ColorWellViewManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A8D8D732E0B92E100A12201 /* ColorWellViewManager.swift */; };
 		73D6AC4A4F6A40D8A1F2AA01 /* SFSymbolViewManager.m in Sources */ = {isa = PBXBuildFile; fileRef = 73D6AC484F6A40D8A1F2AA01 /* SFSymbolViewManager.m */; };
 		73D6AC4B4F6A40D8A1F2AA01 /* SFSymbolViewManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73D6AC494F6A40D8A1F2AA01 /* SFSymbolViewManager.swift */; };
 		761780ED2CA45674006654EE /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 761780EC2CA45674006654EE /* AppDelegate.swift */; };
@@ -24,6 +26,8 @@
 		3B4392A12AC88292D35C810B /* Pods-ExpenseStatisticsMobile.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-ExpenseStatisticsMobile.debug.xcconfig"; path = "Target Support Files/Pods-ExpenseStatisticsMobile/Pods-ExpenseStatisticsMobile.debug.xcconfig"; sourceTree = "<group>"; };
 		5709B34CF0A7D63546082F79 /* Pods-ExpenseStatisticsMobile.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-ExpenseStatisticsMobile.release.xcconfig"; path = "Target Support Files/Pods-ExpenseStatisticsMobile/Pods-ExpenseStatisticsMobile.release.xcconfig"; sourceTree = "<group>"; };
 		5DCACB8F33CDC322A6C60F78 /* libPods-ExpenseStatisticsMobile.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-ExpenseStatisticsMobile.a"; sourceTree = BUILT_PRODUCTS_DIR; };
+		6A8D8D722E0B92E100A12201 /* ColorWellViewManager.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; name = ColorWellViewManager.m; path = ExpenseStatisticsMobile/ColorWellViewManager.m; sourceTree = "<group>"; };
+		6A8D8D732E0B92E100A12201 /* ColorWellViewManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ColorWellViewManager.swift; path = ExpenseStatisticsMobile/ColorWellViewManager.swift; sourceTree = "<group>"; };
 		73D6AC484F6A40D8A1F2AA01 /* SFSymbolViewManager.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; name = SFSymbolViewManager.m; path = ExpenseStatisticsMobile/SFSymbolViewManager.m; sourceTree = "<group>"; };
 		73D6AC494F6A40D8A1F2AA01 /* SFSymbolViewManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SFSymbolViewManager.swift; path = ExpenseStatisticsMobile/SFSymbolViewManager.swift; sourceTree = "<group>"; };
 		761780EC2CA45674006654EE /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = ExpenseStatisticsMobile/AppDelegate.swift; sourceTree = "<group>"; };
@@ -48,6 +52,8 @@
 			children = (
 				13B07FB51A68108700A75B9A /* Images.xcassets */,
 				761780EC2CA45674006654EE /* AppDelegate.swift */,
+				6A8D8D722E0B92E100A12201 /* ColorWellViewManager.m */,
+				6A8D8D732E0B92E100A12201 /* ColorWellViewManager.swift */,
 				73D6AC484F6A40D8A1F2AA01 /* SFSymbolViewManager.m */,
 				73D6AC494F6A40D8A1F2AA01 /* SFSymbolViewManager.swift */,
 				13B07FB61A68108700A75B9A /* Info.plist */,
@@ -252,6 +258,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				6A8D8D742E0B92E100A12201 /* ColorWellViewManager.m in Sources */,
+				6A8D8D752E0B92E100A12201 /* ColorWellViewManager.swift in Sources */,
 				73D6AC4A4F6A40D8A1F2AA01 /* SFSymbolViewManager.m in Sources */,
 				73D6AC4B4F6A40D8A1F2AA01 /* SFSymbolViewManager.swift in Sources */,
 				761780ED2CA45674006654EE /* AppDelegate.swift in Sources */,
