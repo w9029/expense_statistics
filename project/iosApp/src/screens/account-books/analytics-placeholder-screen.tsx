@@ -88,6 +88,7 @@ export function AnalyticsPlaceholderScreen({route}: Props) {
   const [isLoadingTrend, setIsLoadingTrend] = useState(false);
   const [isLoadingShare, setIsLoadingShare] = useState(false);
   const [isFilterPanelVisible, setIsFilterPanelVisible] = useState(false);
+  const [isTrendGestureActive, setIsTrendGestureActive] = useState(false);
 
   const availableCategoryIDs = useMemo(
     () => categories.map(category => category.id),
@@ -298,7 +299,10 @@ export function AnalyticsPlaceholderScreen({route}: Props) {
   }
 
   return (
-    <ScreenShell hideHero title={t('analytics.title')}>
+    <ScreenShell
+      hideHero
+      scrollEnabled={!isTrendGestureActive}
+      title={t('analytics.title')}>
       <PlaceholderCard
         title={t('analytics.title')}
         description={t('analytics.description')}>
@@ -639,6 +643,7 @@ export function AnalyticsPlaceholderScreen({route}: Props) {
             baseCurrency={detail?.base_currency ?? 'JPY'}
             bucket={bucket}
             items={trendItems}
+            onGestureActiveChange={setIsTrendGestureActive}
             title={t('analytics.trendChartTitle')}
           />
         ) : null}
@@ -739,6 +744,7 @@ function TrendLineChart(props: {
   items: SpendingTrendPoint[];
   bucket: TrendBucket;
   baseCurrency: string;
+  onGestureActiveChange?: (isActive: boolean) => void;
   title: string;
 }) {
   const width = 320;
@@ -828,6 +834,7 @@ function TrendLineChart(props: {
 
   function beginLongPress(event: GestureResponderEvent) {
     clearHoldTimer();
+    props.onGestureActiveChange?.(true);
     pendingTouchXRef.current = event.nativeEvent.locationX;
     touchStartYRef.current = event.nativeEvent.locationY;
     holdTimerRef.current = setTimeout(() => {
@@ -861,6 +868,7 @@ function TrendLineChart(props: {
     pendingTouchXRef.current = null;
     touchStartYRef.current = null;
     setActivePointIndex(null);
+    props.onGestureActiveChange?.(false);
   }
 
   return (
