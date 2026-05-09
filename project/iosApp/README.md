@@ -2,12 +2,13 @@
 
 这是当前项目的 React Native iOS 工程，目录在 `project/iosApp`。
 
-目前这个工程已经完成了最小可运行基线验证，并且现在已经切回标准 React Native 开发模式：
+目前这个工程已经完成了模块 0 的基础架构整理，并且已经切回标准 React Native 开发模式：
 
 - Debug 模式通过 Metro 提供实时 JS 代码
 - 可以在 Xcode 中运行到 iOS 模拟器或真机
-- App 启动后会请求 `http://wlzy.online:8090/healthz`
-- 页面会显示后端返回的健康检查结果
+- 已建立 `src` 目录与基础分层
+- 已接入导航、认证状态、多语言与全局 Toast 骨架
+- 已接入共享 `api-client` / `domain`
 
 ## 你现在最关心的：怎么在 Xcode 里运行
 
@@ -67,10 +68,10 @@ open ios/ExpenseStatisticsMobile.xcworkspace
 5. 点击左上角运行按钮，或者按 `Cmd + R`
 6. 等待编译完成，模拟器会自动启动并安装 App
 
-如果一切正常，你会看到一个最小页面，页面上会显示：
+如果一切正常，你会看到基础架构壳页面，页面上会显示：
 
-- `React Native minimum app`
-- `Health Check` 或你当前修改后的文案
+- `Expense Statistics`
+- 认证流 / 账本 / 个人资料占位页入口
 - 请求成功后的后端返回值
 
 ## 当前工程的开发模式
@@ -145,8 +146,11 @@ npm start -- --reset-cache
 
 ## 当前最小验证页面位置
 
-如果你想看页面代码，入口主要在这里：
+如果你想看当前基础架构入口，主要看这些文件：
 
 - `project/iosApp/App.tsx`
-- `project/iosApp/ios/ExpenseStatisticsMobile/AppDelegate.swift`
-- `project/iosApp/ios/ExpenseStatisticsMobile/Info.plist`
+- `project/iosApp/src/app/app-root.tsx`
+- `project/iosApp/src/app/providers.tsx`
+- `project/iosApp/src/navigation/root-navigator.tsx`
+- `project/iosApp/src/features/auth/auth-context.tsx`
+- `project/iosApp/src/features/i18n/i18n-context.tsx`
