@@ -215,6 +215,15 @@ export function ExpenseCategoriesScreen({navigation, route}: Props) {
           </Text>
         </View>
 
+        <View style={styles.topActionRow}>
+          <ActionButton
+            label={t('collab.open')}
+            onPress={() => navigation.navigate('Collaboration', {accountBookId})}
+            style={styles.shortAction}
+            tone="secondary"
+          />
+        </View>
+
         <View style={styles.summaryRow}>
           <Text style={styles.summaryBadge}>
             {t('categories.total')} {categories.length}
@@ -296,6 +305,9 @@ const styles = StyleSheet.create({
     minHeight: 38,
     paddingHorizontal: 12,
     paddingVertical: 8,
+  },
+  topActionRow: {
+    alignItems: 'flex-start',
   },
   groupSection: {
     gap: 10,

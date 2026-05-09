@@ -10,6 +10,8 @@
 		0C80B921A6F3F58F76C31292 /* libPods-ExpenseStatisticsMobile.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 5DCACB8F33CDC322A6C60F78 /* libPods-ExpenseStatisticsMobile.a */; };
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
 		61A462E93F3C8F716E97226D /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */; };
+		68E11A402F1C1A2C00A12201 /* ClipboardModule.m in Sources */ = {isa = PBXBuildFile; fileRef = 68E11A3E2F1C1A2C00A12201 /* ClipboardModule.m */; };
+		68E11A412F1C1A2C00A12201 /* ClipboardModule.swift in Sources */ = {isa = PBXBuildFile; fileRef = 68E11A3F2F1C1A2C00A12201 /* ClipboardModule.swift */; };
 		6A8D8D742E0B92E100A12201 /* ColorWellViewManager.m in Sources */ = {isa = PBXBuildFile; fileRef = 6A8D8D722E0B92E100A12201 /* ColorWellViewManager.m */; };
 		6A8D8D752E0B92E100A12201 /* ColorWellViewManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A8D8D732E0B92E100A12201 /* ColorWellViewManager.swift */; };
 		6BE0E1012F0B92E100A12201 /* DateFieldViewManager.m in Sources */ = {isa = PBXBuildFile; fileRef = 6BE0E0FF2F0B92E100A12201 /* DateFieldViewManager.m */; };
@@ -28,6 +30,8 @@
 		3B4392A12AC88292D35C810B /* Pods-ExpenseStatisticsMobile.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-ExpenseStatisticsMobile.debug.xcconfig"; path = "Target Support Files/Pods-ExpenseStatisticsMobile/Pods-ExpenseStatisticsMobile.debug.xcconfig"; sourceTree = "<group>"; };
 		5709B34CF0A7D63546082F79 /* Pods-ExpenseStatisticsMobile.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-ExpenseStatisticsMobile.release.xcconfig"; path = "Target Support Files/Pods-ExpenseStatisticsMobile/Pods-ExpenseStatisticsMobile.release.xcconfig"; sourceTree = "<group>"; };
 		5DCACB8F33CDC322A6C60F78 /* libPods-ExpenseStatisticsMobile.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-ExpenseStatisticsMobile.a"; sourceTree = BUILT_PRODUCTS_DIR; };
+		68E11A3E2F1C1A2C00A12201 /* ClipboardModule.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; name = ClipboardModule.m; path = ExpenseStatisticsMobile/ClipboardModule.m; sourceTree = "<group>"; };
+		68E11A3F2F1C1A2C00A12201 /* ClipboardModule.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ClipboardModule.swift; path = ExpenseStatisticsMobile/ClipboardModule.swift; sourceTree = "<group>"; };
 		6A8D8D722E0B92E100A12201 /* ColorWellViewManager.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; name = ColorWellViewManager.m; path = ExpenseStatisticsMobile/ColorWellViewManager.m; sourceTree = "<group>"; };
 		6A8D8D732E0B92E100A12201 /* ColorWellViewManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ColorWellViewManager.swift; path = ExpenseStatisticsMobile/ColorWellViewManager.swift; sourceTree = "<group>"; };
 		6BE0E0FF2F0B92E100A12201 /* DateFieldViewManager.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; name = DateFieldViewManager.m; path = ExpenseStatisticsMobile/DateFieldViewManager.m; sourceTree = "<group>"; };
@@ -56,6 +60,8 @@
 			children = (
 				13B07FB51A68108700A75B9A /* Images.xcassets */,
 				761780EC2CA45674006654EE /* AppDelegate.swift */,
+				68E11A3E2F1C1A2C00A12201 /* ClipboardModule.m */,
+				68E11A3F2F1C1A2C00A12201 /* ClipboardModule.swift */,
 				6A8D8D722E0B92E100A12201 /* ColorWellViewManager.m */,
 				6A8D8D732E0B92E100A12201 /* ColorWellViewManager.swift */,
 				6BE0E0FF2F0B92E100A12201 /* DateFieldViewManager.m */,
@@ -264,6 +270,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				68E11A402F1C1A2C00A12201 /* ClipboardModule.m in Sources */,
+				68E11A412F1C1A2C00A12201 /* ClipboardModule.swift in Sources */,
 				6A8D8D742E0B92E100A12201 /* ColorWellViewManager.m in Sources */,
 				6A8D8D752E0B92E100A12201 /* ColorWellViewManager.swift in Sources */,
 				6BE0E1012F0B92E100A12201 /* DateFieldViewManager.m in Sources */,
