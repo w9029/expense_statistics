@@ -750,7 +750,7 @@ function TrendLineChart(props: {
   const paddingTop = 16;
   const paddingBottom = 32;
   const longPressDelayMs = 180;
-  const verticalTolerance = 44;
+  const verticalTolerance = 64;
   const holdTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingTouchXRef = useRef<number | null>(null);
   const touchStartYRef = useRef<number | null>(null);
