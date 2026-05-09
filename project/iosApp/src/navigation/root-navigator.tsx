@@ -4,6 +4,7 @@ import {useAuth} from '@/features/auth/auth-context';
 import {useI18n} from '@/features/i18n/i18n-context';
 import {AppTabsNavigator} from '@/navigation/tabs-navigator';
 import {PublicNavigator} from '@/navigation/public-navigator';
+import {AccountBookCollaborationScreen} from '@/screens/account-books/account-book-collaboration-screen';
 import {
   ExpenseTypePickerScreen,
   MergedExpenseEditorPlaceholderScreen,
@@ -34,6 +35,10 @@ export function RootNavigator() {
         <>
           <Stack.Screen name="AppTabs" component={AppTabsNavigator} />
           <Stack.Screen name="Invitation" component={InvitationScreen} />
+          <Stack.Screen
+            name="AccountBookCollaboration"
+            component={AccountBookCollaborationScreen}
+          />
           <Stack.Screen
             name="NormalExpenseEditor"
             component={NormalExpenseEditorPlaceholderScreen}

@@ -29,6 +29,7 @@ export type RootStackParamList = {
   Public: NavigatorScreenParams<PublicStackParamList> | undefined;
   AppTabs: NavigatorScreenParams<AppTabParamList> | undefined;
   Invitation: {token?: string} | undefined;
+  AccountBookCollaboration: {accountBookId: string};
   ExpenseTypePicker: {accountBookId: string};
   NormalExpenseEditor: {accountBookId: string; expenseId?: string};
   MergedExpenseEditor: {accountBookId: string; expenseId?: string};

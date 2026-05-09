@@ -1,4 +1,4 @@
-import {NativeModules, Platform} from 'react-native';
+import {NativeModules, Platform, Share} from 'react-native';
 
 type ClipboardModuleShape = {
   copyText?: (text: string) => Promise<void>;
@@ -18,5 +18,8 @@ export async function copyText(text: string) {
     return;
   }
 
-  throw new Error('ClipboardModule unavailable');
+  await Share.share({
+    message: text,
+    url: text,
+  });
 }

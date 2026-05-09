@@ -19,10 +19,10 @@ import {useI18n} from '@/features/i18n/i18n-context';
 import {apiClient} from '@/lib/api';
 import {getApiErrorMessage} from '@/lib/api-errors';
 import {copyText} from '@/lib/clipboard';
-import type {CategoriesStackParamList} from '@/navigation/types';
+import type {RootStackParamList} from '@/navigation/types';
 import {colors} from '@/theme/colors';
 
-type Props = NativeStackScreenProps<CategoriesStackParamList, 'Collaboration'>;
+type Props = NativeStackScreenProps<RootStackParamList, 'AccountBookCollaboration'>;
 type InvitationRole = 'viewer' | 'editor' | 'admin';
 
 type InvitationForm = {

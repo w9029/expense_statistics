@@ -20,6 +20,7 @@ import {useToast} from '@/features/feedback/toast-context';
 import {useI18n} from '@/features/i18n/i18n-context';
 import {apiClient} from '@/lib/api';
 import {getApiErrorMessage} from '@/lib/api-errors';
+import {navigationRef} from '@/lib/navigation';
 import type {AppTabParamList} from '@/navigation/types';
 import {colors} from '@/theme/colors';
 
@@ -412,6 +413,22 @@ export function AccountBooksScreen({
                     }}
                     style={styles.flexButton}
                   />
+                  <ActionButton
+                    label={t('collab.open')}
+                    onPress={() => {
+                      setActiveAccountBookId(book.id);
+                      if (!navigationRef.isReady()) {
+                        return;
+                      }
+                      navigationRef.navigate('AccountBookCollaboration', {
+                        accountBookId: book.id,
+                      });
+                    }}
+                    style={styles.flexButton}
+                    tone="secondary"
+                  />
+                </View>
+                <View style={styles.actions}>
                   <ActionButton
                     disabled={book.is_default || isPendingDefault}
                     label={
