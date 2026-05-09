@@ -4,7 +4,11 @@ import {useAuth} from '@/features/auth/auth-context';
 import {useI18n} from '@/features/i18n/i18n-context';
 import {AppTabsNavigator} from '@/navigation/tabs-navigator';
 import {PublicNavigator} from '@/navigation/public-navigator';
-import {AccountBookDetailPlaceholderScreen} from '@/screens/account-books/account-book-detail-placeholder-screen';
+import {AccountBookDetailScreen} from '@/screens/account-books/account-book-detail-screen';
+import {
+  MergedExpenseEditorPlaceholderScreen,
+  NormalExpenseEditorPlaceholderScreen,
+} from '@/screens/expenses/expense-editor-placeholder-screen';
 import {InvitationScreen} from '@/screens/invitation/invitation-screen';
 import {colors} from '@/theme/colors';
 import type {RootStackParamList} from '@/navigation/types';
@@ -31,8 +35,16 @@ export function RootNavigator() {
           <Stack.Screen name="AppTabs" component={AppTabsNavigator} />
           <Stack.Screen name="Invitation" component={InvitationScreen} />
           <Stack.Screen
+            name="NormalExpenseEditor"
+            component={NormalExpenseEditorPlaceholderScreen}
+          />
+          <Stack.Screen
+            name="MergedExpenseEditor"
+            component={MergedExpenseEditorPlaceholderScreen}
+          />
+          <Stack.Screen
             name="AccountBookDetail"
-            component={AccountBookDetailPlaceholderScreen}
+            component={AccountBookDetailScreen}
           />
         </>
       ) : (
