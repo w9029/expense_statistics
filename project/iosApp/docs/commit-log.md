@@ -39,3 +39,11 @@
 - 说明: 将登录、三步注册、邀请详情与接受流程替换为真实页面，实现邮箱验证码、验证码验证、注册补全、邀请 token/链接解析、登录后回跳和邀请接受；同时补齐模块 1 所需的多语言文案与基础表单组件。
 - 验证: 已执行 `npx tsc --noEmit`、`npm run lint -- --quiet`、`npm test -- --runInBand --watchman=false`；已执行 iOS Debug 模拟器 `xcodebuild` 构建，目标为 `iPhone 17`，构建成功。
 - 后续: 按计划进入模块 2，开始实现账本列表。
+
+## 2026-05-09
+
+- 提交: `feat(ios): implement module 2 account book list`
+- 范围: 模块 2 账本列表
+- 说明: 将 `AccountBooks` tab 替换为真实账本列表页，支持创建账本、设为默认账本、删除账本、退出账本和进入账本详情；补齐模块 2 所需的多语言文案，并把进入详情的导航接到根导航。
+- 验证: 已执行 `npx tsc --noEmit`、`npm run lint -- --quiet`、`npm test -- --runInBand --watchman=false`；已执行 iOS Debug 模拟器 `xcodebuild` 构建，目标为 `iPhone 17`，构建成功。
+- 后续: 按计划进入模块 3，开始实现个人资料。
