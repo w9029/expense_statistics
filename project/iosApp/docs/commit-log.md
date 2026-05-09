@@ -210,7 +210,7 @@
 
 ## 2026-05-10
 
-- 提交: `待提交`
+- 提交: `feat(ios): add trend chart long press details`
 - 范围: 分析页消费趋势图交互增强
 - 说明: 为消费趋势折线图补上长按交互，支持长按后显示纵向参考线、高亮当前数据点，并在数据点上方展示“日期 + 金额”提示气泡；同时支持长按状态下左右拖动，在不同数据点之间连续切换查看。
 - 验证: 待执行 `npx tsc --noEmit`、`npm run lint -- --quiet`、`npm test -- --runInBand --watchman=false`。
