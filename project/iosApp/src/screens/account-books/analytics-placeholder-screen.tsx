@@ -750,8 +750,10 @@ function TrendLineChart(props: {
   const paddingTop = 16;
   const paddingBottom = 32;
   const longPressDelayMs = 180;
+  const verticalTolerance = 44;
   const holdTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingTouchXRef = useRef<number | null>(null);
+  const touchStartYRef = useRef<number | null>(null);
   const [activePointIndex, setActivePointIndex] = useState<number | null>(null);
   const values = props.items.map(item => Number(item.total_converted_amount));
   const maxValue = Math.max(...values, 0);
@@ -827,6 +829,7 @@ function TrendLineChart(props: {
   function beginLongPress(event: GestureResponderEvent) {
     clearHoldTimer();
     pendingTouchXRef.current = event.nativeEvent.locationX;
+    touchStartYRef.current = event.nativeEvent.locationY;
     holdTimerRef.current = setTimeout(() => {
       if (pendingTouchXRef.current === null) {
         return;
@@ -837,7 +840,16 @@ function TrendLineChart(props: {
 
   function handleMove(event: GestureResponderEvent) {
     const nextX = event.nativeEvent.locationX;
+    const nextY = event.nativeEvent.locationY;
     pendingTouchXRef.current = nextX;
+
+    if (
+      touchStartYRef.current !== null &&
+      Math.abs(nextY - touchStartYRef.current) > verticalTolerance
+    ) {
+      endInteraction();
+      return;
+    }
 
     if (activePointIndex !== null) {
       updateActivePoint(nextX);
@@ -847,6 +859,7 @@ function TrendLineChart(props: {
   function endInteraction() {
     clearHoldTimer();
     pendingTouchXRef.current = null;
+    touchStartYRef.current = null;
     setActivePointIndex(null);
   }
 
