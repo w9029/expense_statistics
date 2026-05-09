@@ -12,7 +12,7 @@ class DateFieldViewManager: RCTViewManager {
   }
 }
 
-final class DateFieldView: UIView {
+final class DateFieldView: UIView, UIPickerViewDataSource, UIPickerViewDelegate {
   @objc var value: NSString = "" {
     didSet { syncText() }
   }
@@ -34,13 +34,22 @@ final class DateFieldView: UIView {
 
   @objc var onDateChange: RCTBubblingEventBlock?
 
+  private let calendar = Calendar(identifier: .gregorian)
   private let textField = UITextField()
   private let datePicker = UIDatePicker()
+  private let monthPicker = UIPickerView()
   private let formatter: DateFormatter = {
     let formatter = DateFormatter()
     formatter.calendar = Calendar(identifier: .gregorian)
     return formatter
   }()
+  private let monthFormatter: DateFormatter = {
+    let formatter = DateFormatter()
+    formatter.calendar = Calendar(identifier: .gregorian)
+    return formatter
+  }()
+  private let yearValues = Array(1970...2100)
+  private var selectedMonthDate = Date()
 
   override init(frame: CGRect) {
     super.init(frame: frame)
@@ -77,6 +86,8 @@ final class DateFieldView: UIView {
   }
 
   private func setupPicker() {
+    monthPicker.dataSource = self
+    monthPicker.delegate = self
     datePicker.preferredDatePickerStyle = .wheels
     datePicker.addTarget(self, action: #selector(handlePickerChange), for: .valueChanged)
     textField.inputView = datePicker
@@ -92,11 +103,17 @@ final class DateFieldView: UIView {
 
   private func updatePickerMode() {
     if (mode as String) == "month" {
-      datePicker.datePickerMode = .date
       formatter.dateFormat = "yyyy-MM"
+      textField.inputView = monthPicker
+      syncMonthPickerSelection()
     } else {
       datePicker.datePickerMode = .date
       formatter.dateFormat = "yyyy-MM-dd"
+      textField.inputView = datePicker
+    }
+
+    if textField.isFirstResponder {
+      textField.reloadInputViews()
     }
   }
 
@@ -105,10 +122,13 @@ final class DateFieldView: UIView {
     let pickerLocale = Locale(identifier: localeIdentifier)
     datePicker.locale = pickerLocale
     formatter.locale = Locale(identifier: "en_US_POSIX")
+    monthFormatter.locale = pickerLocale
     if let toolbar = textField.inputAccessoryView as? UIToolbar,
        let lastItem = toolbar.items?.last {
       lastItem.title = doneTitle(for: localeIdentifier)
     }
+    monthPicker.reloadAllComponents()
+    syncMonthPickerSelection()
   }
 
   private func doneTitle(for localeIdentifier: String) -> String {
@@ -127,7 +147,15 @@ final class DateFieldView: UIView {
     textField.text = raw.isEmpty ? nil : raw
 
     if let date = parseDate(from: raw) {
-      datePicker.date = date
+      if (mode as String) == "month" {
+        selectedMonthDate = normalizeMonthDate(date)
+        syncMonthPickerSelection()
+      } else {
+        datePicker.date = date
+      }
+    } else if (mode as String) == "month" {
+      selectedMonthDate = normalizeMonthDate(Date())
+      syncMonthPickerSelection()
     }
   }
 
@@ -150,19 +178,42 @@ final class DateFieldView: UIView {
     return formatter.date(from: raw)
   }
 
-  @objc
-  private func handlePickerChange() {
-    let nextValue: String
-    if (mode as String) == "month" {
-      let components = Calendar(identifier: .gregorian).dateComponents([.year, .month], from: datePicker.date)
-      let year = components.year ?? 0
-      let month = components.month ?? 1
-      nextValue = String(format: "%04d-%02d", year, month)
-    } else {
-      nextValue = formatter.string(from: datePicker.date)
+  private func normalizeMonthDate(_ date: Date) -> Date {
+    let components = calendar.dateComponents([.year, .month], from: date)
+    return calendar.date(from: DateComponents(
+      calendar: calendar,
+      year: components.year,
+      month: components.month,
+      day: 1
+    )) ?? date
+  }
+
+  private func syncMonthPickerSelection() {
+    let components = calendar.dateComponents([.year, .month], from: selectedMonthDate)
+    guard
+      let year = components.year,
+      let month = components.month,
+      let yearRow = yearValues.firstIndex(of: year)
+    else {
+      return
     }
+
+    monthPicker.selectRow(yearRow, inComponent: 0, animated: false)
+    monthPicker.selectRow(max(month - 1, 0), inComponent: 1, animated: false)
+  }
+
+  private func emitValue(_ nextValue: String) {
     textField.text = nextValue
     onDateChange?(["value": nextValue])
+  }
+
+  @objc
+  private func handlePickerChange() {
+    if (mode as String) == "month" {
+      emitValue(formatter.string(from: selectedMonthDate))
+    } else {
+      emitValue(formatter.string(from: datePicker.date))
+    }
   }
 
   @objc
@@ -171,5 +222,48 @@ final class DateFieldView: UIView {
       handlePickerChange()
     }
     textField.resignFirstResponder()
+  }
+
+  func numberOfComponents(in pickerView: UIPickerView) -> Int {
+    2
+  }
+
+  func pickerView(_ pickerView: UIPickerView, numberOfRowsInComponent component: Int) -> Int {
+    component == 0 ? yearValues.count : 12
+  }
+
+  func pickerView(_ pickerView: UIPickerView, widthForComponent component: Int) -> CGFloat {
+    component == 0 ? 110 : 150
+  }
+
+  func pickerView(_ pickerView: UIPickerView, titleForRow row: Int, forComponent component: Int) -> String? {
+    if component == 0 {
+      return String(yearValues[row])
+    }
+
+    let monthSymbols = monthFormatter.standaloneMonthSymbols ?? monthFormatter.monthSymbols ?? []
+    guard row >= 0, row < monthSymbols.count else {
+      return String(format: "%02d", row + 1)
+    }
+    return monthSymbols[row]
+  }
+
+  func pickerView(_ pickerView: UIPickerView, didSelectRow row: Int, inComponent component: Int) {
+    let yearRow = pickerView.selectedRow(inComponent: 0)
+    let monthRow = pickerView.selectedRow(inComponent: 1)
+    guard yearRow >= 0, yearRow < yearValues.count else {
+      return
+    }
+
+    let year = yearValues[yearRow]
+    let month = monthRow + 1
+    selectedMonthDate = calendar.date(from: DateComponents(
+      calendar: calendar,
+      year: year,
+      month: month,
+      day: 1
+    )) ?? selectedMonthDate
+
+    emitValue(formatter.string(from: selectedMonthDate))
   }
 }
