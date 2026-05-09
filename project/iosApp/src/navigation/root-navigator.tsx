@@ -7,6 +7,7 @@ import {PublicNavigator} from '@/navigation/public-navigator';
 import {AccountBookDetailScreen} from '@/screens/account-books/account-book-detail-screen';
 import {ExpenseCategoriesScreen} from '@/screens/account-books/expense-categories-screen';
 import {
+  ExpenseTypePickerScreen,
   MergedExpenseEditorPlaceholderScreen,
   NormalExpenseEditorPlaceholderScreen,
 } from '@/screens/expenses/expense-editor-placeholder-screen';
@@ -50,6 +51,10 @@ export function RootNavigator() {
           <Stack.Screen
             name="ExpenseCategories"
             component={ExpenseCategoriesScreen}
+          />
+          <Stack.Screen
+            name="ExpenseTypePicker"
+            component={ExpenseTypePickerScreen}
           />
         </>
       ) : (

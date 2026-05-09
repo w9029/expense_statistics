@@ -22,6 +22,7 @@ export type RootStackParamList = {
   Invitation: {token?: string} | undefined;
   AccountBookDetail: {accountBookId: string};
   ExpenseCategories: {accountBookId: string};
+  ExpenseTypePicker: {accountBookId: string};
   NormalExpenseEditor: {accountBookId: string; expenseId?: string};
   MergedExpenseEditor: {accountBookId: string; expenseId?: string};
 };
