@@ -23,8 +23,8 @@ export function AppTextInput(props: AppTextInputProps) {
     <TextInput
       autoCapitalize="none"
       placeholderTextColor="#7a8794"
-      style={styles.input}
       {...props}
+      style={[styles.input, props.style]}
     />
   );
 }

@@ -1,6 +1,6 @@
 import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 import {useI18n} from '@/features/i18n/i18n-context';
-import {AccountBooksPlaceholderScreen} from '@/screens/account-books/account-books-placeholder-screen';
+import {AccountBooksScreen} from '@/screens/account-books/account-books-screen';
 import {ProfilePlaceholderScreen} from '@/screens/profile/profile-placeholder-screen';
 import type {AppTabParamList} from '@/navigation/types';
 
@@ -18,7 +18,7 @@ export function AppTabsNavigator() {
       }}>
       <Tab.Screen
         name="AccountBooks"
-        component={AccountBooksPlaceholderScreen}
+        component={AccountBooksScreen}
         options={{title: t('nav.books')}}
       />
       <Tab.Screen

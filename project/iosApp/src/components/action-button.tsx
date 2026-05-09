@@ -4,7 +4,7 @@ type ActionButtonProps = {
   label: string;
   onPress: () => void;
   disabled?: boolean;
-  tone?: 'primary' | 'secondary';
+  tone?: 'primary' | 'secondary' | 'destructive';
   style?: ViewStyle;
 };
 
@@ -21,7 +21,11 @@ export function ActionButton({
       onPress={onPress}
       style={({pressed}) => [
         styles.button,
-        tone === 'primary' ? styles.primary : styles.secondary,
+        tone === 'primary'
+          ? styles.primary
+          : tone === 'secondary'
+            ? styles.secondary
+            : styles.destructive,
         disabled ? styles.disabled : undefined,
         pressed && !disabled ? styles.pressed : undefined,
         style,
@@ -29,7 +33,11 @@ export function ActionButton({
       <Text
         style={[
           styles.label,
-          tone === 'primary' ? styles.primaryLabel : styles.secondaryLabel,
+          tone === 'primary'
+            ? styles.primaryLabel
+            : tone === 'secondary'
+              ? styles.secondaryLabel
+              : styles.destructiveLabel,
         ]}>
         {label}
       </Text>
@@ -52,6 +60,9 @@ const styles = StyleSheet.create({
   secondary: {
     backgroundColor: '#efe6d8',
   },
+  destructive: {
+    backgroundColor: '#8a2e24',
+  },
   disabled: {
     opacity: 0.55,
   },
@@ -67,5 +78,8 @@ const styles = StyleSheet.create({
   },
   secondaryLabel: {
     color: '#17324d',
+  },
+  destructiveLabel: {
+    color: '#ffffff',
   },
 });
