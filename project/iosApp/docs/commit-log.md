@@ -31,3 +31,11 @@
 - 说明: 将 `iosApp` 从单文件 demo 入口整理为正式开发结构，建立 `src` 目录、导航骨架、认证上下文、会话持久化、共享 API client 接入、多语言上下文、全局 Toast、Jest 基础测试配置，以及用于后续模块接入的占位页面。
 - 验证: 已执行 `npm install`、`pod install`、`npm run lint -- --quiet`、`npm test -- --runInBand --watchman=false`；已执行 iOS Debug 模拟器 `xcodebuild` 构建，目标为 `iPhone 17`，构建成功。
 - 后续: 模块 0 提交后，按计划进入模块 1，开始接入真实登录、注册与邀请接受流程。
+
+## 2026-05-09
+
+- 提交: `feat(ios): implement module 1 auth and invitation flow`
+- 范围: 模块 1 认证与邀请入口
+- 说明: 将登录、三步注册、邀请详情与接受流程替换为真实页面，实现邮箱验证码、验证码验证、注册补全、邀请 token/链接解析、登录后回跳和邀请接受；同时补齐模块 1 所需的多语言文案与基础表单组件。
+- 验证: 已执行 `npx tsc --noEmit`、`npm run lint -- --quiet`、`npm test -- --runInBand --watchman=false`；已执行 iOS Debug 模拟器 `xcodebuild` 构建，目标为 `iPhone 17`，构建成功。
+- 后续: 按计划进入模块 2，开始实现账本列表。

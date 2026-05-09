@@ -24,12 +24,12 @@ export function WelcomeScreen({navigation}: Props) {
           <Pressable
             onPress={() => navigation.navigate('Login')}
             style={[styles.button, styles.primaryButton]}>
-            <Text style={styles.primaryButtonText}>Login</Text>
+            <Text style={styles.primaryButtonText}>{t('root.loginButton')}</Text>
           </Pressable>
           <Pressable
             onPress={() => navigation.navigate('Register')}
             style={styles.button}>
-            <Text style={styles.buttonText}>Register</Text>
+            <Text style={styles.buttonText}>{t('root.registerButton')}</Text>
           </Pressable>
         </View>
       </PlaceholderCard>
