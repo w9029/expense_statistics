@@ -1,5 +1,6 @@
-import {useEffect, useMemo, useState} from 'react';
+import {useEffect, useMemo, useRef, useState} from 'react';
 import {Pressable, StyleSheet, Text, View} from 'react-native';
+import type {GestureResponderEvent} from 'react-native';
 import {useIsFocused} from '@react-navigation/native';
 import Svg, {Circle, G, Line, Path} from 'react-native-svg';
 import type {
@@ -672,6 +673,10 @@ function validateMonthRange(range: MonthRange, message: string) {
   return null;
 }
 
+function clamp(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max);
+}
+
 function CategorySharePieChart(props: {
   items: CategoryShareItem[];
   total: string;
@@ -738,10 +743,16 @@ function TrendLineChart(props: {
 }) {
   const width = 320;
   const height = 200;
+  const bubbleWidth = 156;
+  const bubbleHeight = 56;
   const paddingLeft = 18;
   const paddingRight = 18;
   const paddingTop = 16;
   const paddingBottom = 32;
+  const longPressDelayMs = 180;
+  const holdTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingTouchXRef = useRef<number | null>(null);
+  const [activePointIndex, setActivePointIndex] = useState<number | null>(null);
   const values = props.items.map(item => Number(item.total_converted_amount));
   const maxValue = Math.max(...values, 0);
   const minValue = Math.min(...values, 0);
@@ -778,46 +789,155 @@ function TrendLineChart(props: {
           ]),
         );
 
+  const activePoint = activePointIndex === null ? null : points[activePointIndex] ?? null;
+  const bubbleLeft = activePoint
+    ? clamp(activePoint.x - bubbleWidth / 2, 4, width - bubbleWidth - 4)
+    : 0;
+  const bubbleTop = activePoint
+    ? clamp(activePoint.y - bubbleHeight - 14, 4, height - bubbleHeight - 4)
+    : 0;
+
+  function clearHoldTimer() {
+    if (holdTimerRef.current) {
+      clearTimeout(holdTimerRef.current);
+      holdTimerRef.current = null;
+    }
+  }
+
+  function findNearestPointIndex(locationX: number) {
+    let nearestIndex = 0;
+    let nearestDistance = Number.POSITIVE_INFINITY;
+
+    points.forEach((point, index) => {
+      const distance = Math.abs(point.x - locationX);
+      if (distance < nearestDistance) {
+        nearestDistance = distance;
+        nearestIndex = index;
+      }
+    });
+
+    return nearestIndex;
+  }
+
+  function updateActivePoint(locationX: number) {
+    pendingTouchXRef.current = locationX;
+    setActivePointIndex(findNearestPointIndex(locationX));
+  }
+
+  function beginLongPress(event: GestureResponderEvent) {
+    clearHoldTimer();
+    pendingTouchXRef.current = event.nativeEvent.locationX;
+    holdTimerRef.current = setTimeout(() => {
+      if (pendingTouchXRef.current === null) {
+        return;
+      }
+      updateActivePoint(pendingTouchXRef.current);
+    }, longPressDelayMs);
+  }
+
+  function handleMove(event: GestureResponderEvent) {
+    const nextX = event.nativeEvent.locationX;
+    pendingTouchXRef.current = nextX;
+
+    if (activePointIndex !== null) {
+      updateActivePoint(nextX);
+    }
+  }
+
+  function endInteraction() {
+    clearHoldTimer();
+    pendingTouchXRef.current = null;
+    setActivePointIndex(null);
+  }
+
   return (
     <View style={styles.lineChartShell}>
       <Text style={styles.chartTitle}>{props.title}</Text>
-      <Svg height={height} width={width}>
-        <Line
-          stroke={colors.line}
-          strokeWidth={1}
-          x1={paddingLeft}
-          x2={width - paddingRight}
-          y1={paddingTop + usableHeight}
-          y2={paddingTop + usableHeight}
-        />
-        <Line
-          stroke={colors.line}
-          strokeWidth={1}
-          x1={paddingLeft}
-          x2={width - paddingRight}
-          y1={paddingTop}
-          y2={paddingTop}
-        />
-        <Path
-          d={pathD}
-          fill="none"
-          stroke={colors.accent}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth={3}
-        />
-        {points.map(point => (
-          <Circle
-            key={point.item.bucket}
-            cx={point.x}
-            cy={point.y}
-            fill={colors.backgroundSoft}
-            r={4}
-            stroke={colors.accent}
-            strokeWidth={2}
+      <View
+        onMoveShouldSetResponder={() => true}
+        onResponderGrant={beginLongPress}
+        onResponderMove={handleMove}
+        onResponderRelease={endInteraction}
+        onResponderTerminate={endInteraction}
+        onStartShouldSetResponder={() => true}
+        style={styles.lineChartCanvas}>
+        <Svg height={height} width={width}>
+          <Line
+            stroke={colors.line}
+            strokeWidth={1}
+            x1={paddingLeft}
+            x2={width - paddingRight}
+            y1={paddingTop + usableHeight}
+            y2={paddingTop + usableHeight}
           />
-        ))}
-      </Svg>
+          <Line
+            stroke={colors.line}
+            strokeWidth={1}
+            x1={paddingLeft}
+            x2={width - paddingRight}
+            y1={paddingTop}
+            y2={paddingTop}
+          />
+          <Path
+            d={pathD}
+            fill="none"
+            stroke={colors.accent}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={3}
+          />
+          {points.map(point => (
+            <Circle
+              key={point.item.bucket}
+              cx={point.x}
+              cy={point.y}
+              fill={colors.backgroundSoft}
+              r={4}
+              stroke={colors.accent}
+              strokeWidth={2}
+            />
+          ))}
+          {activePoint ? (
+            <>
+              <Line
+                stroke={colors.accentDeep}
+                strokeDasharray="4 4"
+                strokeWidth={1.5}
+                x1={activePoint.x}
+                x2={activePoint.x}
+                y1={paddingTop}
+                y2={paddingTop + usableHeight}
+              />
+              <Circle
+                cx={activePoint.x}
+                cy={activePoint.y}
+                fill={colors.accent}
+                r={6}
+                stroke={colors.backgroundSoft}
+                strokeWidth={3}
+              />
+            </>
+          ) : null}
+        </Svg>
+
+        {activePoint ? (
+          <View
+            pointerEvents="none"
+            style={[
+              styles.chartTooltip,
+              {
+                left: bubbleLeft,
+                top: bubbleTop,
+                width: bubbleWidth,
+              },
+            ]}>
+            <Text style={styles.chartTooltipDate}>{activePoint.item.bucket}</Text>
+            <Text style={styles.chartTooltipAmount}>
+              {formatMoney(activePoint.item.total_converted_amount, props.baseCurrency)}
+            </Text>
+          </View>
+        ) : null}
+      </View>
 
       <View style={styles.lineAxisLabels}>
         {tickIndexes.map(index => {
@@ -1085,10 +1205,39 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
   },
+  lineChartCanvas: {
+    height: 200,
+    position: 'relative',
+    width: 320,
+  },
   chartTitle: {
     color: colors.ink,
     fontSize: 15,
     fontWeight: '700',
+  },
+  chartTooltip: {
+    backgroundColor: colors.backgroundSoft,
+    borderColor: colors.line,
+    borderRadius: 14,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    position: 'absolute',
+    shadowColor: '#000000',
+    shadowOffset: {width: 0, height: 6},
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+  },
+  chartTooltipDate: {
+    color: colors.muted,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  chartTooltipAmount: {
+    color: colors.accentDeep,
+    fontSize: 13,
+    fontWeight: '800',
+    marginTop: 2,
   },
   lineAxisLabels: {
     flexDirection: 'row',
