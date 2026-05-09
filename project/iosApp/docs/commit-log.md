@@ -191,3 +191,11 @@
 - 说明: 将分析页“按月”模式下的开始月份/结束月份从下拉框改为 iOS 原生日历月份选择器，保持日期控件语言跟随 App 当前语言；补充“最近 24 个月”快捷按钮，并继续沿用按月模式最多 24 个月的范围校验。
 - 验证: 待执行 `npx tsc --noEmit`、`npm run lint -- --quiet`、`npm test -- --runInBand --watchman=false`；由于修改了原生 `DateFieldViewManager`，还需在本机 Xcode 中重新编译确认月份选择器显示正常。
 - 后续: 这轮月份筛选体验调整验证通过后，再继续后续分析页和发布收尾工作。
+
+## 2026-05-10
+
+- 提交: `fix(ios): repair analytics month picker behavior`
+- 范围: 分析页月份选择器缺陷修复
+- 说明: 修复分析页切换“按月”后仍显示年月日滚轮、且选择月份后因事件格式不兼容而触发 `nativeEvent.value` 空指针的问题；将月份模式改为真正的“年 / 月”双列原生滚轮，并在 React Native 侧统一兼容日期事件回传格式，避免再次因为事件结构差异而崩溃。
+- 验证: 待执行 `npx tsc --noEmit`、`npm run lint -- --quiet`、`npm test -- --runInBand --watchman=false`；由于涉及 iOS 原生视图逻辑修复，仍需在本机 Xcode 中重新编译验证月份滚轮与事件回传。
+- 后续: 这轮修复确认后，再继续后续分析页和发布收尾工作。
