@@ -1,6 +1,7 @@
 import {useEffect, useMemo, useState} from 'react';
 import {Pressable, StyleSheet, Text, View} from 'react-native';
 import {useIsFocused} from '@react-navigation/native';
+import Svg, {Circle, G, Line, Path} from 'react-native-svg';
 import type {
   AccountBookDetail,
   CategoryShareItem,
@@ -15,6 +16,7 @@ import {InlineBanner} from '@/components/inline-banner';
 import {PlaceholderCard} from '@/components/placeholder-card';
 import {ScreenShell} from '@/components/screen-shell';
 import {SelectField} from '@/components/select-field';
+import {SFSymbol} from '@/components/sf-symbol';
 import {useBookSession} from '@/features/account-books/book-session-context';
 import {useAuth} from '@/features/auth/auth-context';
 import {useI18n} from '@/features/i18n/i18n-context';
@@ -85,6 +87,7 @@ export function AnalyticsPlaceholderScreen({route}: Props) {
   const [isLoadingPage, setIsLoadingPage] = useState(true);
   const [isLoadingTrend, setIsLoadingTrend] = useState(false);
   const [isLoadingShare, setIsLoadingShare] = useState(false);
+  const [isFilterPanelVisible, setIsFilterPanelVisible] = useState(false);
 
   const monthOptions = useMemo(() => createRecentMonthOptions(24), []);
   const availableCategoryIDs = useMemo(
@@ -153,6 +156,48 @@ export function AnalyticsPlaceholderScreen({route}: Props) {
     let cancelled = false;
 
     void (async () => {
+      if (!auth.accessToken || !accountBookId || !isFocused) {
+        return;
+      }
+
+      setIsLoadingShare(true);
+      setShareError(null);
+      try {
+        const response = await apiClient.getCategoryShare(
+          auth.accessToken,
+          accountBookId,
+          {
+            date_from: shareRange.dateFrom || undefined,
+            date_to: shareRange.dateTo || undefined,
+          },
+        );
+
+        if (cancelled) {
+          return;
+        }
+
+        setShareItems(response.items);
+        setShareTotal(response.total_converted_amount);
+      } catch (error) {
+        if (!cancelled) {
+          setShareError(getApiErrorMessage(error, t('book.categoryShareFailed')));
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoadingShare(false);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [accountBookId, auth.accessToken, isFocused, shareRange, t]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void (async () => {
       if (!auth.accessToken || !accountBookId || !isFocused || trendRangeError) {
         return;
       }
@@ -203,48 +248,6 @@ export function AnalyticsPlaceholderScreen({route}: Props) {
     t,
     trendRangeError,
   ]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    void (async () => {
-      if (!auth.accessToken || !accountBookId || !isFocused) {
-        return;
-      }
-
-      setIsLoadingShare(true);
-      setShareError(null);
-      try {
-        const response = await apiClient.getCategoryShare(
-          auth.accessToken,
-          accountBookId,
-          {
-            date_from: shareRange.dateFrom || undefined,
-            date_to: shareRange.dateTo || undefined,
-          },
-        );
-
-        if (cancelled) {
-          return;
-        }
-
-        setShareItems(response.items);
-        setShareTotal(response.total_converted_amount);
-      } catch (error) {
-        if (!cancelled) {
-          setShareError(getApiErrorMessage(error, t('book.categoryShareFailed')));
-        }
-      } finally {
-        if (!cancelled) {
-          setIsLoadingShare(false);
-        }
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [accountBookId, auth.accessToken, isFocused, shareRange, t]);
 
   function applyDayPreset(nextPreset: Exclude<DayRangePreset, null>) {
     setDayPreset(nextPreset);
@@ -315,171 +318,6 @@ export function AnalyticsPlaceholderScreen({route}: Props) {
       {pageError ? <InlineBanner message={pageError} tone="error" /> : null}
 
       <PlaceholderCard
-        title={t('analytics.filtersTitle')}
-        description={t('analytics.filtersDescription')}>
-        <FormField label={t('analytics.trendTitle')}>
-          <View style={styles.segmentRow}>
-            {(['day', 'month'] as TrendBucket[]).map(item => (
-              <Pressable
-                key={item}
-                onPress={() => setBucket(item)}
-                style={[
-                  styles.segment,
-                  bucket === item ? styles.segmentActive : undefined,
-                ]}>
-                <Text
-                  style={[
-                    styles.segmentText,
-                    bucket === item ? styles.segmentTextActive : undefined,
-                  ]}>
-                  {item === 'day' ? t('analytics.day') : t('analytics.month')}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-        </FormField>
-
-        {bucket === 'day' ? (
-          <>
-            <View style={styles.inlineRow}>
-              <View style={styles.flexField}>
-                <FormField label={t('analytics.from')}>
-                  <DateField
-                    onDateChange={event => {
-                      setDayPreset(null);
-                      setDayRange(current => ({
-                        ...current,
-                        dateFrom: event.nativeEvent.value,
-                      }));
-                    }}
-                    placeholder={t('analytics.from')}
-                    style={styles.dateInput}
-                    value={dayRange.dateFrom}
-                  />
-                </FormField>
-              </View>
-              <View style={styles.flexField}>
-                <FormField label={t('analytics.to')}>
-                  <DateField
-                    onDateChange={event => {
-                      setDayPreset(null);
-                      setDayRange(current => ({
-                        ...current,
-                        dateTo: event.nativeEvent.value,
-                      }));
-                    }}
-                    placeholder={t('analytics.to')}
-                    style={styles.dateInput}
-                    value={dayRange.dateTo}
-                  />
-                </FormField>
-              </View>
-            </View>
-
-            <View style={styles.presetRow}>
-              <ActionButton
-                label={t('book.last30Days')}
-                onPress={() => applyDayPreset('last30')}
-                style={styles.presetButton}
-                tone={dayPreset === 'last30' ? 'primary' : 'secondary'}
-              />
-              <ActionButton
-                label={t('book.previous30Days')}
-                onPress={() => applyDayPreset('previous30')}
-                style={styles.presetButton}
-                tone={dayPreset === 'previous30' ? 'primary' : 'secondary'}
-              />
-            </View>
-          </>
-        ) : (
-          <>
-            <View style={styles.inlineRow}>
-              <View style={styles.flexField}>
-                <FormField label={t('analytics.monthFrom')}>
-                  <SelectField
-                    onSelect={value => {
-                      setMonthPreset(null);
-                      setMonthRange(current => ({
-                        ...current,
-                        dateFrom: value,
-                      }));
-                    }}
-                    options={monthOptions}
-                    placeholder={t('analytics.monthFrom')}
-                    value={monthRange.dateFrom}
-                  />
-                </FormField>
-              </View>
-              <View style={styles.flexField}>
-                <FormField label={t('analytics.monthTo')}>
-                  <SelectField
-                    onSelect={value => {
-                      setMonthPreset(null);
-                      setMonthRange(current => ({
-                        ...current,
-                        dateTo: value,
-                      }));
-                    }}
-                    options={monthOptions}
-                    placeholder={t('analytics.monthTo')}
-                    value={monthRange.dateTo}
-                  />
-                </FormField>
-              </View>
-            </View>
-
-            <View style={styles.presetRow}>
-              <ActionButton
-                label={t('analytics.last12Months')}
-                onPress={() => applyMonthPreset('last12')}
-                style={styles.fullPresetButton}
-                tone={monthPreset === 'last12' ? 'primary' : 'secondary'}
-              />
-            </View>
-          </>
-        )}
-
-        <Text style={styles.helperText}>
-          {bucket === 'day' ? t('analytics.dayHint') : t('analytics.monthHint')}
-        </Text>
-
-        <View style={styles.categoryFilterHeader}>
-          <Text style={styles.sectionLabel}>{t('book.categories')}</Text>
-          <ActionButton
-            disabled={!categoryIDs.length}
-            label={t('book.clearCategories')}
-            onPress={clearCategoryFilters}
-            style={styles.shortAction}
-            tone="secondary"
-          />
-        </View>
-
-        <View style={styles.chipWrap}>
-          {categories.map(category => {
-            const active = categoryIDs.includes(category.id);
-            return (
-              <Pressable
-                key={category.id}
-                onPress={() => toggleCategory(category.id)}
-                style={[
-                  styles.categoryChip,
-                  active ? styles.categoryChipActive : undefined,
-                ]}>
-                <View style={[styles.colorDot, {backgroundColor: category.color}]} />
-                <Text
-                  style={[
-                    styles.categoryChipText,
-                    active ? styles.categoryChipTextActive : undefined,
-                  ]}>
-                  {category.name}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
-      </PlaceholderCard>
-
-      <PlaceholderCard
         title={t('book.categoryShareTitle')}
         description={t('book.categoryShareDescription')}>
         <Text style={styles.totalBadge}>
@@ -545,49 +383,236 @@ export function AnalyticsPlaceholderScreen({route}: Props) {
         ) : null}
 
         {positiveShareItems.length ? (
-          <View style={styles.shareList}>
-            {positiveShareItems.map(item => (
-              <View key={item.category_id} style={styles.shareCard}>
-                <View style={styles.shareRow}>
-                  <View style={styles.shareLabelWrap}>
+          <>
+            <CategorySharePieChart
+              baseCurrency={detail?.base_currency ?? 'JPY'}
+              items={positiveShareItems}
+              title={t('analytics.shareChartTitle')}
+              total={shareTotal}
+            />
+            <View style={styles.shareList}>
+              {positiveShareItems.map(item => (
+                <View key={item.category_id} style={styles.shareCard}>
+                  <View style={styles.shareRow}>
+                    <View style={styles.shareLabelWrap}>
+                      <View
+                        style={[
+                          styles.shareSwatch,
+                          {backgroundColor: item.category_color},
+                        ]}
+                      />
+                      <Text style={styles.shareName}>{item.category_name}</Text>
+                    </View>
+                    <Text style={styles.sharePercent}>
+                      {item.percentage.toFixed(1)}%
+                    </Text>
+                  </View>
+                  <View style={styles.shareBarTrack}>
                     <View
                       style={[
-                        styles.shareSwatch,
-                        {backgroundColor: item.category_color},
+                        styles.shareBarFill,
+                        {
+                          backgroundColor: item.category_color,
+                          width: `${Math.max(item.percentage, 3)}%`,
+                        },
                       ]}
                     />
-                    <Text style={styles.shareName}>{item.category_name}</Text>
                   </View>
-                  <Text style={styles.sharePercent}>
-                    {item.percentage.toFixed(1)}%
+                  <Text style={styles.shareAmount}>
+                    {formatMoney(item.total_converted_amount, detail?.base_currency ?? 'JPY')}
                   </Text>
                 </View>
-                <View style={styles.shareBarTrack}>
-                  <View
-                    style={[
-                      styles.shareBarFill,
-                      {
-                        backgroundColor: item.category_color,
-                        width: `${Math.max(item.percentage, 3)}%`,
-                      },
-                    ]}
-                  />
-                </View>
-                <Text style={styles.shareAmount}>
-                  {formatMoney(item.total_converted_amount, detail?.base_currency ?? 'JPY')}
-                </Text>
-              </View>
-            ))}
-          </View>
+              ))}
+            </View>
+          </>
         ) : null}
       </PlaceholderCard>
 
       <PlaceholderCard
         title={t('analytics.trendTitle')}
         description={t('analytics.trendDescription')}>
-        <Text style={styles.totalBadge}>
-          {t('analytics.total')} {formatMoney(trendTotal, detail?.base_currency ?? 'JPY')}
-        </Text>
+        <View style={styles.trendHeaderRow}>
+          <Text style={styles.totalBadge}>
+            {t('analytics.total')} {formatMoney(trendTotal, detail?.base_currency ?? 'JPY')}
+          </Text>
+          <Pressable
+            onPress={() => setIsFilterPanelVisible(current => !current)}
+            style={styles.filterToggleButton}>
+            <Text style={styles.filterToggleText}>{t('book.filters')}</Text>
+            <SFSymbol
+              colorHex={colors.accentDeep}
+              name={isFilterPanelVisible ? 'chevron.up' : 'chevron.down'}
+              pointSize={14}
+              style={styles.filterToggleIcon}
+              weight="semibold"
+            />
+          </Pressable>
+        </View>
+
+        {isFilterPanelVisible ? (
+          <View style={styles.filterPanel}>
+            <FormField label={t('analytics.filtersTitle')}>
+              <View style={styles.segmentRow}>
+                {(['day', 'month'] as TrendBucket[]).map(item => (
+                  <Pressable
+                    key={item}
+                    onPress={() => setBucket(item)}
+                    style={[
+                      styles.segment,
+                      bucket === item ? styles.segmentActive : undefined,
+                    ]}>
+                    <Text
+                      style={[
+                        styles.segmentText,
+                        bucket === item ? styles.segmentTextActive : undefined,
+                      ]}>
+                      {item === 'day' ? t('analytics.day') : t('analytics.month')}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            </FormField>
+
+            {bucket === 'day' ? (
+              <>
+                <View style={styles.inlineRow}>
+                  <View style={styles.flexField}>
+                    <FormField label={t('analytics.from')}>
+                      <DateField
+                        onDateChange={event => {
+                          setDayPreset(null);
+                          setDayRange(current => ({
+                            ...current,
+                            dateFrom: event.nativeEvent.value,
+                          }));
+                        }}
+                        placeholder={t('analytics.from')}
+                        style={styles.dateInput}
+                        value={dayRange.dateFrom}
+                      />
+                    </FormField>
+                  </View>
+                  <View style={styles.flexField}>
+                    <FormField label={t('analytics.to')}>
+                      <DateField
+                        onDateChange={event => {
+                          setDayPreset(null);
+                          setDayRange(current => ({
+                            ...current,
+                            dateTo: event.nativeEvent.value,
+                          }));
+                        }}
+                        placeholder={t('analytics.to')}
+                        style={styles.dateInput}
+                        value={dayRange.dateTo}
+                      />
+                    </FormField>
+                  </View>
+                </View>
+
+                <View style={styles.presetRow}>
+                  <ActionButton
+                    label={t('book.last30Days')}
+                    onPress={() => applyDayPreset('last30')}
+                    style={styles.presetButton}
+                    tone={dayPreset === 'last30' ? 'primary' : 'secondary'}
+                  />
+                  <ActionButton
+                    label={t('book.previous30Days')}
+                    onPress={() => applyDayPreset('previous30')}
+                    style={styles.presetButton}
+                    tone={dayPreset === 'previous30' ? 'primary' : 'secondary'}
+                  />
+                </View>
+              </>
+            ) : (
+              <>
+                <View style={styles.inlineRow}>
+                  <View style={styles.flexField}>
+                    <FormField label={t('analytics.monthFrom')}>
+                      <SelectField
+                        onSelect={value => {
+                          setMonthPreset(null);
+                          setMonthRange(current => ({
+                            ...current,
+                            dateFrom: value,
+                          }));
+                        }}
+                        options={monthOptions}
+                        placeholder={t('analytics.monthFrom')}
+                        value={monthRange.dateFrom}
+                      />
+                    </FormField>
+                  </View>
+                  <View style={styles.flexField}>
+                    <FormField label={t('analytics.monthTo')}>
+                      <SelectField
+                        onSelect={value => {
+                          setMonthPreset(null);
+                          setMonthRange(current => ({
+                            ...current,
+                            dateTo: value,
+                          }));
+                        }}
+                        options={monthOptions}
+                        placeholder={t('analytics.monthTo')}
+                        value={monthRange.dateTo}
+                      />
+                    </FormField>
+                  </View>
+                </View>
+
+                <View style={styles.presetRow}>
+                  <ActionButton
+                    label={t('analytics.last12Months')}
+                    onPress={() => applyMonthPreset('last12')}
+                    style={styles.fullPresetButton}
+                    tone={monthPreset === 'last12' ? 'primary' : 'secondary'}
+                  />
+                </View>
+              </>
+            )}
+
+            <Text style={styles.helperText}>
+              {bucket === 'day' ? t('analytics.dayHint') : t('analytics.monthHint')}
+            </Text>
+
+            <View style={styles.categoryFilterHeader}>
+              <Text style={styles.sectionLabel}>{t('book.categories')}</Text>
+              <ActionButton
+                disabled={!categoryIDs.length}
+                label={t('book.clearCategories')}
+                onPress={clearCategoryFilters}
+                style={styles.shortAction}
+                tone="secondary"
+              />
+            </View>
+
+            <View style={styles.chipWrap}>
+              {categories.map(category => {
+                const active = categoryIDs.includes(category.id);
+                return (
+                  <Pressable
+                    key={category.id}
+                    onPress={() => toggleCategory(category.id)}
+                    style={[
+                      styles.categoryChip,
+                      active ? styles.categoryChipActive : undefined,
+                    ]}>
+                    <View style={[styles.colorDot, {backgroundColor: category.color}]} />
+                    <Text
+                      style={[
+                        styles.categoryChipText,
+                        active ? styles.categoryChipTextActive : undefined,
+                      ]}>
+                      {category.name}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+        ) : null}
 
         {trendRangeError ? (
           <InlineBanner message={trendRangeError} tone="info" />
@@ -601,7 +626,7 @@ export function AnalyticsPlaceholderScreen({route}: Props) {
         ) : null}
 
         {trendItems.length ? (
-          <TrendChart
+          <TrendLineChart
             baseCurrency={detail?.base_currency ?? 'JPY'}
             bucket={bucket}
             items={trendItems}
@@ -639,41 +664,176 @@ function validateMonthRange(range: MonthRange, message: string) {
   return null;
 }
 
-function TrendChart(props: {
+function CategorySharePieChart(props: {
+  items: CategoryShareItem[];
+  total: string;
+  baseCurrency: string;
+  title: string;
+}) {
+  const size = 180;
+  const strokeWidth = 26;
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  let offsetCursor = 0;
+
+  return (
+    <View style={styles.pieShell}>
+      <Text style={styles.chartTitle}>{props.title}</Text>
+      <View style={styles.pieWrap}>
+        <Svg height={size} width={size}>
+          <G rotation={-90} origin={`${size / 2}, ${size / 2}`}>
+            <Circle
+              cx={size / 2}
+              cy={size / 2}
+              fill="transparent"
+              r={radius}
+              stroke={colors.surfaceMuted}
+              strokeWidth={strokeWidth}
+            />
+            {props.items.map(item => {
+              const dash = (item.percentage / 100) * circumference;
+              const circle = (
+                <Circle
+                  key={item.category_id}
+                  cx={size / 2}
+                  cy={size / 2}
+                  fill="transparent"
+                  r={radius}
+                  stroke={item.category_color}
+                  strokeDasharray={`${dash} ${circumference - dash}`}
+                  strokeDashoffset={-offsetCursor}
+                  strokeLinecap="butt"
+                  strokeWidth={strokeWidth}
+                />
+              );
+              offsetCursor += dash;
+              return circle;
+            })}
+          </G>
+        </Svg>
+        <View style={styles.pieCenter}>
+          <Text style={styles.pieCenterLabel}>{props.title}</Text>
+          <Text style={styles.pieCenterValue}>
+            {formatMoney(props.total, props.baseCurrency)}
+          </Text>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+function TrendLineChart(props: {
   items: SpendingTrendPoint[];
   bucket: TrendBucket;
   baseCurrency: string;
   title: string;
 }) {
+  const width = 320;
+  const height = 200;
+  const paddingLeft = 18;
+  const paddingRight = 18;
+  const paddingTop = 16;
+  const paddingBottom = 32;
   const values = props.items.map(item => Number(item.total_converted_amount));
   const maxValue = Math.max(...values, 0);
+  const minValue = Math.min(...values, 0);
+  const range = Math.max(maxValue - minValue, 1);
+  const usableWidth = width - paddingLeft - paddingRight;
+  const usableHeight = height - paddingTop - paddingBottom;
+
+  const points = props.items.map((item, index) => {
+    const x =
+      props.items.length === 1
+        ? paddingLeft + usableWidth / 2
+        : paddingLeft + (usableWidth * index) / Math.max(props.items.length - 1, 1);
+    const value = Number(item.total_converted_amount);
+    const normalized = (value - minValue) / range;
+    const y = paddingTop + usableHeight - normalized * usableHeight;
+    return {x, y, item};
+  });
+
+  const pathD = points
+    .map((point, index) =>
+      `${index === 0 ? 'M' : 'L'} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`,
+    )
+    .join(' ');
+
+  const tickIndexes =
+    props.items.length <= 5
+      ? props.items.map((_, index) => index)
+      : Array.from(
+          new Set([
+            0,
+            Math.floor((props.items.length - 1) / 3),
+            Math.floor(((props.items.length - 1) * 2) / 3),
+            props.items.length - 1,
+          ]),
+        );
 
   return (
-    <View style={styles.chartShell}>
+    <View style={styles.lineChartShell}>
       <Text style={styles.chartTitle}>{props.title}</Text>
-      <View style={styles.chartRows}>
-        {props.items.map(item => {
-          const value = Number(item.total_converted_amount);
-          const ratio = maxValue > 0 ? value / maxValue : 0;
+      <Svg height={height} width={width}>
+        <Line
+          stroke={colors.line}
+          strokeWidth={1}
+          x1={paddingLeft}
+          x2={width - paddingRight}
+          y1={paddingTop + usableHeight}
+          y2={paddingTop + usableHeight}
+        />
+        <Line
+          stroke={colors.line}
+          strokeWidth={1}
+          x1={paddingLeft}
+          x2={width - paddingRight}
+          y1={paddingTop}
+          y2={paddingTop}
+        />
+        <Path
+          d={pathD}
+          fill="none"
+          stroke={colors.accent}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={3}
+        />
+        {points.map(point => (
+          <Circle
+            key={point.item.bucket}
+            cx={point.x}
+            cy={point.y}
+            fill={colors.backgroundSoft}
+            r={4}
+            stroke={colors.accent}
+            strokeWidth={2}
+          />
+        ))}
+      </Svg>
+
+      <View style={styles.lineAxisLabels}>
+        {tickIndexes.map(index => {
+          const point = points[index];
+          if (!point) {
+            return null;
+          }
           return (
-            <View key={item.bucket} style={styles.chartRow}>
-              <Text style={styles.chartLabel}>
-                {props.bucket === 'month' ? item.bucket : item.bucket.slice(5)}
-              </Text>
-              <View style={styles.chartTrack}>
-                <View
-                  style={[
-                    styles.chartFill,
-                    {width: `${Math.max(ratio * 100, value > 0 ? 6 : 0)}%`},
-                  ]}
-                />
-              </View>
-              <Text style={styles.chartValue}>
-                {formatMoney(item.total_converted_amount, props.baseCurrency)}
-              </Text>
-            </View>
+            <Text key={`${point.item.bucket}-label`} style={styles.lineAxisLabel}>
+              {props.bucket === 'month'
+                ? point.item.bucket.slice(2)
+                : point.item.bucket.slice(5)}
+            </Text>
           );
         })}
+      </View>
+
+      <View style={styles.lineMetaRow}>
+        <Text style={styles.lineMetaText}>
+          {formatMoney(String(minValue.toFixed(2)), props.baseCurrency)}
+        </Text>
+        <Text style={styles.lineMetaText}>
+          {formatMoney(String(maxValue.toFixed(2)), props.baseCurrency)}
+        </Text>
       </View>
     </View>
   );
@@ -696,31 +856,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     paddingHorizontal: 10,
     paddingVertical: 6,
-  },
-  segmentRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  segment: {
-    alignItems: 'center',
-    backgroundColor: colors.surfaceMuted,
-    borderRadius: 14,
-    flex: 1,
-    justifyContent: 'center',
-    minHeight: 44,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-  },
-  segmentActive: {
-    backgroundColor: colors.accent,
-  },
-  segmentText: {
-    color: colors.accentDeep,
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  segmentTextActive: {
-    color: colors.backgroundSoft,
   },
   inlineRow: {
     flexDirection: 'row',
@@ -748,59 +883,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
   },
-  helperText: {
-    color: colors.muted,
-    fontSize: 13,
-    lineHeight: 19,
-  },
-  categoryFilterHeader: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  sectionLabel: {
-    color: colors.ink,
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  shortAction: {
-    minHeight: 36,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  chipWrap: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  categoryChip: {
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: 999,
-    borderWidth: 1,
-    flexDirection: 'row',
-    gap: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 9,
-  },
-  categoryChipActive: {
-    backgroundColor: colors.accentSoftMuted,
-    borderColor: colors.accentSoft,
-  },
-  categoryChipText: {
-    color: colors.ink,
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  categoryChipTextActive: {
-    color: colors.accentDeep,
-  },
-  colorDot: {
-    borderRadius: 999,
-    height: 10,
-    width: 10,
-  },
   totalBadge: {
     alignSelf: 'flex-start',
     backgroundColor: colors.surfaceMuted,
@@ -811,6 +893,30 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     paddingHorizontal: 10,
     paddingVertical: 6,
+  },
+  pieShell: {
+    alignItems: 'center',
+    gap: 12,
+  },
+  pieWrap: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pieCenter: {
+    alignItems: 'center',
+    gap: 4,
+    position: 'absolute',
+  },
+  pieCenterLabel: {
+    color: colors.muted,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  pieCenterValue: {
+    color: colors.ink,
+    fontSize: 16,
+    fontWeight: '800',
+    textAlign: 'center',
   },
   shareList: {
     gap: 10,
@@ -867,7 +973,114 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
   },
-  chartShell: {
+  trendHeaderRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  filterToggleButton: {
+    alignItems: 'center',
+    backgroundColor: colors.accentSoftMuted,
+    borderColor: colors.line,
+    borderRadius: 999,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  filterToggleText: {
+    color: colors.accentDeep,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  filterToggleIcon: {
+    height: 14,
+    width: 14,
+  },
+  filterPanel: {
+    gap: 14,
+  },
+  segmentRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  segment: {
+    alignItems: 'center',
+    backgroundColor: colors.surfaceMuted,
+    borderRadius: 14,
+    flex: 1,
+    justifyContent: 'center',
+    minHeight: 44,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  segmentActive: {
+    backgroundColor: colors.accent,
+  },
+  segmentText: {
+    color: colors.accentDeep,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  segmentTextActive: {
+    color: colors.backgroundSoft,
+  },
+  helperText: {
+    color: colors.muted,
+    fontSize: 13,
+    lineHeight: 19,
+  },
+  categoryFilterHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  sectionLabel: {
+    color: colors.ink,
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  shortAction: {
+    minHeight: 36,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  chipWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  categoryChip: {
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 999,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+  },
+  categoryChipActive: {
+    backgroundColor: colors.accentSoftMuted,
+    borderColor: colors.accentSoft,
+  },
+  categoryChipText: {
+    color: colors.ink,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  categoryChipTextActive: {
+    color: colors.accentDeep,
+  },
+  colorDot: {
+    borderRadius: 999,
+    height: 10,
+    width: 10,
+  },
+  lineChartShell: {
+    alignItems: 'center',
     gap: 10,
   },
   chartTitle: {
@@ -875,37 +1088,24 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
   },
-  chartRows: {
-    gap: 10,
-  },
-  chartRow: {
-    alignItems: 'center',
+  lineAxisLabels: {
     flexDirection: 'row',
-    gap: 10,
+    justifyContent: 'space-between',
+    width: 320,
   },
-  chartLabel: {
+  lineAxisLabel: {
+    color: colors.muted,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  lineMetaRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: 320,
+  },
+  lineMetaText: {
     color: colors.muted,
     fontSize: 12,
-    fontWeight: '700',
-    width: 56,
-  },
-  chartTrack: {
-    backgroundColor: colors.surfaceMuted,
-    borderRadius: 999,
-    flex: 1,
-    height: 12,
-    overflow: 'hidden',
-  },
-  chartFill: {
-    backgroundColor: colors.accent,
-    borderRadius: 999,
-    height: '100%',
-  },
-  chartValue: {
-    color: colors.ink,
-    fontSize: 12,
-    fontWeight: '700',
-    textAlign: 'right',
-    width: 108,
+    fontWeight: '600',
   },
 });

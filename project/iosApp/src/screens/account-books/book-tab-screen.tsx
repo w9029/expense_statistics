@@ -8,7 +8,6 @@ import {useBookSession} from '@/features/account-books/book-session-context';
 import {useI18n} from '@/features/i18n/i18n-context';
 import type {AppTabParamList, CategoriesStackParamList} from '@/navigation/types';
 import {AccountBookDetailScreen} from '@/screens/account-books/account-book-detail-screen';
-import {AccountBookCollaborationScreen} from '@/screens/account-books/account-book-collaboration-screen';
 import {AnalyticsPlaceholderScreen} from '@/screens/account-books/analytics-placeholder-screen';
 import {CategoryCreateScreen} from '@/screens/account-books/category-create-screen';
 import {ExpenseCategoriesScreen} from '@/screens/account-books/expense-categories-screen';
@@ -84,12 +83,6 @@ export function CategoriesTabScreen({route, navigation}: BottomTabScreenProps<Ap
       <CategoriesStack.Screen
         name="CategoryCreate"
         component={CategoryCreateScreen}
-        initialParams={{accountBookId}}
-        options={{headerShown: false}}
-      />
-      <CategoriesStack.Screen
-        name="Collaboration"
-        component={AccountBookCollaborationScreen}
         initialParams={{accountBookId}}
         options={{headerShown: false}}
       />

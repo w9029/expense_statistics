@@ -175,3 +175,11 @@
 - 说明: 更新 `README.md`，把工程现状从基础架构阶段改为当前 0-9 模块已完成状态，并补充关键入口文件说明；新增中文 `release-readiness-checklist.md`，集中整理当前运行方式、ATS/HTTP 现状、真机与模拟器检查项、发布前建议和不应提交的本地文件提醒。
 - 验证: 已执行 `npx tsc --noEmit`、`npm run lint -- --quiet`、`npm test -- --runInBand --watchman=false`。
 - 后续: 继续模块 10 的体验收口和发布准备，包括空态/错误态统一、真机异常场景复核，以及 App 基础元信息整理。
+
+## 2026-05-10
+
+- 提交: `fix(ios): relocate collaboration entry and redesign analytics`
+- 范围: 协作入口、邀请复制链路与分析页重构
+- 说明: 将“协作管理”入口从类别管理页挪到账本选择页的每个账本卡片中，并补上根导航直达协作页；修复创建邀请后“复制链接”失败的问题，保留原生剪贴板桥优先，并在原生模块未生效时退化到系统分享；为分析页引入 `react-native-svg`，把类别占比区域改为“预设按钮 + 饼图 + 列表”，把分析筛选并入消费趋势区域且支持折叠/展开，并将消费趋势改为折线图。
+- 验证: 已执行 `pod install`、`npx tsc --noEmit`、`npm run lint -- --quiet`、`npm test -- --runInBand --watchman=false`。
+- 后续: 由于新增了 `react-native-svg`，需要在本机 Xcode 中重新编译一次，再确认协作入口跳转、邀请链接复制/分享，以及分析页图表显示效果。
