@@ -679,11 +679,11 @@ export function AccountBookDetailScreen({route}: Props) {
           <Text style={styles.expenseInfoText}>{expense.spent_at}</Text>
         </View>
 
-        <View style={styles.expenseInfoRow}>
-          {exchangeRateLabel ? (
+        {exchangeRateLabel ? (
+          <View style={styles.expenseInfoRow}>
             <Text style={styles.expenseInfoText}>{exchangeRateLabel}</Text>
-          ) : null}
-        </View>
+          </View>
+        ) : null}
 
         {expense.children?.length ? (
           <View style={styles.childList}>
@@ -693,18 +693,22 @@ export function AccountBookDetailScreen({route}: Props) {
               return (
                 <View key={child.id} style={styles.childRow}>
                   <View style={styles.childMain}>
-                    <View style={styles.childCategoryRow}>
-                      <View
-                        style={[
-                          styles.colorDot,
-                          {backgroundColor: childCategory?.color ?? colors.accentSoft},
-                        ]}
-                      />
-                      <Text style={styles.childCategoryText}>
-                        {childCategory?.name ?? t('book.unknownCategory')}
+                    <View style={styles.childTitleRow}>
+                      <View style={styles.childCategoryRow}>
+                        <View
+                          style={[
+                            styles.colorDot,
+                            {backgroundColor: childCategory?.color ?? colors.accentSoft},
+                          ]}
+                        />
+                        <Text style={styles.childCategoryText}>
+                          {childCategory?.name ?? t('book.unknownCategory')}
+                        </Text>
+                      </View>
+                      <Text numberOfLines={1} style={styles.childName}>
+                        {child.name}
                       </Text>
                     </View>
-                    <Text style={styles.childName}>{child.name}</Text>
                     {child.description ? (
                       <Text style={styles.childDescription}>{child.description}</Text>
                     ) : null}
@@ -1523,7 +1527,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
-    minHeight: 16,
   },
   expenseInfoText: {
     color: colors.muted,
@@ -1546,10 +1549,17 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 4,
   },
+  childTitleRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 8,
+    minWidth: 0,
+  },
   childCategoryRow: {
     alignItems: 'center',
     flexDirection: 'row',
     gap: 6,
+    flexShrink: 0,
   },
   childCategoryText: {
     color: colors.accentDeep,
@@ -1558,8 +1568,10 @@ const styles = StyleSheet.create({
   },
   childName: {
     color: colors.ink,
+    flex: 1,
     fontSize: 14,
     fontWeight: '600',
+    minWidth: 0,
   },
   childDescription: {
     color: colors.muted,

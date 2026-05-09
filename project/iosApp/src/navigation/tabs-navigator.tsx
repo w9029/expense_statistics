@@ -1,5 +1,5 @@
 import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
-import {Pressable, StyleSheet, View} from 'react-native';
+import {Pressable, StyleSheet} from 'react-native';
 import type {BottomTabBarButtonProps} from '@react-navigation/bottom-tabs';
 import {useBookSession} from '@/features/account-books/book-session-context';
 import {useI18n} from '@/features/i18n/i18n-context';
@@ -22,16 +22,15 @@ function DisabledTabButton({
   disabled,
   onPress,
   accessibilityState,
+  style,
 }: BottomTabBarButtonProps & {disabled?: boolean}) {
   return (
     <Pressable
       accessibilityState={{...accessibilityState, disabled}}
       disabled={disabled}
       onPress={disabled ? undefined : onPress}
-      style={styles.tabButton}>
-      <View pointerEvents="none" style={disabled ? styles.tabButtonDisabled : undefined}>
-        {children}
-      </View>
+      style={[style, disabled ? styles.tabButtonDisabled : undefined]}>
+      {children}
     </Pressable>
   );
 }
@@ -93,9 +92,6 @@ export function AppTabsNavigator() {
 }
 
 const styles = StyleSheet.create({
-  tabButton: {
-    flex: 1,
-  },
   tabButtonDisabled: {
     opacity: 0.45,
   },
