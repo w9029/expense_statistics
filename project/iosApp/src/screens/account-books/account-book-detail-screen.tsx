@@ -62,6 +62,7 @@ export function AccountBookDetailScreen({route}: Props) {
   const [isDeletingBook, setIsDeletingBook] = useState(false);
   const [isLeavingBook, setIsLeavingBook] = useState(false);
   const [isLoadingExpenses, setIsLoadingExpenses] = useState(false);
+  const [isFilterPanelVisible, setIsFilterPanelVisible] = useState(false);
   const [isDeletingExpenseId, setIsDeletingExpenseId] = useState<string | null>(null);
   const [expensePageMeta, setExpensePageMeta] = useState({
     page: 1,
@@ -86,11 +87,15 @@ export function AccountBookDetailScreen({route}: Props) {
     () => new Map(members.map(member => [member.user_id, member] as const)),
     [members],
   );
-  const availableCategoryIDs = categories.map(category => category.id);
+  const availableCategoryIDs = useMemo(
+    () => categories.map(category => category.id),
+    [categories],
+  );
   const effectiveCategoryIDs = normalizeSelectedIDsForQuery(
     filters.categoryIDs,
     availableCategoryIDs,
   );
+  const categoryQueryKey = effectiveCategoryIDs?.join(',') ?? '';
   const defaultFilters = useMemo(() => createDefaultExpenseListFilters(), []);
 
   const hasActiveFilters =
@@ -210,7 +215,7 @@ export function AccountBookDetailScreen({route}: Props) {
     return () => {
       cancelled = true;
     };
-  }, [accountBookId, auth.accessToken, effectiveCategoryIDs, filters, t]);
+  }, [accountBookId, auth.accessToken, categoryQueryKey, effectiveCategoryIDs, filters, t]);
 
   function updateFilter<K extends keyof ExpenseListFilters>(
     key: K,
@@ -270,13 +275,40 @@ export function AccountBookDetailScreen({route}: Props) {
     return Object.keys(nextErrors).length === 0;
   }
 
-  async function reloadDetail() {
+  async function refreshExpenses() {
     if (!auth.accessToken) {
       return;
     }
 
-    const nextDetail = await apiClient.getAccountBook(auth.accessToken, accountBookId);
-    setDetail(nextDetail);
+    setIsLoadingExpenses(true);
+    setExpenseError(null);
+    try {
+      const response = await apiClient.listExpenses(auth.accessToken, accountBookId, {
+        include_children: true,
+        page: filters.page,
+        page_size: 10,
+        keyword: filters.keyword.trim() || undefined,
+        category_ids: effectiveCategoryIDs,
+        user_id: filters.userID || undefined,
+        min_amount: filters.minAmount.trim() || undefined,
+        max_amount: filters.maxAmount.trim() || undefined,
+        original_currency: filters.originalCurrency.trim().toUpperCase() || undefined,
+        date_from: filters.dateFrom || undefined,
+        date_to: filters.dateTo || undefined,
+        spent_at_order: filters.spentAtOrder,
+      });
+      setExpenses(response.items);
+      setExpensePageMeta({
+        page: response.page,
+        pageSize: response.page_size,
+        total: response.total,
+        totalConvertedAmount: response.total_converted_amount,
+      });
+    } catch (error) {
+      setExpenseError(getApiErrorMessage(error, t('book.loadExpensesFailed')));
+    } finally {
+      setIsLoadingExpenses(false);
+    }
   }
 
   async function handleSaveMetadata() {
@@ -431,8 +463,7 @@ export function AccountBookDetailScreen({route}: Props) {
             try {
               await apiClient.deleteExpense(auth.accessToken, accountBookId, expense.id);
               showToast(t('book.expenseDeleted'), 'success');
-              await reloadDetail();
-              setFilters(current => ({...current}));
+              await refreshExpenses();
             } catch (error) {
               showToast(
                 getApiErrorMessage(error, t('book.expenseDeleteFailed')),
@@ -475,7 +506,38 @@ export function AccountBookDetailScreen({route}: Props) {
       !!detail?.base_currency && expense.original_currency !== detail.base_currency;
 
     return (
-      <PlaceholderCard key={expense.id} title={expense.name}>
+      <PlaceholderCard
+        key={expense.id}
+        title={expense.name}
+        headerAccessory={
+          canManageExpenses ? (
+            <View style={styles.headerActionRow}>
+              <Pressable
+                onPress={() => handleEditExpense(expense)}
+                style={styles.iconHeaderButton}>
+                <SFSymbol
+                  colorHex={colors.accentDeep}
+                  name="pencil"
+                  pointSize={15}
+                  style={styles.headerIcon}
+                  weight="semibold"
+                />
+              </Pressable>
+              <Pressable
+                disabled={deletingThisExpense}
+                onPress={() => handleDeleteExpense(expense)}
+                style={styles.iconHeaderButton}>
+                <SFSymbol
+                  colorHex={colors.danger}
+                  name="trash"
+                  pointSize={15}
+                  style={styles.headerIcon}
+                  weight="semibold"
+                />
+              </Pressable>
+            </View>
+          ) : null
+        }>
         <View style={styles.expenseTopRow}>
           <View style={styles.expenseMetaWrap}>
             <View
@@ -536,24 +598,6 @@ export function AccountBookDetailScreen({route}: Props) {
           ) : null}
         </View>
 
-        {canManageExpenses ? (
-          <View style={styles.expenseActions}>
-            <ActionButton
-              label={t('book.edit')}
-              onPress={() => handleEditExpense(expense)}
-              style={styles.expenseActionButton}
-              tone="secondary"
-            />
-            <ActionButton
-              disabled={deletingThisExpense}
-              label={deletingThisExpense ? t('book.deleting') : t('common.delete')}
-              onPress={() => handleDeleteExpense(expense)}
-              style={styles.expenseActionButton}
-              tone="destructive"
-            />
-          </View>
-        ) : null}
-
         {expense.children?.length ? (
           <View style={styles.childList}>
             {expense.children.map(child => {
@@ -593,13 +637,14 @@ export function AccountBookDetailScreen({route}: Props) {
   return (
     <ScreenShell
       eyebrow={detail?.base_currency ?? t('book.titleFallback')}
+      hideHero
       title={detail?.name ?? t('book.titleFallback')}
       description={detail?.description ?? t('book.snapshotDescription')}>
       {isLoadingPage ? <InlineBanner message={t('book.loadingBook')} tone="info" /> : null}
       {pageError ? <InlineBanner message={pageError} tone="error" /> : null}
 
       <PlaceholderCard
-        title={t('book.snapshotTitle')}
+        title={t('book.expensesTitle')}
         headerAccessory={
           <View style={styles.headerActionRow}>
             {canEdit ? (
@@ -648,12 +693,34 @@ export function AccountBookDetailScreen({route}: Props) {
             ) : null}
           </View>
         }>
+        <View style={styles.topSummaryRow}>
+          <View style={styles.topSummaryMain}>
+            <Text style={styles.topCurrencyChip}>{detail?.base_currency ?? '-'}</Text>
+            <Text numberOfLines={1} style={styles.topBookName}>
+              {detail?.name ?? t('book.titleFallback')}
+            </Text>
+          </View>
+          {canManageExpenses ? (
+            <View style={styles.inlineActionRow}>
+              <ActionButton
+                label={t('book.addNormal')}
+                onPress={() =>
+                  navigationRef.navigate('NormalExpenseEditor', {accountBookId})
+                }
+              />
+              <ActionButton
+                label={t('book.addMerged')}
+                onPress={() =>
+                  navigationRef.navigate('MergedExpenseEditor', {accountBookId})
+                }
+              />
+            </View>
+          ) : null}
+        </View>
+
         <View style={styles.metaStrip}>
           <Text style={styles.metaChip}>
             {t('book.roleLabel')}: {detail?.my_role ?? '-'}
-          </Text>
-          <Text style={styles.metaChip}>
-            {t('book.baseLabel')}: {detail?.base_currency ?? '-'}
           </Text>
           <Text style={styles.metaChip}>
             {t('book.categoriesLabel')}: {categories.length}
@@ -704,9 +771,6 @@ export function AccountBookDetailScreen({route}: Props) {
             </View>
           </View>
         ) : null}
-      </PlaceholderCard>
-
-      <PlaceholderCard title={t('book.expensesTitle')}>
         <View style={styles.summaryRow}>
           <Text style={styles.expenseBadge}>
             {t('book.total')} {expensePageMeta.total}
@@ -720,268 +784,269 @@ export function AccountBookDetailScreen({route}: Props) {
           </Text>
         </View>
 
-        <View style={styles.filterGroup}>
-          <FormField label={t('book.keyword')}>
-            <AppTextInput
-              onChangeText={text => updateFilter('keyword', text)}
-              placeholder={t('book.keywordPlaceholder')}
-              value={filters.keyword}
+        <Pressable
+          onPress={() => setIsFilterPanelVisible(current => !current)}
+          style={styles.filterToggle}>
+          <View style={styles.filterToggleTextRow}>
+            <Text style={styles.filterToggleText}>{t('book.filters')}</Text>
+            <SFSymbol
+              colorHex={colors.accentDeep}
+              name={isFilterPanelVisible ? 'chevron.up' : 'chevron.down'}
+              pointSize={14}
+              style={styles.filterToggleIcon}
+              weight="semibold"
             />
-          </FormField>
+          </View>
+        </Pressable>
 
-          <View style={styles.filterRow}>
-            <View style={styles.flexField}>
-              <FormField label={t('book.user')}>
-                <View style={styles.selectRow}>
-                  <Pressable
-                    onPress={() => updateFilter('userID', '')}
-                    style={[
-                      styles.selectChip,
-                      !filters.userID ? styles.selectChipActive : undefined,
-                    ]}>
-                    <Text
-                      style={[
-                        styles.selectChipText,
-                        !filters.userID ? styles.selectChipTextActive : undefined,
-                      ]}>
-                      {t('book.allUsers')}
-                    </Text>
-                  </Pressable>
-                  {members.map(member => (
+        {isFilterPanelVisible ? (
+          <View style={styles.filterGroup}>
+            <FormField label={t('book.keyword')}>
+              <AppTextInput
+                onChangeText={text => updateFilter('keyword', text)}
+                placeholder={t('book.keywordPlaceholder')}
+                value={filters.keyword}
+              />
+            </FormField>
+
+            <View style={styles.filterRow}>
+              <View style={styles.flexField}>
+                <FormField label={t('book.user')}>
+                  <View style={styles.selectRow}>
                     <Pressable
-                      key={member.user_id}
-                      onPress={() => updateFilter('userID', member.user_id)}
+                      onPress={() => updateFilter('userID', '')}
                       style={[
                         styles.selectChip,
-                        filters.userID === member.user_id
-                          ? styles.selectChipActive
-                          : undefined,
+                        !filters.userID ? styles.selectChipActive : undefined,
                       ]}>
                       <Text
                         style={[
                           styles.selectChipText,
-                          filters.userID === member.user_id
-                            ? styles.selectChipTextActive
-                            : undefined,
+                          !filters.userID ? styles.selectChipTextActive : undefined,
                         ]}>
-                        {member.name}
+                        {t('book.allUsers')}
                       </Text>
                     </Pressable>
-                  ))}
-                </View>
-              </FormField>
+                    {members.map(member => (
+                      <Pressable
+                        key={member.user_id}
+                        onPress={() => updateFilter('userID', member.user_id)}
+                        style={[
+                          styles.selectChip,
+                          filters.userID === member.user_id
+                            ? styles.selectChipActive
+                            : undefined,
+                        ]}>
+                        <Text
+                          style={[
+                            styles.selectChipText,
+                            filters.userID === member.user_id
+                              ? styles.selectChipTextActive
+                              : undefined,
+                          ]}>
+                          {member.name}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                </FormField>
+              </View>
             </View>
-          </View>
 
-          <View style={styles.filterRow}>
-            <View style={styles.flexButton}>
-              <FormField label={t('book.currency')}>
-                <AppTextInput
-                  autoCapitalize="characters"
-                  maxLength={3}
-                  onChangeText={text => updateFilter('originalCurrency', text.toUpperCase())}
-                  placeholder="JPY"
-                  value={filters.originalCurrency}
-                />
-              </FormField>
-            </View>
-            <View style={styles.flexButton}>
-              <FormField label={t('book.order')}>
-                <View style={styles.segmentRow}>
-                  <Pressable
-                    onPress={() => updateFilter('spentAtOrder', 'desc')}
-                    style={[
-                      styles.segment,
-                      filters.spentAtOrder === 'desc' ? styles.segmentActive : undefined,
-                    ]}>
-                    <Text
-                      style={[
-                        styles.segmentText,
-                        filters.spentAtOrder === 'desc'
-                          ? styles.segmentTextActive
-                          : undefined,
-                      ]}>
-                      {t('book.orderDesc')}
-                    </Text>
-                  </Pressable>
-                  <Pressable
-                    onPress={() => updateFilter('spentAtOrder', 'asc')}
-                    style={[
-                      styles.segment,
-                      filters.spentAtOrder === 'asc' ? styles.segmentActive : undefined,
-                    ]}>
-                    <Text
-                      style={[
-                        styles.segmentText,
-                        filters.spentAtOrder === 'asc'
-                          ? styles.segmentTextActive
-                          : undefined,
-                      ]}>
-                      {t('book.orderAsc')}
-                    </Text>
-                  </Pressable>
-                </View>
-              </FormField>
-            </View>
-          </View>
-
-          <View style={styles.filterRow}>
-            <View style={styles.flexButton}>
-              <FormField label={t('book.minAmount')}>
-                <AppTextInput
-                  keyboardType="decimal-pad"
-                  onChangeText={text => updateFilter('minAmount', text)}
-                  placeholder="0.00"
-                  value={filters.minAmount}
-                />
-              </FormField>
-            </View>
-            <View style={styles.flexButton}>
-              <FormField label={t('book.maxAmount')}>
-                <AppTextInput
-                  keyboardType="decimal-pad"
-                  onChangeText={text => updateFilter('maxAmount', text)}
-                  value={filters.maxAmount}
-                />
-              </FormField>
-            </View>
-          </View>
-
-          <View style={styles.filterRow}>
-            <View style={styles.flexButton}>
-              <FormField label={t('book.dateFrom')}>
-                <AppTextInput
-                  onChangeText={text =>
-                    setFilters(current => ({
-                      ...current,
-                      dateFrom: text,
-                      datePreset: null,
-                      page: 1,
-                    }))
-                  }
-                  placeholder="2026-01-01"
-                  value={filters.dateFrom}
-                />
-              </FormField>
-            </View>
-            <View style={styles.flexButton}>
-              <FormField label={t('book.dateTo')}>
-                <AppTextInput
-                  onChangeText={text =>
-                    setFilters(current => ({
-                      ...current,
-                      dateTo: text,
-                      datePreset: null,
-                      page: 1,
-                    }))
-                  }
-                  placeholder="2026-01-31"
-                  value={filters.dateTo}
-                />
-              </FormField>
-            </View>
-          </View>
-
-          <FormField label={t('book.dateRange')}>
-            <View style={styles.segmentRow}>
-              <Pressable
-                onPress={() => applyDatePreset('last7')}
-                style={[
-                  styles.segment,
-                  filters.datePreset === 'last7' ? styles.segmentActive : undefined,
-                ]}>
-                <Text
-                  style={[
-                    styles.segmentText,
-                    filters.datePreset === 'last7'
-                      ? styles.segmentTextActive
-                      : undefined,
-                  ]}>
-                  {t('book.last7Days')}
-                </Text>
-              </Pressable>
-              <Pressable
-                onPress={() => applyDatePreset('last30')}
-                style={[
-                  styles.segment,
-                  filters.datePreset === 'last30' ? styles.segmentActive : undefined,
-                ]}>
-                <Text
-                  style={[
-                    styles.segmentText,
-                    filters.datePreset === 'last30'
-                      ? styles.segmentTextActive
-                      : undefined,
-                  ]}>
-                  {t('book.last30Days')}
-                </Text>
-              </Pressable>
-            </View>
-          </FormField>
-
-          <View style={styles.helperRow}>
-            <Text style={styles.sectionLabel}>{t('book.categories')}</Text>
-            <Pressable
-              disabled={!filters.categoryIDs.length}
-              onPress={clearCategoryFilters}>
-              <Text style={styles.clearLink}>{t('book.clearCategories')}</Text>
-            </Pressable>
-          </View>
-          <View style={styles.pillWrap}>
-            {categories.map(category => {
-              const active = filters.categoryIDs.includes(category.id);
-
-              return (
-                <Pressable
-                  key={category.id}
-                  onPress={() => toggleCategory(category.id)}
-                  style={[
-                    styles.categoryPill,
-                    active ? styles.categoryPillActive : undefined,
-                  ]}>
-                  <View
-                    style={[
-                      styles.colorDot,
-                      {backgroundColor: category.color},
-                    ]}
+            <View style={styles.filterRow}>
+              <View style={styles.flexButton}>
+                <FormField label={t('book.currency')}>
+                  <AppTextInput
+                    autoCapitalize="characters"
+                    maxLength={3}
+                    onChangeText={text => updateFilter('originalCurrency', text.toUpperCase())}
+                    placeholder="JPY"
+                    value={filters.originalCurrency}
                   />
+                </FormField>
+              </View>
+              <View style={styles.flexButton}>
+                <FormField label={t('book.order')}>
+                  <View style={styles.segmentRow}>
+                    <Pressable
+                      onPress={() => updateFilter('spentAtOrder', 'desc')}
+                      style={[
+                        styles.segment,
+                        filters.spentAtOrder === 'desc' ? styles.segmentActive : undefined,
+                      ]}>
+                      <Text
+                        style={[
+                          styles.segmentText,
+                          filters.spentAtOrder === 'desc'
+                            ? styles.segmentTextActive
+                            : undefined,
+                        ]}>
+                        {t('book.orderDesc')}
+                      </Text>
+                    </Pressable>
+                    <Pressable
+                      onPress={() => updateFilter('spentAtOrder', 'asc')}
+                      style={[
+                        styles.segment,
+                        filters.spentAtOrder === 'asc' ? styles.segmentActive : undefined,
+                      ]}>
+                      <Text
+                        style={[
+                          styles.segmentText,
+                          filters.spentAtOrder === 'asc'
+                            ? styles.segmentTextActive
+                            : undefined,
+                        ]}>
+                        {t('book.orderAsc')}
+                      </Text>
+                    </Pressable>
+                  </View>
+                </FormField>
+              </View>
+            </View>
+
+            <View style={styles.filterRow}>
+              <View style={styles.flexButton}>
+                <FormField label={t('book.minAmount')}>
+                  <AppTextInput
+                    keyboardType="decimal-pad"
+                    onChangeText={text => updateFilter('minAmount', text)}
+                    placeholder="0.00"
+                    value={filters.minAmount}
+                  />
+                </FormField>
+              </View>
+              <View style={styles.flexButton}>
+                <FormField label={t('book.maxAmount')}>
+                  <AppTextInput
+                    keyboardType="decimal-pad"
+                    onChangeText={text => updateFilter('maxAmount', text)}
+                    value={filters.maxAmount}
+                  />
+                </FormField>
+              </View>
+            </View>
+
+            <View style={styles.filterRow}>
+              <View style={styles.flexButton}>
+                <FormField label={t('book.dateFrom')}>
+                  <AppTextInput
+                    onChangeText={text =>
+                      setFilters(current => ({
+                        ...current,
+                        dateFrom: text,
+                        datePreset: null,
+                        page: 1,
+                      }))
+                    }
+                    placeholder="2026-01-01"
+                    value={filters.dateFrom}
+                  />
+                </FormField>
+              </View>
+              <View style={styles.flexButton}>
+                <FormField label={t('book.dateTo')}>
+                  <AppTextInput
+                    onChangeText={text =>
+                      setFilters(current => ({
+                        ...current,
+                        dateTo: text,
+                        datePreset: null,
+                        page: 1,
+                      }))
+                    }
+                    placeholder="2026-01-31"
+                    value={filters.dateTo}
+                  />
+                </FormField>
+              </View>
+            </View>
+
+            <FormField label={t('book.dateRange')}>
+              <View style={styles.segmentRow}>
+                <Pressable
+                  onPress={() => applyDatePreset('last7')}
+                  style={[
+                    styles.segment,
+                    filters.datePreset === 'last7' ? styles.segmentActive : undefined,
+                  ]}>
                   <Text
                     style={[
-                      styles.categoryPillText,
-                      active ? styles.categoryPillTextActive : undefined,
+                      styles.segmentText,
+                      filters.datePreset === 'last7'
+                        ? styles.segmentTextActive
+                        : undefined,
                     ]}>
-                    {category.name}
+                    {t('book.last7Days')}
                   </Text>
                 </Pressable>
-              );
-            })}
-          </View>
-
-          <View style={styles.helperRow}>
-            <ActionButton
-              disabled={!hasActiveFilters}
-              label={t('book.clearAll')}
-              onPress={clearFilters}
-              tone="secondary"
-            />
-            {canManageExpenses ? (
-              <View style={styles.inlineActionRow}>
-                <ActionButton
-                  label={t('book.addNormal')}
-                  onPress={() =>
-                    navigationRef.navigate('NormalExpenseEditor', {accountBookId})
-                  }
-                />
-                <ActionButton
-                  label={t('book.addMerged')}
-                  onPress={() =>
-                    navigationRef.navigate('MergedExpenseEditor', {accountBookId})
-                  }
-                />
+                <Pressable
+                  onPress={() => applyDatePreset('last30')}
+                  style={[
+                    styles.segment,
+                    filters.datePreset === 'last30' ? styles.segmentActive : undefined,
+                  ]}>
+                  <Text
+                    style={[
+                      styles.segmentText,
+                      filters.datePreset === 'last30'
+                        ? styles.segmentTextActive
+                        : undefined,
+                    ]}>
+                    {t('book.last30Days')}
+                  </Text>
+                </Pressable>
               </View>
-            ) : null}
+            </FormField>
+
+            <View style={styles.helperRow}>
+              <Text style={styles.sectionLabel}>{t('book.categories')}</Text>
+              <Pressable
+                disabled={!filters.categoryIDs.length}
+                onPress={clearCategoryFilters}>
+                <Text style={styles.clearLink}>{t('book.clearCategories')}</Text>
+              </Pressable>
+            </View>
+            <View style={styles.pillWrap}>
+              {categories.map(category => {
+                const active = filters.categoryIDs.includes(category.id);
+
+                return (
+                  <Pressable
+                    key={category.id}
+                    onPress={() => toggleCategory(category.id)}
+                    style={[
+                      styles.categoryPill,
+                      active ? styles.categoryPillActive : undefined,
+                    ]}>
+                    <View
+                      style={[
+                        styles.colorDot,
+                        {backgroundColor: category.color},
+                      ]}
+                    />
+                    <Text
+                      style={[
+                        styles.categoryPillText,
+                        active ? styles.categoryPillTextActive : undefined,
+                      ]}>
+                      {category.name}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            <View style={styles.helperRow}>
+              <ActionButton
+                disabled={!hasActiveFilters}
+                label={t('book.clearAll')}
+                onPress={clearFilters}
+                tone="secondary"
+              />
+            </View>
           </View>
-        </View>
+        ) : null}
 
         {isLoadingExpenses ? (
           <InlineBanner message={t('book.loadExpenses')} tone="info" />
@@ -1051,6 +1116,37 @@ export function AccountBookDetailScreen({route}: Props) {
 }
 
 const styles = StyleSheet.create({
+  topSummaryRow: {
+    alignItems: 'flex-start',
+    flexDirection: 'row',
+    gap: 12,
+    justifyContent: 'space-between',
+  },
+  topSummaryMain: {
+    alignItems: 'center',
+    flex: 1,
+    flexDirection: 'row',
+    gap: 10,
+    minWidth: 0,
+  },
+  topCurrencyChip: {
+    backgroundColor: colors.accentSoftMuted,
+    borderColor: colors.line,
+    borderRadius: 999,
+    borderWidth: 1,
+    color: colors.accentDeep,
+    fontSize: 13,
+    fontWeight: '800',
+    overflow: 'hidden',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  topBookName: {
+    color: colors.ink,
+    flex: 1,
+    fontSize: 22,
+    fontWeight: '800',
+  },
   metaStrip: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -1179,6 +1275,30 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 10,
   },
+  filterToggle: {
+    alignItems: 'center',
+    alignSelf: 'flex-end',
+    backgroundColor: colors.surfaceMuted,
+    borderColor: colors.line,
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  filterToggleTextRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 6,
+  },
+  filterToggleIcon: {
+    height: 14,
+    width: 14,
+  },
+  filterToggleText: {
+    color: colors.accentDeep,
+    fontSize: 13,
+    fontWeight: '700',
+  },
   sectionLabel: {
     color: colors.ink,
     fontSize: 15,
@@ -1295,14 +1415,6 @@ const styles = StyleSheet.create({
   expenseInfoText: {
     color: colors.muted,
     fontSize: 12,
-  },
-  expenseActions: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  expenseActionButton: {
-    flex: 1,
-    minHeight: 42,
   },
   childList: {
     borderTopColor: colors.line,

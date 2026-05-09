@@ -6,12 +6,14 @@ type ScreenShellProps = PropsWithChildren<{
   eyebrow?: string;
   title: string;
   description?: string;
+  hideHero?: boolean;
 }>;
 
 export function ScreenShell({
   children,
   description,
   eyebrow,
+  hideHero = false,
   title,
 }: ScreenShellProps) {
   return (
@@ -19,11 +21,13 @@ export function ScreenShell({
       <ScrollView
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled">
-        <View style={styles.hero}>
-          {eyebrow ? <Text style={styles.eyebrow}>{eyebrow}</Text> : null}
-          <Text style={styles.title}>{title}</Text>
-          {description ? <Text style={styles.description}>{description}</Text> : null}
-        </View>
+        {!hideHero ? (
+          <View style={styles.hero}>
+            {eyebrow ? <Text style={styles.eyebrow}>{eyebrow}</Text> : null}
+            <Text style={styles.title}>{title}</Text>
+            {description ? <Text style={styles.description}>{description}</Text> : null}
+          </View>
+        ) : null}
         {children}
       </ScrollView>
     </SafeAreaView>
