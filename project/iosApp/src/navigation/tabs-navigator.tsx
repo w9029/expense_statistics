@@ -1,7 +1,7 @@
 import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 import {useI18n} from '@/features/i18n/i18n-context';
 import {AccountBooksScreen} from '@/screens/account-books/account-books-screen';
-import {ProfilePlaceholderScreen} from '@/screens/profile/profile-placeholder-screen';
+import {ProfileScreen} from '@/screens/profile/profile-screen';
 import type {AppTabParamList} from '@/navigation/types';
 
 const Tab = createBottomTabNavigator<AppTabParamList>();
@@ -23,7 +23,7 @@ export function AppTabsNavigator() {
       />
       <Tab.Screen
         name="Profile"
-        component={ProfilePlaceholderScreen}
+        component={ProfileScreen}
         options={{title: t('nav.profile')}}
       />
     </Tab.Navigator>
