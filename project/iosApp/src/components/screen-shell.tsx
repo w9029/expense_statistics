@@ -7,6 +7,7 @@ type ScreenShellProps = PropsWithChildren<{
   title: string;
   description?: string;
   hideHero?: boolean;
+  scrollEnabled?: boolean;
 }>;
 
 export function ScreenShell({
@@ -14,13 +15,15 @@ export function ScreenShell({
   description,
   eyebrow,
   hideHero = false,
+  scrollEnabled = true,
   title,
 }: ScreenShellProps) {
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView
         contentContainerStyle={styles.content}
-        keyboardShouldPersistTaps="handled">
+        keyboardShouldPersistTaps="handled"
+        scrollEnabled={scrollEnabled}>
         {!hideHero ? (
           <View style={styles.hero}>
             {eyebrow ? <Text style={styles.eyebrow}>{eyebrow}</Text> : null}
