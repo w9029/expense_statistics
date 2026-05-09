@@ -2,25 +2,32 @@ import {createContext, PropsWithChildren, useContext, useMemo, useState} from 'r
 
 type BookSessionContextValue = {
   activeAccountBookId: string | null;
+  expenseRefreshSignal: number;
   setActiveAccountBookId: (
     accountBookId:
       | string
       | null
       | ((currentAccountBookId: string | null) => string | null),
   ) => void;
+  requestExpenseRefresh: () => void;
 };
 
 const BookSessionContext = createContext<BookSessionContextValue | null>(null);
 
 export function BookSessionProvider({children}: PropsWithChildren) {
   const [activeAccountBookId, setActiveAccountBookId] = useState<string | null>(null);
+  const [expenseRefreshSignal, setExpenseRefreshSignal] = useState(0);
 
   const value = useMemo<BookSessionContextValue>(
     () => ({
       activeAccountBookId,
+      expenseRefreshSignal,
       setActiveAccountBookId,
+      requestExpenseRefresh() {
+        setExpenseRefreshSignal(current => current + 1);
+      },
     }),
-    [activeAccountBookId],
+    [activeAccountBookId, expenseRefreshSignal],
   );
 
   return (

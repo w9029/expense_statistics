@@ -5,12 +5,17 @@ import type {
   ExpenseCategory,
   ExpenseDetail,
 } from '@expense-statistics/domain';
-import type {NativeStackScreenProps} from '@react-navigation/native-stack';
+import type {
+  NativeStackNavigationProp,
+  NativeStackScreenProps,
+} from '@react-navigation/native-stack';
 import {ActionButton} from '@/components/action-button';
+import {DateField} from '@/components/date-field';
 import {AppTextInput, FormField} from '@/components/form-field';
 import {InlineBanner} from '@/components/inline-banner';
 import {PlaceholderCard} from '@/components/placeholder-card';
 import {ScreenShell} from '@/components/screen-shell';
+import {SelectField} from '@/components/select-field';
 import {useBookSession} from '@/features/account-books/book-session-context';
 import {useAuth} from '@/features/auth/auth-context';
 import {useToast} from '@/features/feedback/toast-context';
@@ -21,7 +26,20 @@ import {formatMoney} from '@/lib/ledger';
 import type {RootStackParamList} from '@/navigation/types';
 import {colors} from '@/theme/colors';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'MergedExpenseEditor'>;
+type EditorNavigation = Pick<
+  NativeStackNavigationProp<RootStackParamList>,
+  'goBack'
+>;
+
+type Props = Omit<
+  NativeStackScreenProps<RootStackParamList, 'MergedExpenseEditor'>,
+  'navigation'
+> & {
+  navigation: EditorNavigation;
+};
+type EmbeddedProps = Props & {
+  embedded?: boolean;
+};
 type SubmitMode = 'back' | 'next';
 type AmountInputMode = 'pretax' | 'posttax';
 
@@ -139,10 +157,14 @@ function buildEmptyErrors(childrenCount: number): MergedExpenseFormErrors {
   };
 }
 
-export function MergedExpenseEditorScreen({navigation, route}: Props) {
+export function MergedExpenseEditorScreen({
+  embedded = false,
+  navigation,
+  route,
+}: EmbeddedProps) {
   const {accountBookId, expenseId} = route.params;
   const auth = useAuth();
-  const {setActiveAccountBookId} = useBookSession();
+  const {requestExpenseRefresh, setActiveAccountBookId} = useBookSession();
   const {showToast} = useToast();
   const {t} = useI18n();
   const isEditMode = Boolean(expenseId);
@@ -449,12 +471,14 @@ export function MergedExpenseEditorScreen({navigation, route}: Props) {
 
       if (isEditMode && expenseId) {
         await apiClient.updateMergedExpense(auth.accessToken, accountBookId, expenseId, payload);
+        requestExpenseRefresh();
         showToast(t('mergedExpense.updated'), 'success');
         navigation.goBack();
         return;
       }
 
       await apiClient.createMergedExpense(auth.accessToken, accountBookId, payload);
+      requestExpenseRefresh();
 
       if (submitModeRef.current === 'next') {
         resetForNextExpense();
@@ -478,13 +502,8 @@ export function MergedExpenseEditorScreen({navigation, route}: Props) {
     }
   }
 
-  return (
-    <ScreenShell
-      title={isEditMode ? t('mergedExpense.titleEdit') : t('mergedExpense.titleCreate')}
-      description={t(
-        isEditMode ? 'mergedExpense.subtitleEdit' : 'mergedExpense.subtitleCreate',
-        {book: detail?.name ?? t('book.titleFallback')},
-      )}>
+  const content = (
+    <>
       {flashMessage ? <InlineBanner message={flashMessage.text} tone={flashMessage.tone} /> : null}
       {pageError ? <InlineBanner message={pageError} tone="error" /> : null}
       {isLoadingPage ? <InlineBanner message={t('book.loadingBook')} tone="info" /> : null}
@@ -514,38 +533,20 @@ export function MergedExpenseEditorScreen({navigation, route}: Props) {
             error={formErrors.parent.category_id}
             errorTextStyle={styles.alertErrorText}
             label={t('mergedExpense.mergeCategory')}>
-            <View style={styles.selectRow}>
-              {mergeCategories.length ? (
-                mergeCategories.map(category => {
-                  const active = form.parent.category_id === category.id;
-                  return (
-                    <Pressable
-                      key={category.id}
-                      onPress={() => updateParentField('category_id', category.id)}
-                      style={[
-                        styles.selectChip,
-                        active ? styles.selectChipActive : undefined,
-                      ]}>
-                      <View
-                        style={[
-                          styles.categoryDot,
-                          {backgroundColor: category.color},
-                        ]}
-                      />
-                      <Text
-                        style={[
-                          styles.selectChipText,
-                          active ? styles.selectChipTextActive : undefined,
-                        ]}>
-                        {category.name}
-                      </Text>
-                    </Pressable>
-                  );
-                })
-              ) : (
-                <InlineBanner message={t('mergedExpense.missingCategories')} tone="error" />
-              )}
-            </View>
+            {mergeCategories.length ? (
+              <SelectField
+                onSelect={value => updateParentField('category_id', value)}
+                options={mergeCategories.map(category => ({
+                  color: category.color,
+                  label: category.name,
+                  value: category.id,
+                }))}
+                placeholder={t('mergedExpense.mergeCategory')}
+                value={form.parent.category_id}
+              />
+            ) : (
+              <InlineBanner message={t('mergedExpense.missingCategories')} tone="error" />
+            )}
           </FormField>
 
           <FormField
@@ -594,9 +595,12 @@ export function MergedExpenseEditorScreen({navigation, route}: Props) {
                 error={formErrors.parent.spent_at}
                 errorTextStyle={styles.alertErrorText}
                 label={t('mergedExpense.spentAt')}>
-                <AppTextInput
-                  onChangeText={text => updateParentField('spent_at', text)}
+                <DateField
+                  onDateChange={event =>
+                    updateParentField('spent_at', event.nativeEvent.value)
+                  }
                   placeholder="2026-05-10"
+                  style={styles.dateField}
                   value={form.parent.spent_at}
                 />
               </FormField>
@@ -695,38 +699,20 @@ export function MergedExpenseEditorScreen({navigation, route}: Props) {
                 error={formErrors.children[index]?.category_id}
                 errorTextStyle={styles.alertErrorText}
                 label={t('mergedExpense.category')}>
-                <View style={styles.selectRow}>
-                  {normalCategories.length ? (
-                    normalCategories.map(category => {
-                      const active = child.category_id === category.id;
-                      return (
-                        <Pressable
-                          key={category.id}
-                          onPress={() => updateChildField(index, 'category_id', category.id)}
-                          style={[
-                            styles.selectChip,
-                            active ? styles.selectChipActive : undefined,
-                          ]}>
-                          <View
-                            style={[
-                              styles.categoryDot,
-                              {backgroundColor: category.color},
-                            ]}
-                          />
-                          <Text
-                            style={[
-                              styles.selectChipText,
-                              active ? styles.selectChipTextActive : undefined,
-                            ]}>
-                            {category.name}
-                          </Text>
-                        </Pressable>
-                      );
-                    })
-                  ) : (
-                    <InlineBanner message={t('mergedExpense.missingCategories')} tone="error" />
-                  )}
-                </View>
+                {normalCategories.length ? (
+                  <SelectField
+                    onSelect={value => updateChildField(index, 'category_id', value)}
+                    options={normalCategories.map(category => ({
+                      color: category.color,
+                      label: category.name,
+                      value: category.id,
+                    }))}
+                    placeholder={t('mergedExpense.category')}
+                    value={child.category_id}
+                  />
+                ) : (
+                  <InlineBanner message={t('mergedExpense.missingCategories')} tone="error" />
+                )}
               </FormField>
 
               <View style={styles.inlineRow}>
@@ -887,6 +873,21 @@ export function MergedExpenseEditorScreen({navigation, route}: Props) {
           }}
         />
       </View>
+    </>
+  );
+
+  if (embedded) {
+    return content;
+  }
+
+  return (
+    <ScreenShell
+      title={isEditMode ? t('mergedExpense.titleEdit') : t('mergedExpense.titleCreate')}
+      description={t(
+        isEditMode ? 'mergedExpense.subtitleEdit' : 'mergedExpense.subtitleCreate',
+        {book: detail?.name ?? t('book.titleFallback')},
+      )}>
+      {content}
     </ScreenShell>
   );
 }
@@ -920,35 +921,8 @@ const styles = StyleSheet.create({
   currencyField: {
     width: 112,
   },
-  selectRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  selectChip: {
-    alignItems: 'center',
-    backgroundColor: colors.surfaceMuted,
-    borderRadius: 999,
-    flexDirection: 'row',
-    gap: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  selectChipActive: {
-    backgroundColor: colors.accent,
-  },
-  selectChipText: {
-    color: colors.accentDeep,
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  selectChipTextActive: {
-    color: colors.backgroundSoft,
-  },
-  categoryDot: {
-    borderRadius: 999,
-    height: 10,
-    width: 10,
+  dateField: {
+    minHeight: 52,
   },
   modeRow: {
     flexDirection: 'row',

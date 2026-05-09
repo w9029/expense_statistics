@@ -1,13 +1,15 @@
 import {useCallback, useEffect, useState} from 'react';
-import {Pressable, StyleSheet, Text, View} from 'react-native';
+import {Alert, Pressable, StyleSheet, Text, View} from 'react-native';
 import type {AccountBookDetail, ExpenseCategory} from '@expense-statistics/domain';
 import type {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {ActionButton} from '@/components/action-button';
 import {InlineBanner} from '@/components/inline-banner';
 import {PlaceholderCard} from '@/components/placeholder-card';
 import {ScreenShell} from '@/components/screen-shell';
+import {SFSymbol} from '@/components/sf-symbol';
 import {useBookSession} from '@/features/account-books/book-session-context';
 import {useAuth} from '@/features/auth/auth-context';
+import {useToast} from '@/features/feedback/toast-context';
 import {useI18n} from '@/features/i18n/i18n-context';
 import {apiClient} from '@/lib/api';
 import {getApiErrorMessage} from '@/lib/api-errors';
@@ -20,11 +22,13 @@ export function ExpenseCategoriesScreen({navigation, route}: Props) {
   const {accountBookId} = route.params;
   const auth = useAuth();
   const {setActiveAccountBookId} = useBookSession();
+  const {showToast} = useToast();
   const {t} = useI18n();
   const [detail, setDetail] = useState<AccountBookDetail | null>(null);
   const [categories, setCategories] = useState<ExpenseCategory[]>([]);
   const [pageError, setPageError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isDeletingCategoryId, setIsDeletingCategoryId] = useState<string | null>(null);
 
   const canEdit =
     detail?.my_role === 'owner' ||
@@ -69,6 +73,42 @@ export function ExpenseCategoriesScreen({navigation, route}: Props) {
     void loadPage();
   }, [loadPage]);
 
+  function handleDeleteCategory(category: ExpenseCategory) {
+    if (!auth.accessToken || isDeletingCategoryId) {
+      return;
+    }
+    const accessToken = auth.accessToken;
+
+    Alert.alert(t('common.delete'), t('categories.deleteConfirm'), [
+      {text: t('common.cancel'), style: 'cancel'},
+      {
+        text: t('common.confirmDelete'),
+        style: 'destructive',
+        onPress: () => {
+          void (async () => {
+            setIsDeletingCategoryId(category.id);
+            setPageError(null);
+            try {
+              await apiClient.deleteExpenseCategory(
+                accessToken,
+                accountBookId,
+                category.id,
+              );
+              showToast(t('categories.deleted'), 'success');
+              await loadPage();
+            } catch (error) {
+              const message = getApiErrorMessage(error, t('categories.actionFailed'));
+              setPageError(message);
+              showToast(message, 'error');
+            } finally {
+              setIsDeletingCategoryId(null);
+            }
+          })();
+        },
+      },
+    ]);
+  }
+
   function renderCategoryGroup(
     title: string,
     items: ExpenseCategory[],
@@ -84,15 +124,7 @@ export function ExpenseCategoriesScreen({navigation, route}: Props) {
         {items.length ? (
           <View style={styles.categoryList}>
             {items.map(category => (
-              <Pressable
-                key={category.id}
-                onPress={() =>
-                  navigation.navigate('CategoryCreate', {
-                    accountBookId,
-                    categoryId: category.id,
-                  })
-                }
-                style={styles.categoryRow}>
+              <View key={category.id} style={styles.categoryRow}>
                 <View style={styles.categoryRowMain}>
                   <View style={styles.categoryRowHeader}>
                     <View style={styles.categoryNameWrap}>
@@ -114,7 +146,39 @@ export function ExpenseCategoriesScreen({navigation, route}: Props) {
                     {category.description ?? t('common.noDescription')}
                   </Text>
                 </View>
-              </Pressable>
+                {canEdit ? (
+                  <View style={styles.categoryActionRow}>
+                    <Pressable
+                      onPress={() =>
+                        navigation.navigate('CategoryCreate', {
+                          accountBookId,
+                          categoryId: category.id,
+                        })
+                      }
+                      style={styles.iconButton}>
+                      <SFSymbol
+                        colorHex={colors.accentDeep}
+                        name="square.and.pencil"
+                        pointSize={16}
+                        style={styles.icon}
+                        weight="semibold"
+                      />
+                    </Pressable>
+                    <Pressable
+                      disabled={isDeletingCategoryId === category.id}
+                      onPress={() => handleDeleteCategory(category)}
+                      style={styles.dangerIconButton}>
+                      <SFSymbol
+                        colorHex={colors.danger}
+                        name="trash"
+                        pointSize={16}
+                        style={styles.icon}
+                        weight="semibold"
+                      />
+                    </Pressable>
+                  </View>
+                ) : null}
+              </View>
             ))}
           </View>
         ) : (
@@ -255,14 +319,18 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   categoryRow: {
+    alignItems: 'flex-start',
     backgroundColor: colors.surfaceSoft,
     borderColor: colors.line,
     borderRadius: 18,
     borderWidth: 1,
+    flexDirection: 'row',
+    gap: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
   },
   categoryRowMain: {
+    flex: 1,
     gap: 6,
   },
   categoryRowHeader: {
@@ -307,5 +375,34 @@ const styles = StyleSheet.create({
     color: colors.muted,
     fontSize: 13,
     lineHeight: 19,
+  },
+  categoryActionRow: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingTop: 2,
+  },
+  iconButton: {
+    alignItems: 'center',
+    backgroundColor: colors.accentSoftMuted,
+    borderColor: colors.line,
+    borderRadius: 12,
+    borderWidth: 1,
+    height: 34,
+    justifyContent: 'center',
+    width: 34,
+  },
+  dangerIconButton: {
+    alignItems: 'center',
+    backgroundColor: colors.dangerSoft,
+    borderColor: colors.danger,
+    borderRadius: 12,
+    borderWidth: 1,
+    height: 34,
+    justifyContent: 'center',
+    width: 34,
+  },
+  icon: {
+    height: 16,
+    width: 16,
   },
 });

@@ -278,37 +278,13 @@ export function CategoryCreateScreen({navigation, route}: Props) {
 
         {!isLoading && canEdit ? (
           <View style={styles.form}>
-            <View style={styles.segmentRow}>
-              <Pressable
-                onPress={() => updateForm('isMergeCategory', false)}
-                style={[
-                  styles.segment,
-                  !form.isMergeCategory ? styles.segmentActive : undefined,
-                ]}>
-                <Text
-                  style={[
-                    styles.segmentText,
-                    !form.isMergeCategory ? styles.segmentTextActive : undefined,
-                  ]}>
-                  {t('categories.normal')}
+            <View style={styles.typeBox}>
+              <Text style={styles.typeLabel}>{t('categories.type')}</Text>
+              <View style={styles.typeChip}>
+                <Text style={styles.typeChipText}>
+                  {form.isMergeCategory ? t('categories.merge') : t('categories.normal')}
                 </Text>
-              </Pressable>
-              <Pressable
-                disabled={Boolean(selectedCategory)}
-                onPress={() => updateForm('isMergeCategory', true)}
-                style={[
-                  styles.segment,
-                  form.isMergeCategory ? styles.segmentActive : undefined,
-                  selectedCategory ? styles.segmentDisabled : undefined,
-                ]}>
-                <Text
-                  style={[
-                    styles.segmentText,
-                    form.isMergeCategory ? styles.segmentTextActive : undefined,
-                  ]}>
-                  {t('categories.merge')}
-                </Text>
-              </Pressable>
+              </View>
             </View>
 
             <FormField error={formErrors.name} label={t('categories.name')}>
@@ -374,21 +350,29 @@ export function CategoryCreateScreen({navigation, route}: Props) {
                   />
                 ) : null}
               </View>
-              <ActionButton
-                disabled={isSaving || isDeleting}
-                label={
-                  selectedCategory
-                    ? isSaving
-                      ? t('categories.saving')
-                      : t('categories.save')
-                    : isSaving
-                      ? t('categories.creating')
-                      : t('categories.create')
-                }
-                onPress={() => {
-                  void handleSubmit();
-                }}
-              />
+              <View style={styles.inlineActionRow}>
+                <ActionButton
+                  disabled={isSaving || isDeleting}
+                  label={t('common.cancel')}
+                  onPress={() => navigation.goBack()}
+                  tone="secondary"
+                />
+                <ActionButton
+                  disabled={isSaving || isDeleting}
+                  label={
+                    selectedCategory
+                      ? isSaving
+                        ? t('categories.saving')
+                        : t('categories.save')
+                      : isSaving
+                        ? t('categories.creating')
+                        : t('categories.create')
+                  }
+                  onPress={() => {
+                    void handleSubmit();
+                  }}
+                />
+              </View>
             </View>
           </View>
         ) : null}
@@ -415,33 +399,29 @@ const styles = StyleSheet.create({
   form: {
     gap: 14,
   },
-  segmentRow: {
-    flexDirection: 'row',
+  typeBox: {
     gap: 8,
   },
-  segment: {
+  typeLabel: {
+    color: colors.muted,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  typeChip: {
     alignItems: 'center',
+    alignSelf: 'flex-start',
     backgroundColor: colors.surfaceMuted,
-    borderRadius: 14,
-    flex: 1,
-    justifyContent: 'center',
-    minHeight: 44,
-    paddingHorizontal: 10,
+    borderColor: colors.line,
+    borderRadius: 999,
+    borderWidth: 1,
+    flexDirection: 'row',
+    paddingHorizontal: 12,
     paddingVertical: 8,
   },
-  segmentActive: {
-    backgroundColor: colors.accent,
-  },
-  segmentDisabled: {
-    opacity: 0.65,
-  },
-  segmentText: {
+  typeChipText: {
     color: colors.accentDeep,
     fontSize: 13,
     fontWeight: '700',
-  },
-  segmentTextActive: {
-    color: colors.backgroundSoft,
   },
   multilineInput: {
     minHeight: 108,
