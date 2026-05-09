@@ -1,0 +1,11 @@
+node_modules
+ios/Pods
+ios/build
+ios/main.jsbundle
+ios/.xcode.env.local
+android/.gradle
+android/app/build
+android/build
+.bundle
+vendor
+*.log
