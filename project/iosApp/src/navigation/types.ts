@@ -19,6 +19,11 @@ export type AppTabParamList = {
   Profile: undefined;
 };
 
+export type CategoriesStackParamList = {
+  CategoriesHome: {accountBookId: string};
+  CategoryCreate: {accountBookId: string; categoryId?: string};
+};
+
 export type RootStackParamList = {
   Public: NavigatorScreenParams<PublicStackParamList> | undefined;
   AppTabs: NavigatorScreenParams<AppTabParamList> | undefined;
