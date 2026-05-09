@@ -2,7 +2,7 @@
 
 ## 2026-05-09
 
-- Commit: React Native foundation milestone for iOS baseline verification
+- Commit: `6da6890` `feat(ios): bootstrap react native baseline`
 - Scope: React Native iOS foundation and backend connectivity smoke test
 - Summary: Replaced the temporary Swift demo with a React Native workspace in `project/iosApp`, added a minimal iOS screen that calls `http://wlzy.online:8090/healthz`, configured App Transport Security to allow the current HTTP backend domain, and adjusted the Xcode build so Debug simulator builds embed the JS bundle instead of requiring Metro.
 - Validation: `npm install`; `pod install`; `xcodebuild` for the iOS simulator completed successfully; in-app request to `/healthz` succeeded and returned `app=expense-statistics-server`, `env=development`, and a server timestamp.
