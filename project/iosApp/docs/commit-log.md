@@ -50,8 +50,8 @@
 
 ## 2026-05-09
 
-- 提交: `pending`
+- 提交: `4e1cbbe` `feat(ios): implement module 3 profile`
 - 范围: 模块 3 个人资料
 - 说明: 将个人资料占位页替换为真实编辑页，支持修改用户名、偏好货币、语言、头像路径与默认账本；接入 `updateProfile` / `updateDefaultAccountBook`，并在保存后同步更新会话与语言状态。
-- 验证: 待执行 `npx tsc --noEmit`、`npm run lint -- --quiet`、`npm test -- --runInBand --watchman=false` 和 iOS Debug 模拟器 `xcodebuild` 构建。
+- 验证: 已执行 `npx tsc --noEmit`、`npm run lint -- --quiet`、`npm test -- --runInBand --watchman=false`；iOS Debug 模拟器 `xcodebuild` 在当前命令行环境里因 CoreSimulatorService 连接问题未能完成，后续需在本机 Xcode 环境再核验一次。
 - 后续: 本模块验证通过后，继续按计划进入模块 4 账本详情与消费列表。
