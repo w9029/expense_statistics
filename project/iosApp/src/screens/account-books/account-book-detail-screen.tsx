@@ -1,4 +1,4 @@
-import {useEffect, useMemo, useState} from 'react';
+import {useEffect, useMemo, useRef, useState} from 'react';
 import {
   Alert,
   Pressable,
@@ -72,6 +72,7 @@ export function AccountBookDetailScreen({route}: Props) {
     total: 0,
     totalConvertedAmount: '0.00',
   });
+  const lastExpenseQueryKeyRef = useRef<string>('');
 
   const canEdit =
     detail?.my_role === 'owner' || detail?.my_role === 'admin';
@@ -98,6 +99,35 @@ export function AccountBookDetailScreen({route}: Props) {
     availableCategoryIDs,
   );
   const categoryQueryKey = effectiveCategoryIDs?.join(',') ?? '';
+  const expenseQueryKey = useMemo(
+    () =>
+      JSON.stringify({
+        accountBookId,
+        page: filters.page,
+        keyword: filters.keyword.trim(),
+        categoryIDs: effectiveCategoryIDs ?? [],
+        userID: filters.userID,
+        minAmount: filters.minAmount.trim(),
+        maxAmount: filters.maxAmount.trim(),
+        originalCurrency: filters.originalCurrency.trim().toUpperCase(),
+        dateFrom: filters.dateFrom,
+        dateTo: filters.dateTo,
+        spentAtOrder: filters.spentAtOrder,
+      }),
+    [
+      accountBookId,
+      filters.page,
+      filters.keyword,
+      effectiveCategoryIDs,
+      filters.userID,
+      filters.minAmount,
+      filters.maxAmount,
+      filters.originalCurrency,
+      filters.dateFrom,
+      filters.dateTo,
+      filters.spentAtOrder,
+    ],
+  );
   const defaultFilters = useMemo(() => createDefaultExpenseListFilters(), []);
 
   const hasActiveFilters =
@@ -200,7 +230,10 @@ export function AccountBookDetailScreen({route}: Props) {
         return;
       }
 
-      setIsLoadingExpenses(true);
+      const shouldShowLoading = lastExpenseQueryKeyRef.current !== expenseQueryKey;
+      if (shouldShowLoading) {
+        setIsLoadingExpenses(true);
+      }
       setExpenseError(null);
       try {
         const response = await apiClient.listExpenses(auth.accessToken, accountBookId, {
@@ -229,6 +262,7 @@ export function AccountBookDetailScreen({route}: Props) {
           total: response.total,
           totalConvertedAmount: response.total_converted_amount,
         });
+        lastExpenseQueryKeyRef.current = expenseQueryKey;
       } catch (error) {
         if (!cancelled) {
           setExpenseError(getApiErrorMessage(error, t('book.loadExpensesFailed')));
@@ -243,7 +277,15 @@ export function AccountBookDetailScreen({route}: Props) {
     return () => {
       cancelled = true;
     };
-  }, [accountBookId, auth.accessToken, categoryQueryKey, effectiveCategoryIDs, filters, t]);
+  }, [
+    accountBookId,
+    auth.accessToken,
+    categoryQueryKey,
+    effectiveCategoryIDs,
+    expenseQueryKey,
+    filters,
+    t,
+  ]);
 
   function updateFilter<K extends keyof ExpenseListFilters>(
     key: K,
@@ -664,7 +706,6 @@ export function AccountBookDetailScreen({route}: Props) {
 
   return (
     <ScreenShell
-      eyebrow={detail?.base_currency ?? t('book.titleFallback')}
       hideHero
       title={detail?.name ?? t('book.titleFallback')}
       description={detail?.description ?? t('book.snapshotDescription')}>
@@ -672,7 +713,7 @@ export function AccountBookDetailScreen({route}: Props) {
       {pageError ? <InlineBanner message={pageError} tone="error" /> : null}
 
       <PlaceholderCard
-        title={t('book.expensesTitle')}
+        title={detail?.name ?? t('book.titleFallback')}
         headerAccessory={
           <View style={styles.headerActionRow}>
             {canEdit ? (
@@ -723,27 +764,11 @@ export function AccountBookDetailScreen({route}: Props) {
         }>
         <View style={styles.topSummaryRow}>
           <View style={styles.topSummaryMain}>
-            <Text style={styles.topCurrencyChip}>{detail?.base_currency ?? '-'}</Text>
             <Text numberOfLines={1} style={styles.topBookName}>
               {detail?.name ?? t('book.titleFallback')}
             </Text>
+            <Text style={styles.topCurrencyChip}>{detail?.base_currency ?? '-'}</Text>
           </View>
-          {canManageExpenses ? (
-            <View style={styles.inlineActionRow}>
-              <ActionButton
-                label={t('book.addNormal')}
-                onPress={() =>
-                  navigationRef.navigate('NormalExpenseEditor', {accountBookId})
-                }
-              />
-              <ActionButton
-                label={t('book.addMerged')}
-                onPress={() =>
-                  navigationRef.navigate('MergedExpenseEditor', {accountBookId})
-                }
-              />
-            </View>
-          ) : null}
         </View>
 
         <View style={styles.metaStrip}>
@@ -812,20 +837,32 @@ export function AccountBookDetailScreen({route}: Props) {
           </Text>
         </View>
 
-        <Pressable
-          onPress={() => setIsFilterPanelVisible(current => !current)}
-          style={styles.filterToggle}>
-          <View style={styles.filterToggleTextRow}>
-            <Text style={styles.filterToggleText}>{t('book.filters')}</Text>
-            <SFSymbol
-              colorHex={colors.accentDeep}
-              name={isFilterPanelVisible ? 'chevron.up' : 'chevron.down'}
-              pointSize={14}
-              style={styles.filterToggleIcon}
-              weight="semibold"
+        <View style={styles.filterToolbar}>
+          {canManageExpenses ? (
+            <ActionButton
+              label={t('book.addExpense')}
+              onPress={() =>
+                navigationRef.navigate('ExpenseTypePicker', {accountBookId})
+              }
+              style={styles.addExpenseButton}
             />
-          </View>
-        </Pressable>
+          ) : null}
+
+          <Pressable
+            onPress={() => setIsFilterPanelVisible(current => !current)}
+            style={styles.filterToggle}>
+            <View style={styles.filterToggleTextRow}>
+              <Text style={styles.filterToggleText}>{t('book.filters')}</Text>
+              <SFSymbol
+                colorHex={colors.accentDeep}
+                name={isFilterPanelVisible ? 'chevron.up' : 'chevron.down'}
+                pointSize={14}
+                style={styles.filterToggleIcon}
+                weight="semibold"
+              />
+            </View>
+          </Pressable>
+        </View>
 
         {isFilterPanelVisible ? (
           <View style={styles.filterGroup}>
@@ -1158,7 +1195,6 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     flexDirection: 'row',
     gap: 12,
-    justifyContent: 'space-between',
   },
   topSummaryMain: {
     alignItems: 'center',
@@ -1318,9 +1354,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 10,
   },
+  filterToolbar: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 10,
+    justifyContent: 'space-between',
+  },
+  addExpenseButton: {
+    flex: 1,
+    minHeight: 42,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
   filterToggle: {
     alignItems: 'center',
-    alignSelf: 'flex-end',
     backgroundColor: colors.surfaceMuted,
     borderColor: colors.line,
     borderRadius: 999,
