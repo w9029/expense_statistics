@@ -167,3 +167,11 @@
 - 说明: 将分析 tab 从占位页替换为真实页面，接入类别占比与消费趋势接口；支持按日/按月切换、日期范围切换、最近 30 天/前 30 天/最近 12 个月预设，以及按类别筛选；新增分析页所需的多语言文案与时间范围工具，并用更贴近 iOS 的卡片式条形图和占比条展示结果。
 - 验证: 已执行 `npx tsc --noEmit`、`npm run lint -- --quiet`、`npm test -- --runInBand --watchman=false`。
 - 后续: 模块 9 提交后，继续进入收尾与发布准备阶段，补齐文档、验证和剩余体验收口。
+
+## 2026-05-10
+
+- 提交: `docs(ios): add release readiness checklist`
+- 范围: 模块 10 收尾与发布准备第一轮
+- 说明: 更新 `README.md`，把工程现状从基础架构阶段改为当前 0-9 模块已完成状态，并补充关键入口文件说明；新增中文 `release-readiness-checklist.md`，集中整理当前运行方式、ATS/HTTP 现状、真机与模拟器检查项、发布前建议和不应提交的本地文件提醒。
+- 验证: 已执行 `npx tsc --noEmit`、`npm run lint -- --quiet`、`npm test -- --runInBand --watchman=false`。
+- 后续: 继续模块 10 的体验收口和发布准备，包括空态/错误态统一、真机异常场景复核，以及 App 基础元信息整理。
