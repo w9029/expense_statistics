@@ -135,3 +135,11 @@
 - 说明: 将普通消费里的类别选择改为带颜色点的胶囊按钮；把普通消费表单字段级错误提示改成更鲜红、更醒目的红色；在类别新增/编辑页移除预设色与十六进制输入，改接 iOS 原生 `UIColorWell` 取色器，并补上对应 React Native 原生桥与 Xcode 工程注册。
 - 验证: 已执行 `npx tsc --noEmit`、`npm run lint -- --quiet`、`npm test -- --runInBand --watchman=false`。
 - 后续: 这轮颜色与表单体验优化提交后，继续按计划进入模块 7 合并消费。
+
+## 2026-05-10
+
+- 提交: `feat(ios): implement module 7 merged expense editor`
+- 范围: 模块 7 合并消费
+- 说明: 将消费类型入口页精简为选择器，并把普通消费编辑器正式拆到独立文件；新增真实的合并消费编辑页，接入账本详情、类别列表、消费详情、创建合并消费和更新合并消费接口；支持父项与子项表单、税前/税后模式切换、子项动态增删、创建并继续、金额预览与差额提示；同时补齐合并消费相关的中英日文案。
+- 验证: 已执行 `npx tsc --noEmit`、`npm run lint -- --quiet`、`npm test -- --runInBand --watchman=false`。
+- 后续: 模块 7 提交后，按计划进入模块 8 协作与邀请管理。
