@@ -92,9 +92,9 @@ export function AnalyticsPlaceholderScreen({route}: Props) {
     () => categories.map(category => category.id),
     [categories],
   );
-  const effectiveCategoryIDs = normalizeSelectedIDsForQuery(
-    categoryIDs,
-    availableCategoryIDs,
+  const effectiveCategoryIDs = useMemo(
+    () => normalizeSelectedIDsForQuery(categoryIDs, availableCategoryIDs),
+    [categoryIDs, availableCategoryIDs],
   );
   const positiveShareItems = useMemo(
     () => shareItems.filter(item => Number(item.total_converted_amount) > 0),

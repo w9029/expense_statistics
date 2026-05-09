@@ -199,3 +199,11 @@
 - 说明: 修复分析页切换“按月”后仍显示年月日滚轮、且选择月份后因事件格式不兼容而触发 `nativeEvent.value` 空指针的问题；将月份模式改为真正的“年 / 月”双列原生滚轮，并在 React Native 侧统一兼容日期事件回传格式，避免再次因为事件结构差异而崩溃。
 - 验证: 待执行 `npx tsc --noEmit`、`npm run lint -- --quiet`、`npm test -- --runInBand --watchman=false`；由于涉及 iOS 原生视图逻辑修复，仍需在本机 Xcode 中重新编译验证月份滚轮与事件回传。
 - 后续: 这轮修复确认后，再继续后续分析页和发布收尾工作。
+
+## 2026-05-10
+
+- 提交: `fix(ios): stabilize analytics category filters`
+- 范围: 分析页类别筛选请求抖动修复
+- 说明: 修复消费趋势区域在选择类别后，由于筛选参数数组引用重复变化而导致趋势请求在相同条件下反复触发、页面持续闪“加载中...”的问题；将趋势接口使用的类别筛选参数改为记忆化结果，保证只有筛选条件实际变化时才重新请求。
+- 验证: 待执行 `npx tsc --noEmit`、`npm run lint -- --quiet`、`npm test -- --runInBand --watchman=false`。
+- 后续: 这轮稳定性修复确认后，再继续分析页交互增强。
