@@ -6,6 +6,7 @@ type NativeProps = {
   locale?: string;
   value?: string;
   placeholder?: string;
+  mode?: 'date' | 'month';
   style?: ViewStyle;
   onDateChange?: (event: {nativeEvent: {value: string}}) => void;
 };
@@ -16,6 +17,7 @@ const NativeDateFieldView =
     : null;
 
 export function DateField({
+  mode,
   onDateChange,
   placeholder,
   style,
@@ -30,6 +32,7 @@ export function DateField({
   return (
     <NativeDateFieldView
       locale={language}
+      mode={mode}
       onDateChange={onDateChange}
       placeholder={placeholder}
       style={style}

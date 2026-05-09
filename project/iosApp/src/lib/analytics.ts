@@ -2,7 +2,7 @@ import {trailingNaturalDateRange, todayNaturalDate} from '@/lib/ledger';
 
 export type TrendBucket = 'day' | 'month';
 export type DayRangePreset = 'last30' | 'previous30' | null;
-export type MonthRangePreset = 'last12' | null;
+export type MonthRangePreset = 'last12' | 'last24' | null;
 
 export function createDefaultCategoryShareRange() {
   return trailingNaturalDateRange(30);
@@ -66,18 +66,14 @@ export function countInclusiveMonths(dateFrom: string, dateTo: string) {
   return (toYear - fromYear) * 12 + (toMonth - fromMonth) + 1;
 }
 
-export function createRecentMonthOptions(limit = 24) {
-  const current = new Date();
-  current.setDate(1);
+export function createLast24MonthTrendRange() {
+  const today = new Date();
+  const start = new Date(today.getFullYear(), today.getMonth() - 23, 1);
 
-  return Array.from({length: limit}, (_, index) => {
-    const value = new Date(current.getFullYear(), current.getMonth() - index, 1);
-    const key = formatNaturalMonth(value);
-    return {
-      label: key,
-      value: key,
-    };
-  });
+  return {
+    dateFrom: formatNaturalMonth(start),
+    dateTo: todayNaturalMonth(),
+  };
 }
 
 function formatNaturalMonth(value: Date) {

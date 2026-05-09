@@ -17,6 +17,13 @@ final class DateFieldView: UIView {
     didSet { syncText() }
   }
 
+  @objc var mode: NSString = "date" {
+    didSet {
+      updatePickerMode()
+      syncText()
+    }
+  }
+
   @objc var locale: NSString = "en" {
     didSet { updateLocale() }
   }
@@ -32,7 +39,6 @@ final class DateFieldView: UIView {
   private let formatter: DateFormatter = {
     let formatter = DateFormatter()
     formatter.calendar = Calendar(identifier: .gregorian)
-    formatter.dateFormat = "yyyy-MM-dd"
     return formatter
   }()
 
@@ -40,6 +46,7 @@ final class DateFieldView: UIView {
     super.init(frame: frame)
     setupField()
     setupPicker()
+    updatePickerMode()
     updateLocale()
     syncText()
   }
@@ -70,7 +77,6 @@ final class DateFieldView: UIView {
   }
 
   private func setupPicker() {
-    datePicker.datePickerMode = .date
     datePicker.preferredDatePickerStyle = .wheels
     datePicker.addTarget(self, action: #selector(handlePickerChange), for: .valueChanged)
     textField.inputView = datePicker
@@ -82,6 +88,16 @@ final class DateFieldView: UIView {
       UIBarButtonItem(title: doneTitle(for: locale as String), style: .done, target: self, action: #selector(doneTapped)),
     ]
     textField.inputAccessoryView = toolbar
+  }
+
+  private func updatePickerMode() {
+    if (mode as String) == "month" {
+      datePicker.datePickerMode = .date
+      formatter.dateFormat = "yyyy-MM"
+    } else {
+      datePicker.datePickerMode = .date
+      formatter.dateFormat = "yyyy-MM-dd"
+    }
   }
 
   private func updateLocale() {
@@ -110,14 +126,41 @@ final class DateFieldView: UIView {
     textField.placeholder = placeholder as String
     textField.text = raw.isEmpty ? nil : raw
 
-    if let date = formatter.date(from: raw) {
+    if let date = parseDate(from: raw) {
       datePicker.date = date
     }
   }
 
+  private func parseDate(from raw: String) -> Date? {
+    if (mode as String) == "month" {
+      let monthFormatter = DateFormatter()
+      monthFormatter.calendar = Calendar(identifier: .gregorian)
+      monthFormatter.locale = Locale(identifier: "en_US_POSIX")
+      monthFormatter.dateFormat = "yyyy-MM"
+      if let date = monthFormatter.date(from: raw) {
+        return date
+      }
+      let dayFormatter = DateFormatter()
+      dayFormatter.calendar = Calendar(identifier: .gregorian)
+      dayFormatter.locale = Locale(identifier: "en_US_POSIX")
+      dayFormatter.dateFormat = "yyyy-MM-dd"
+      return dayFormatter.date(from: raw)
+    }
+
+    return formatter.date(from: raw)
+  }
+
   @objc
   private func handlePickerChange() {
-    let nextValue = formatter.string(from: datePicker.date)
+    let nextValue: String
+    if (mode as String) == "month" {
+      let components = Calendar(identifier: .gregorian).dateComponents([.year, .month], from: datePicker.date)
+      let year = components.year ?? 0
+      let month = components.month ?? 1
+      nextValue = String(format: "%04d-%02d", year, month)
+    } else {
+      nextValue = formatter.string(from: datePicker.date)
+    }
     textField.text = nextValue
     onDateChange?(["value": nextValue])
   }
