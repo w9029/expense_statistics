@@ -218,8 +218,16 @@
 
 ## 2026-05-10
 
-- 提交: `待提交`
+- 提交: `fix(ios): widen trend drag tolerance`
 - 范围: 分析页趋势图手势容差优化
 - 说明: 调整折线图长按交互的纵向移动容差，记录手势起点后允许更大的轻微上下偏移，减少长按拖动过程中被外层滚动抢走焦点、导致纵线和提示气泡提前消失的问题。
 - 验证: 待执行 `npx tsc --noEmit`、`npm run lint -- --quiet`、`npm test -- --runInBand --watchman=false`。
 - 后续: 如果你实机体验后仍觉得容易失焦，可以继续把容差再调宽，或进一步改成更强的手势锁定。
+
+## 2026-05-10
+
+- 提交: `fix(ios): further widen trend drag tolerance`
+- 范围: 分析页趋势图手势容差二次放宽
+- 说明: 在上一轮容差优化基础上，继续提高趋势图长按交互允许的纵向偏移范围，让长按后左右拖动时更不容易因为手指轻微上下浮动而退出聚焦状态。
+- 验证: 待执行 `npx tsc --noEmit`、`npm run lint -- --quiet`、`npm test -- --runInBand --watchman=false`。
+- 后续: 如果还不够，再下一步就不只是放宽容差，而是改成更强的长按手势锁定策略。
