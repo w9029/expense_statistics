@@ -5,6 +5,7 @@ import {useI18n} from '@/features/i18n/i18n-context';
 import {AppTabsNavigator} from '@/navigation/tabs-navigator';
 import {PublicNavigator} from '@/navigation/public-navigator';
 import {AccountBookDetailScreen} from '@/screens/account-books/account-book-detail-screen';
+import {ExpenseCategoriesScreen} from '@/screens/account-books/expense-categories-screen';
 import {
   MergedExpenseEditorPlaceholderScreen,
   NormalExpenseEditorPlaceholderScreen,
@@ -45,6 +46,10 @@ export function RootNavigator() {
           <Stack.Screen
             name="AccountBookDetail"
             component={AccountBookDetailScreen}
+          />
+          <Stack.Screen
+            name="ExpenseCategories"
+            component={ExpenseCategoriesScreen}
           />
         </>
       ) : (

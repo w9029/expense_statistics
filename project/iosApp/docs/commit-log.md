@@ -74,8 +74,16 @@
 
 ## 2026-05-10
 
-- 提交: `fix(ios): refine module 4 expense workspace interactions`
+- 提交: `365bfb7` `fix(ios): refine module 4 expense workspace interactions`
 - 范围: 模块 4 账本详情与消费记录交互收口
 - 说明: 修复按类别筛选后消费列表重复触发请求、持续显示“加载消费中...”的问题；将消费记录编辑和删除入口改为右上角 SF Symbols 图标；合并账本顶部信息区与消费记录区，压缩顶部垂直高度，并把货币与账本名放到同一行；新增可折叠的“筛选条件”区域，默认收起以缩短页面长度。
 - 验证: 已执行 `npx tsc --noEmit`、`npm run lint -- --quiet`。
 - 后续: 这轮模块 4 交互修复提交后，继续按计划进入模块 5 分类管理。
+
+## 2026-05-10
+
+- 提交: `feat(ios): implement module 5 expense category management`
+- 范围: 模块 5 分类管理
+- 说明: 新增从账本详情进入的独立分类管理页，支持普通类别与合并类别分组展示、查看系统预置标记、创建类别、编辑类别、删除类别、颜色预览和类型选择；同时补齐三语文案，并让账本详情在从分类页返回后自动刷新类别快照。
+- 验证: 已执行 `npx tsc --noEmit`、`npm run lint -- --quiet`、`npm test -- --runInBand --watchman=false`。
+- 后续: 模块 5 提交后，按计划进入模块 6 普通消费。
