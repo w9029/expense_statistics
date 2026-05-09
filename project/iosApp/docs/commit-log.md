@@ -66,7 +66,7 @@
 
 ## 2026-05-10
 
-- 提交: `pending`
+- 提交: `3ece08f` `feat(ios): implement module 4 account book detail`
 - 范围: 模块 4 账本详情与消费列表
 - 说明: 将账本详情占位页替换为真实工作台，接入账本详情、成员、分类与消费列表接口；实现账本元信息编辑、删除/退出账本、消费分页、关键词/成员/币种/金额/日期/分类筛选，以及普通消费/合并消费入口和分类快照卡片。
 - 验证: 已执行 `npx tsc --noEmit`、`npm run lint -- --quiet`、`npm test -- --runInBand --watchman=false`；命令行环境下尝试 `xcodebuild` 时仍受 CoreSimulator 连接和 DerivedData 权限限制影响，未能完成构建验证，需在本机 Xcode 内再核验一次。
