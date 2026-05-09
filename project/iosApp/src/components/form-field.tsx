@@ -1,18 +1,19 @@
 import {PropsWithChildren} from 'react';
-import {StyleSheet, Text, TextInput, TextInputProps, View} from 'react-native';
+import {StyleSheet, Text, TextInput, TextInputProps, TextStyle, View} from 'react-native';
 import {colors} from '@/theme/colors';
 
 type FormFieldProps = PropsWithChildren<{
   label: string;
   error?: string | null;
+  errorTextStyle?: TextStyle;
 }>;
 
-export function FormField({children, error, label}: FormFieldProps) {
+export function FormField({children, error, errorTextStyle, label}: FormFieldProps) {
   return (
     <View style={styles.container}>
       <Text style={styles.label}>{label}</Text>
       {children}
-      {error ? <Text style={styles.error}>{error}</Text> : null}
+      {error ? <Text style={[styles.error, errorTextStyle]}>{error}</Text> : null}
     </View>
   );
 }
@@ -51,7 +52,8 @@ const styles = StyleSheet.create({
   },
   error: {
     color: colors.danger,
-    fontSize: 13,
-    lineHeight: 18,
+    fontSize: 15,
+    fontWeight: '800',
+    lineHeight: 20,
   },
 });

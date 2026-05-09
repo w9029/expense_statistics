@@ -8,6 +8,7 @@ import {InlineBanner} from '@/components/inline-banner';
 import {PlaceholderCard} from '@/components/placeholder-card';
 import {ScreenShell} from '@/components/screen-shell';
 import {SFSymbol} from '@/components/sf-symbol';
+import {ColorWell} from '@/components/color-well';
 import {useBookSession} from '@/features/account-books/book-session-context';
 import {useAuth} from '@/features/auth/auth-context';
 import {useToast} from '@/features/feedback/toast-context';
@@ -34,19 +35,6 @@ const EMPTY_FORM: CategoryForm = {
   isMergeCategory: false,
   color: '#CA5D2B',
 };
-
-const PRESET_COLORS = [
-  '#CA5D2B',
-  '#D97706',
-  '#C2410C',
-  '#B45309',
-  '#4D7C0F',
-  '#0F766E',
-  '#0369A1',
-  '#7C3AED',
-  '#BE185D',
-  '#DC2626',
-];
 
 function toFormValues(category: ExpenseCategory): CategoryForm {
   return {
@@ -344,28 +332,10 @@ export function CategoryCreateScreen({navigation, route}: Props) {
 
             <FormField error={formErrors.color} label={t('categories.color')}>
               <View style={styles.colorField}>
-                <View style={styles.swatchWrap}>
-                  {PRESET_COLORS.map(color => {
-                    const active = previewColor === color;
-
-                    return (
-                      <Pressable
-                        key={color}
-                        onPress={() => updateForm('color', color)}
-                        style={[
-                          styles.swatch,
-                          {backgroundColor: color},
-                          active ? styles.swatchActive : undefined,
-                        ]}
-                      />
-                    );
-                  })}
-                </View>
-                <AppTextInput
-                  autoCapitalize="characters"
-                  maxLength={7}
-                  onChangeText={text => updateForm('color', text.toUpperCase())}
-                  value={form.color}
+                <ColorWell
+                  colorHex={previewColor}
+                  onColorChange={event => updateForm('color', event.nativeEvent.colorHex)}
+                  style={styles.colorWell}
                 />
                 <Text style={styles.colorHint}>{t('categories.colorHint')}</Text>
               </View>
@@ -480,21 +450,10 @@ const styles = StyleSheet.create({
   colorField: {
     gap: 10,
   },
-  swatchWrap: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-  },
-  swatch: {
-    borderColor: colors.line,
-    borderRadius: 14,
-    borderWidth: 2,
-    height: 34,
-    width: 34,
-  },
-  swatchActive: {
-    borderColor: colors.ink,
-    transform: [{scale: 1.04}],
+  colorWell: {
+    alignSelf: 'flex-start',
+    height: 42,
+    width: 62,
   },
   colorHint: {
     color: colors.muted,
