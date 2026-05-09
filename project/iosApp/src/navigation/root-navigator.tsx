@@ -5,6 +5,7 @@ import {useI18n} from '@/features/i18n/i18n-context';
 import {AppTabsNavigator} from '@/navigation/tabs-navigator';
 import {PublicNavigator} from '@/navigation/public-navigator';
 import {AccountBookDetailPlaceholderScreen} from '@/screens/account-books/account-book-detail-placeholder-screen';
+import {InvitationScreen} from '@/screens/invitation/invitation-screen';
 import type {RootStackParamList} from '@/navigation/types';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -27,13 +28,17 @@ export function RootNavigator() {
       {auth.isAuthenticated ? (
         <>
           <Stack.Screen name="AppTabs" component={AppTabsNavigator} />
+          <Stack.Screen name="Invitation" component={InvitationScreen} />
           <Stack.Screen
             name="AccountBookDetail"
             component={AccountBookDetailPlaceholderScreen}
           />
         </>
       ) : (
-        <Stack.Screen name="Public" component={PublicNavigator} />
+        <>
+          <Stack.Screen name="Public" component={PublicNavigator} />
+          <Stack.Screen name="Invitation" component={InvitationScreen} />
+        </>
       )}
     </Stack.Navigator>
   );

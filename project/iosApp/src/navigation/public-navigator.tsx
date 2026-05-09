@@ -1,7 +1,6 @@
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
-import {LoginPlaceholderScreen} from '@/screens/auth/login-placeholder-screen';
-import {RegisterPlaceholderScreen} from '@/screens/auth/register-placeholder-screen';
-import {InvitationPlaceholderScreen} from '@/screens/invitation/invitation-placeholder-screen';
+import {LoginScreen} from '@/screens/auth/login-screen';
+import {RegisterScreen} from '@/screens/auth/register-screen';
 import {WelcomeScreen} from '@/screens/public/welcome-screen';
 import type {PublicStackParamList} from '@/navigation/types';
 
@@ -15,9 +14,8 @@ export function PublicNavigator() {
         component={WelcomeScreen}
         options={{headerShown: false}}
       />
-      <Stack.Screen name="Login" component={LoginPlaceholderScreen} />
-      <Stack.Screen name="Register" component={RegisterPlaceholderScreen} />
-      <Stack.Screen name="Invitation" component={InvitationPlaceholderScreen} />
+      <Stack.Screen name="Login" component={LoginScreen} />
+      <Stack.Screen name="Register" component={RegisterScreen} />
     </Stack.Navigator>
   );
 }

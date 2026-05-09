@@ -1,8 +1,14 @@
+import type {NavigatorScreenParams} from '@react-navigation/native';
+
+export type AuthRedirectTarget =
+  | {type: 'accountBooks'}
+  | {type: 'accountBookDetail'; accountBookId: string}
+  | {type: 'invitation'; token: string};
+
 export type PublicStackParamList = {
   Welcome: undefined;
-  Login: undefined;
-  Register: undefined;
-  Invitation: {token?: string} | undefined;
+  Login: {redirect?: AuthRedirectTarget} | undefined;
+  Register: {redirect?: AuthRedirectTarget} | undefined;
 };
 
 export type AppTabParamList = {
@@ -11,7 +17,8 @@ export type AppTabParamList = {
 };
 
 export type RootStackParamList = {
-  Public: undefined;
+  Public: NavigatorScreenParams<PublicStackParamList> | undefined;
   AppTabs: undefined;
+  Invitation: {token?: string} | undefined;
   AccountBookDetail: {accountBookId: string};
 };
