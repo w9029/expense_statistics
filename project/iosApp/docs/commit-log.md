@@ -55,3 +55,11 @@
 - 说明: 将个人资料占位页替换为真实编辑页，支持修改用户名、偏好货币、语言、头像路径与默认账本；接入 `updateProfile` / `updateDefaultAccountBook`，并在保存后同步更新会话与语言状态。
 - 验证: 已执行 `npx tsc --noEmit`、`npm run lint -- --quiet`、`npm test -- --runInBand --watchman=false`；iOS Debug 模拟器 `xcodebuild` 在当前命令行环境里因 CoreSimulatorService 连接问题未能完成，后续需在本机 Xcode 环境再核验一次。
 - 后续: 本模块验证通过后，继续按计划进入模块 4 账本详情与消费列表。
+
+## 2026-05-09
+
+- 提交: `pending`
+- 范围: iOS 主题与账本列表交互优化
+- 说明: 将已完成页面的整体色调调整为更接近 Web 的暖橙主题，新增共享 `colors` 主题文件；优化账本列表交互，改为在列表区域内展开“新建账本”表单，并把删除/退出入口收进账本卡片右上角；同时接入最小 iOS 原生桥接，使用 SF Symbols 显示系统图标。
+- 验证: 已执行 `npx tsc --noEmit`、`npm run lint -- --quiet`；原生图标已在本机重新编译后完成显示验证。
+- 后续: 提交这轮 UI 收口后，按计划进入模块 4，开始实现账本详情与消费列表。

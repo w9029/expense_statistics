@@ -12,6 +12,7 @@ import {getApiErrorMessage} from '@/lib/api-errors';
 import {getPostAuthRoute} from '@/lib/auth';
 import {navigationRef} from '@/lib/navigation';
 import type {PublicStackParamList} from '@/navigation/types';
+import {colors} from '@/theme/colors';
 
 type Props = NativeStackScreenProps<PublicStackParamList, 'Login'>;
 
@@ -153,7 +154,7 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   link: {
-    color: '#17324d',
+    color: colors.accent,
     fontSize: 14,
     fontWeight: '600',
     textAlign: 'center',

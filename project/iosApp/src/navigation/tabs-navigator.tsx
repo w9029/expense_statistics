@@ -2,6 +2,7 @@ import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 import {useI18n} from '@/features/i18n/i18n-context';
 import {AccountBooksScreen} from '@/screens/account-books/account-books-screen';
 import {ProfileScreen} from '@/screens/profile/profile-screen';
+import {colors} from '@/theme/colors';
 import type {AppTabParamList} from '@/navigation/types';
 
 const Tab = createBottomTabNavigator<AppTabParamList>();
@@ -13,8 +14,8 @@ export function AppTabsNavigator() {
     <Tab.Navigator
       screenOptions={{
         headerTitleAlign: 'center',
-        tabBarActiveTintColor: '#17324d',
-        tabBarInactiveTintColor: '#6f7f8f',
+        tabBarActiveTintColor: colors.accent,
+        tabBarInactiveTintColor: colors.muted,
       }}>
       <Tab.Screen
         name="AccountBooks"

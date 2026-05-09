@@ -1,5 +1,6 @@
 import {PropsWithChildren} from 'react';
 import {StyleSheet, Text, TextInput, TextInputProps, View} from 'react-native';
+import {colors} from '@/theme/colors';
 
 type FormFieldProps = PropsWithChildren<{
   label: string;
@@ -22,7 +23,7 @@ export function AppTextInput(props: AppTextInputProps) {
   return (
     <TextInput
       autoCapitalize="none"
-      placeholderTextColor="#7a8794"
+      placeholderTextColor="#938171"
       {...props}
       style={[styles.input, props.style]}
     />
@@ -34,22 +35,22 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   label: {
-    color: '#30465d',
+    color: colors.muted,
     fontSize: 14,
     fontWeight: '700',
   },
   input: {
-    backgroundColor: '#f7f3ec',
-    borderColor: '#ded4c7',
+    backgroundColor: colors.surfaceSoft,
+    borderColor: colors.border,
     borderRadius: 16,
     borderWidth: 1,
-    color: '#1d2733',
+    color: colors.ink,
     fontSize: 16,
     paddingHorizontal: 16,
     paddingVertical: 14,
   },
   error: {
-    color: '#8a2e24',
+    color: colors.danger,
     fontSize: 13,
     lineHeight: 18,
   },

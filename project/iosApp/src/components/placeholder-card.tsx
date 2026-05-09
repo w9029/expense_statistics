@@ -1,19 +1,25 @@
-import {PropsWithChildren} from 'react';
+import {PropsWithChildren, ReactNode} from 'react';
 import {StyleSheet, Text, View} from 'react-native';
+import {colors} from '@/theme/colors';
 
 type PlaceholderCardProps = PropsWithChildren<{
   title: string;
   description?: string;
+  headerAccessory?: ReactNode;
 }>;
 
 export function PlaceholderCard({
   children,
   description,
+  headerAccessory,
   title,
 }: PlaceholderCardProps) {
   return (
     <View style={styles.card}>
-      <Text style={styles.title}>{title}</Text>
+      <View style={styles.header}>
+        <Text style={styles.title}>{title}</Text>
+        {headerAccessory ? <View style={styles.headerAccessory}>{headerAccessory}</View> : null}
+      </View>
       {description ? <Text style={styles.description}>{description}</Text> : null}
       {children}
     </View>
@@ -22,19 +28,30 @@ export function PlaceholderCard({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.panel,
+    borderColor: colors.line,
+    borderWidth: 1,
     borderRadius: 24,
-    gap: 12,
-    padding: 20,
+    gap: 10,
+    padding: 16,
+  },
+  header: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  headerAccessory: {
+    marginLeft: 12,
   },
   title: {
-    color: '#1d2733',
-    fontSize: 22,
+    color: colors.ink,
+    flex: 1,
+    fontSize: 20,
     fontWeight: '700',
   },
   description: {
-    color: '#546575',
-    fontSize: 15,
-    lineHeight: 22,
+    color: colors.muted,
+    fontSize: 14,
+    lineHeight: 20,
   },
 });

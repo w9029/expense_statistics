@@ -6,6 +6,7 @@ import {ScreenShell} from '@/components/screen-shell';
 import {HealthCard} from '@/features/health/health-card';
 import {useI18n} from '@/features/i18n/i18n-context';
 import type {PublicStackParamList} from '@/navigation/types';
+import {colors} from '@/theme/colors';
 
 type Props = NativeStackScreenProps<PublicStackParamList, 'Welcome'>;
 
@@ -47,22 +48,22 @@ const styles = StyleSheet.create({
   },
   button: {
     alignItems: 'center',
-    backgroundColor: '#efe6d8',
+    backgroundColor: colors.surfaceMuted,
     borderRadius: 16,
     flex: 1,
     paddingHorizontal: 16,
     paddingVertical: 14,
   },
   primaryButton: {
-    backgroundColor: '#17324d',
+    backgroundColor: colors.accent,
   },
   buttonText: {
-    color: '#17324d',
+    color: colors.accentDeep,
     fontSize: 15,
     fontWeight: '700',
   },
   primaryButtonText: {
-    color: '#ffffff',
+    color: colors.backgroundSoft,
     fontSize: 15,
     fontWeight: '700',
   },

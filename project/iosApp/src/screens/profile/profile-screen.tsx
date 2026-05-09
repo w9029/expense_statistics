@@ -12,6 +12,7 @@ import {useI18n} from '@/features/i18n/i18n-context';
 import {apiClient} from '@/lib/api';
 import {getApiErrorMessage} from '@/lib/api-errors';
 import type {AppLanguage} from '@/features/i18n/messages';
+import {colors} from '@/theme/colors';
 
 type ProfileForm = {
   name: string;
@@ -301,21 +302,21 @@ const styles = StyleSheet.create({
   },
   chip: {
     alignItems: 'center',
-    backgroundColor: '#f0e8dc',
+    backgroundColor: colors.surfaceMuted,
     borderRadius: 999,
     paddingHorizontal: 14,
     paddingVertical: 10,
   },
   chipActive: {
-    backgroundColor: '#17324d',
+    backgroundColor: colors.accent,
   },
   chipText: {
-    color: '#30465d',
+    color: colors.accentDeep,
     fontSize: 13,
     fontWeight: '700',
   },
   chipTextActive: {
-    color: '#ffffff',
+    color: colors.backgroundSoft,
   },
   bookRow: {
     flexDirection: 'row',
@@ -325,7 +326,7 @@ const styles = StyleSheet.create({
   },
   bookChip: {
     alignItems: 'center',
-    backgroundColor: '#efe6d8',
+    backgroundColor: colors.surfaceMuted,
     borderRadius: 999,
     justifyContent: 'center',
     minHeight: 42,
@@ -333,14 +334,14 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   bookChipActive: {
-    backgroundColor: '#17324d',
+    backgroundColor: colors.accent,
   },
   bookChipText: {
-    color: '#17324d',
+    color: colors.accentDeep,
     fontSize: 13,
     fontWeight: '700',
   },
   bookChipTextActive: {
-    color: '#ffffff',
+    color: colors.backgroundSoft,
   },
 });
