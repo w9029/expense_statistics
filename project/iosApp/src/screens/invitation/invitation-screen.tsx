@@ -97,11 +97,8 @@ export function InvitationScreen({navigation, route}: Props) {
           return;
         }
         navigationRef.navigate('AppTabs', {
-          screen: 'AccountBooksTab',
-          params: {
-            screen: 'AccountBookDetail',
-            params: {accountBookId: result.account_book_id},
-          },
+          screen: 'ExpensesTab',
+          params: {accountBookId: result.account_book_id},
         });
       });
     } catch (error) {

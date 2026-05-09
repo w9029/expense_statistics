@@ -1,45 +1,45 @@
 import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
-import {createNativeStackNavigator} from '@react-navigation/native-stack';
+import {Pressable, StyleSheet, View} from 'react-native';
+import type {BottomTabBarButtonProps} from '@react-navigation/bottom-tabs';
+import {useBookSession} from '@/features/account-books/book-session-context';
 import {useI18n} from '@/features/i18n/i18n-context';
-import {AccountBookDetailScreen} from '@/screens/account-books/account-book-detail-screen';
 import {AccountBooksScreen} from '@/screens/account-books/account-books-screen';
-import {ExpenseCategoriesScreen} from '@/screens/account-books/expense-categories-screen';
-import {AnalyticsPlaceholderScreen} from '@/screens/account-books/analytics-placeholder-screen';
+import {
+  AnalyticsTabScreen,
+  CategoriesTabScreen,
+  ExpensesTabScreen,
+} from '@/screens/account-books/book-tab-screen';
 import {ProfileScreen} from '@/screens/profile/profile-screen';
 import {colors} from '@/theme/colors';
 import type {
-  AccountBooksStackParamList,
   AppTabParamList,
 } from '@/navigation/types';
 
 const Tab = createBottomTabNavigator<AppTabParamList>();
-const AccountBooksStack = createNativeStackNavigator<AccountBooksStackParamList>();
 
-function AccountBooksStackNavigator() {
+function DisabledTabButton({
+  children,
+  disabled,
+  onPress,
+  accessibilityState,
+}: BottomTabBarButtonProps & {disabled?: boolean}) {
   return (
-    <AccountBooksStack.Navigator screenOptions={{headerShown: false}}>
-      <AccountBooksStack.Screen
-        name="AccountBooksHome"
-        component={AccountBooksScreen}
-      />
-      <AccountBooksStack.Screen
-        name="AccountBookDetail"
-        component={AccountBookDetailScreen}
-      />
-      <AccountBooksStack.Screen
-        name="ExpenseCategories"
-        component={ExpenseCategoriesScreen}
-      />
-      <AccountBooksStack.Screen
-        name="Analytics"
-        component={AnalyticsPlaceholderScreen}
-      />
-    </AccountBooksStack.Navigator>
+    <Pressable
+      accessibilityState={{...accessibilityState, disabled}}
+      disabled={disabled}
+      onPress={disabled ? undefined : onPress}
+      style={styles.tabButton}>
+      <View pointerEvents="none" style={disabled ? styles.tabButtonDisabled : undefined}>
+        {children}
+      </View>
+    </Pressable>
   );
 }
 
 export function AppTabsNavigator() {
   const {t} = useI18n();
+  const {activeAccountBookId} = useBookSession();
+  const isBookSelected = Boolean(activeAccountBookId);
 
   return (
     <Tab.Navigator
@@ -50,8 +50,38 @@ export function AppTabsNavigator() {
       }}>
       <Tab.Screen
         name="AccountBooksTab"
-        component={AccountBooksStackNavigator}
+        component={AccountBooksScreen}
         options={{title: t('nav.books')}}
+      />
+      <Tab.Screen
+        name="ExpensesTab"
+        component={ExpensesTabScreen}
+        options={{
+          title: t('nav.expenses'),
+          tabBarButton: props => (
+            <DisabledTabButton {...props} disabled={!isBookSelected} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="CategoriesTab"
+        component={CategoriesTabScreen}
+        options={{
+          title: t('nav.categories'),
+          tabBarButton: props => (
+            <DisabledTabButton {...props} disabled={!isBookSelected} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="AnalyticsTab"
+        component={AnalyticsTabScreen}
+        options={{
+          title: t('nav.analytics'),
+          tabBarButton: props => (
+            <DisabledTabButton {...props} disabled={!isBookSelected} />
+          ),
+        }}
       />
       <Tab.Screen
         name="Profile"
@@ -61,3 +91,12 @@ export function AppTabsNavigator() {
     </Tab.Navigator>
   );
 }
+
+const styles = StyleSheet.create({
+  tabButton: {
+    flex: 1,
+  },
+  tabButtonDisabled: {
+    opacity: 0.45,
+  },
+});

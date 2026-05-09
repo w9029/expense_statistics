@@ -220,22 +220,14 @@ export function RegisterScreen({navigation, route}: Props) {
 
         if (redirect?.type === 'accountBookDetail') {
           navigationRef.navigate('AppTabs', {
-            screen: 'AccountBooksTab',
-            params: {
-              screen: 'AccountBookDetail',
-              params: {accountBookId: redirect.accountBookId},
-            },
+            screen: 'ExpensesTab',
+            params: {accountBookId: redirect.accountBookId},
           });
           return;
         }
 
         if (redirect?.type === 'accountBooks') {
-          navigationRef.navigate('AppTabs', {
-            screen: 'AccountBooksTab',
-            params: {
-              screen: 'AccountBooksHome',
-            },
-          });
+          navigationRef.navigate('AppTabs', {screen: 'AccountBooksTab'});
           return;
         }
 

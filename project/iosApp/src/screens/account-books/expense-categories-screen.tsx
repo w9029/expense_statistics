@@ -10,23 +10,24 @@ import type {
   AccountBookDetail,
   ExpenseCategory,
 } from '@expense-statistics/domain';
-import type {NativeStackScreenProps} from '@react-navigation/native-stack';
+import type {BottomTabScreenProps} from '@react-navigation/bottom-tabs';
 import {ActionButton} from '@/components/action-button';
 import {AppTextInput, FormField} from '@/components/form-field';
 import {InlineBanner} from '@/components/inline-banner';
 import {PlaceholderCard} from '@/components/placeholder-card';
 import {ScreenShell} from '@/components/screen-shell';
 import {SFSymbol} from '@/components/sf-symbol';
+import {useBookSession} from '@/features/account-books/book-session-context';
 import {useAuth} from '@/features/auth/auth-context';
 import {useToast} from '@/features/feedback/toast-context';
 import {useI18n} from '@/features/i18n/i18n-context';
 import {apiClient} from '@/lib/api';
 import {getApiErrorMessage} from '@/lib/api-errors';
 import {navigationRef} from '@/lib/navigation';
-import type {AccountBooksStackParamList} from '@/navigation/types';
+import type {AppTabParamList} from '@/navigation/types';
 import {colors} from '@/theme/colors';
 
-type Props = NativeStackScreenProps<AccountBooksStackParamList, 'ExpenseCategories'>;
+type Props = BottomTabScreenProps<AppTabParamList, 'CategoriesTab'>;
 
 type CategoryForm = {
   name: string;
@@ -70,9 +71,10 @@ function isHexColor(value: string) {
   return /^#[0-9A-Fa-f]{6}$/.test(value.trim());
 }
 
-export function ExpenseCategoriesScreen({navigation, route}: Props) {
-  const {accountBookId} = route.params;
+export function ExpenseCategoriesScreen({route}: Props) {
+  const accountBookId = route.params?.accountBookId ?? '';
   const auth = useAuth();
+  const {setActiveAccountBookId} = useBookSession();
   const {showToast} = useToast();
   const {t} = useI18n();
   const [detail, setDetail] = useState<AccountBookDetail | null>(null);
@@ -107,31 +109,9 @@ export function ExpenseCategoriesScreen({navigation, route}: Props) {
         ...form,
         color: previewColor,
       });
-  const bookTabs = useMemo(
-    () => [
-      {
-        key: 'expenses',
-        label: t('nav.expenses'),
-        active: false,
-        onPress: () =>
-          navigation.navigate('AccountBookDetail', {accountBookId}),
-      },
-      {
-        key: 'categories',
-        label: t('nav.categories'),
-        active: true,
-        onPress: () => undefined,
-      },
-      {
-        key: 'analytics',
-        label: t('nav.analytics'),
-        active: false,
-        onPress: () =>
-          navigation.navigate('Analytics', {accountBookId}),
-      },
-    ],
-    [accountBookId, navigation, t],
-  );
+  useEffect(() => {
+    setActiveAccountBookId(accountBookId);
+  }, [accountBookId, setActiveAccountBookId]);
 
   const loadPage = useCallback(async () => {
     if (!auth.accessToken) {
@@ -382,6 +362,16 @@ export function ExpenseCategoriesScreen({navigation, route}: Props) {
     );
   }
 
+  if (!accountBookId) {
+    return (
+      <ScreenShell title={t('nav.categories')} description={t('accountBooks.description')}>
+        <PlaceholderCard title={t('nav.categories')}>
+          <InlineBanner message={t('accountBooks.empty')} tone="info" />
+        </PlaceholderCard>
+      </ScreenShell>
+    );
+  }
+
   return (
     <ScreenShell hideHero title={t('categories.title')}>
       <PlaceholderCard
@@ -404,26 +394,6 @@ export function ExpenseCategoriesScreen({navigation, route}: Props) {
             </Pressable>
           </View>
         }>
-        <View style={styles.bookTabRow}>
-          {bookTabs.map(tab => (
-            <Pressable
-              key={tab.key}
-              onPress={tab.onPress}
-              style={[
-                styles.bookTab,
-                tab.active ? styles.bookTabActive : undefined,
-              ]}>
-              <Text
-                style={[
-                  styles.bookTabText,
-                  tab.active ? styles.bookTabTextActive : undefined,
-                ]}>
-                {tab.label}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-
         <View style={styles.metaStrip}>
           <Text style={styles.metaChip}>
             {t('book.titleFallback')}: {detail?.name ?? '-'}
@@ -634,32 +604,6 @@ export function ExpenseCategoriesScreen({navigation, route}: Props) {
 }
 
 const styles = StyleSheet.create({
-  bookTabRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  bookTab: {
-    alignItems: 'center',
-    backgroundColor: colors.surfaceMuted,
-    borderColor: colors.line,
-    borderRadius: 999,
-    borderWidth: 1,
-    justifyContent: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  bookTabActive: {
-    backgroundColor: colors.accent,
-    borderColor: colors.accent,
-  },
-  bookTabText: {
-    color: colors.accentDeep,
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  bookTabTextActive: {
-    color: colors.backgroundSoft,
-  },
   metaStrip: {
     flexDirection: 'row',
     flexWrap: 'wrap',
