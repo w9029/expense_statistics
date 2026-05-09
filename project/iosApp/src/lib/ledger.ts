@@ -6,6 +6,10 @@ function toNaturalDate(date: Date) {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
+export function todayNaturalDate() {
+  return toNaturalDate(new Date());
+}
+
 export function trailingNaturalDateRange(days: number) {
   const end = new Date();
   const start = new Date(end);
