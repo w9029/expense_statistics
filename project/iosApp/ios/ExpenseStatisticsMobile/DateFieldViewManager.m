@@ -5,6 +5,7 @@
 RCT_EXPORT_VIEW_PROPERTY(value, NSString)
 RCT_EXPORT_VIEW_PROPERTY(locale, NSString)
 RCT_EXPORT_VIEW_PROPERTY(placeholder, NSString)
+RCT_EXPORT_VIEW_PROPERTY(mode, NSString)
 RCT_EXPORT_VIEW_PROPERTY(onDateChange, RCTBubblingEventBlock)
 
 @end

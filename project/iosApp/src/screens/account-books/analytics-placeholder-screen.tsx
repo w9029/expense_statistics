@@ -15,7 +15,6 @@ import {FormField} from '@/components/form-field';
 import {InlineBanner} from '@/components/inline-banner';
 import {PlaceholderCard} from '@/components/placeholder-card';
 import {ScreenShell} from '@/components/screen-shell';
-import {SelectField} from '@/components/select-field';
 import {SFSymbol} from '@/components/sf-symbol';
 import {useBookSession} from '@/features/account-books/book-session-context';
 import {useAuth} from '@/features/auth/auth-context';
@@ -26,8 +25,8 @@ import {
   createDefaultCategoryShareRange,
   createDefaultDayTrendRange,
   createDefaultMonthTrendRange,
+  createLast24MonthTrendRange,
   createPrevious30DayRange,
-  createRecentMonthOptions,
   DayRangePreset,
   MonthRangePreset,
   TrendBucket,
@@ -89,7 +88,6 @@ export function AnalyticsPlaceholderScreen({route}: Props) {
   const [isLoadingShare, setIsLoadingShare] = useState(false);
   const [isFilterPanelVisible, setIsFilterPanelVisible] = useState(false);
 
-  const monthOptions = useMemo(() => createRecentMonthOptions(24), []);
   const availableCategoryIDs = useMemo(
     () => categories.map(category => category.id),
     [categories],
@@ -271,7 +269,9 @@ export function AnalyticsPlaceholderScreen({route}: Props) {
     setMonthPreset(nextPreset);
     if (nextPreset === 'last12') {
       setMonthRange(createDefaultMonthTrendRange());
+      return;
     }
+    setMonthRange(createLast24MonthTrendRange());
   }
 
   function toggleCategory(categoryID: string) {
@@ -530,32 +530,34 @@ export function AnalyticsPlaceholderScreen({route}: Props) {
                 <View style={styles.inlineRow}>
                   <View style={styles.flexField}>
                     <FormField label={t('analytics.monthFrom')}>
-                      <SelectField
-                        onSelect={value => {
+                      <DateField
+                        mode="month"
+                        onDateChange={event => {
                           setMonthPreset(null);
                           setMonthRange(current => ({
                             ...current,
-                            dateFrom: value,
+                            dateFrom: event.nativeEvent.value,
                           }));
                         }}
-                        options={monthOptions}
                         placeholder={t('analytics.monthFrom')}
+                        style={styles.dateInput}
                         value={monthRange.dateFrom}
                       />
                     </FormField>
                   </View>
                   <View style={styles.flexField}>
                     <FormField label={t('analytics.monthTo')}>
-                      <SelectField
-                        onSelect={value => {
+                      <DateField
+                        mode="month"
+                        onDateChange={event => {
                           setMonthPreset(null);
                           setMonthRange(current => ({
                             ...current,
-                            dateTo: value,
+                            dateTo: event.nativeEvent.value,
                           }));
                         }}
-                        options={monthOptions}
                         placeholder={t('analytics.monthTo')}
+                        style={styles.dateInput}
                         value={monthRange.dateTo}
                       />
                     </FormField>
@@ -566,8 +568,14 @@ export function AnalyticsPlaceholderScreen({route}: Props) {
                   <ActionButton
                     label={t('analytics.last12Months')}
                     onPress={() => applyMonthPreset('last12')}
-                    style={styles.fullPresetButton}
+                    style={styles.presetButton}
                     tone={monthPreset === 'last12' ? 'primary' : 'secondary'}
+                  />
+                  <ActionButton
+                    label={t('analytics.last24Months')}
+                    onPress={() => applyMonthPreset('last24')}
+                    style={styles.presetButton}
+                    tone={monthPreset === 'last24' ? 'primary' : 'secondary'}
                   />
                 </View>
               </>
@@ -872,12 +880,6 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   presetButton: {
-    flex: 1,
-    minHeight: 40,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  fullPresetButton: {
     flex: 1,
     minHeight: 40,
     paddingHorizontal: 12,

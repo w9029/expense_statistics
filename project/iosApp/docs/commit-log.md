@@ -183,3 +183,11 @@
 - 说明: 将“协作管理”入口从类别管理页挪到账本选择页的每个账本卡片中，并补上根导航直达协作页；修复创建邀请后“复制链接”失败的问题，保留原生剪贴板桥优先，并在原生模块未生效时退化到系统分享；为分析页引入 `react-native-svg`，把类别占比区域改为“预设按钮 + 饼图 + 列表”，把分析筛选并入消费趋势区域且支持折叠/展开，并将消费趋势改为折线图。
 - 验证: 已执行 `pod install`、`npx tsc --noEmit`、`npm run lint -- --quiet`、`npm test -- --runInBand --watchman=false`。
 - 后续: 由于新增了 `react-native-svg`，需要在本机 Xcode 中重新编译一次，再确认协作入口跳转、邀请链接复制/分享，以及分析页图表显示效果。
+
+## 2026-05-10
+
+- 提交: `fix(ios): refine analytics month range picking`
+- 范围: 分析页月份筛选体验优化
+- 说明: 将分析页“按月”模式下的开始月份/结束月份从下拉框改为 iOS 原生日历月份选择器，保持日期控件语言跟随 App 当前语言；补充“最近 24 个月”快捷按钮，并继续沿用按月模式最多 24 个月的范围校验。
+- 验证: 待执行 `npx tsc --noEmit`、`npm run lint -- --quiet`、`npm test -- --runInBand --watchman=false`；由于修改了原生 `DateFieldViewManager`，还需在本机 Xcode 中重新编译确认月份选择器显示正常。
+- 后续: 这轮月份筛选体验调整验证通过后，再继续后续分析页和发布收尾工作。
