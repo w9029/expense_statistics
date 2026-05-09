@@ -69,24 +69,28 @@ export function LoginScreen({navigation, route}: Props) {
         }
 
         if (redirect?.type === 'accountBookDetail') {
-          navigationRef.navigate('AccountBookDetail', {
-            accountBookId: redirect.accountBookId,
+          navigationRef.navigate('AppTabs', {
+            screen: 'AccountBooksTab',
+            params: {
+              screen: 'AccountBookDetail',
+              params: {accountBookId: redirect.accountBookId},
+            },
           });
           return;
         }
 
         if (redirect?.type === 'accountBooks') {
-          navigationRef.navigate('AppTabs');
+          navigationRef.navigate('AppTabs', {
+            screen: 'AccountBooksTab',
+            params: {
+              screen: 'AccountBooksHome',
+            },
+          });
           return;
         }
 
         const destination = getPostAuthRoute(session.user);
-        if (destination.name === 'AccountBookDetail') {
-          navigationRef.navigate('AccountBookDetail', destination.params);
-          return;
-        }
-
-        navigationRef.navigate('AppTabs');
+        navigationRef.navigate(destination.name, destination.params);
       });
     } catch (error) {
       setSubmitError(getApiErrorMessage(error, t('login.failed')));

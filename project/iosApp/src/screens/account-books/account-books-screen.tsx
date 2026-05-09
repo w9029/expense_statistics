@@ -7,7 +7,7 @@ import {
   View,
 } from 'react-native';
 import type {AccountBookSummary} from '@expense-statistics/domain';
-import type {BottomTabScreenProps} from '@react-navigation/bottom-tabs';
+import type {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {ActionButton} from '@/components/action-button';
 import {AppTextInput, FormField} from '@/components/form-field';
 import {InlineBanner} from '@/components/inline-banner';
@@ -19,8 +19,7 @@ import {useToast} from '@/features/feedback/toast-context';
 import {useI18n} from '@/features/i18n/i18n-context';
 import {apiClient} from '@/lib/api';
 import {getApiErrorMessage} from '@/lib/api-errors';
-import {navigationRef} from '@/lib/navigation';
-import type {AppTabParamList} from '@/navigation/types';
+import type {AccountBooksStackParamList} from '@/navigation/types';
 import {colors} from '@/theme/colors';
 
 type BookForm = {
@@ -37,7 +36,9 @@ const defaultForm: BookForm = {
   description: '',
 };
 
-export function AccountBooksScreen({}: BottomTabScreenProps<AppTabParamList, 'AccountBooks'>) {
+export function AccountBooksScreen({
+  navigation,
+}: NativeStackScreenProps<AccountBooksStackParamList, 'AccountBooksHome'>) {
   const auth = useAuth();
   const {showToast} = useToast();
   const {t} = useI18n();
@@ -158,7 +159,7 @@ export function AccountBooksScreen({}: BottomTabScreenProps<AppTabParamList, 'Ac
         });
       }
       showToast(t('accountBooks.create.success'), 'success');
-      navigationRef.navigate('AccountBookDetail', {accountBookId: created.id});
+      navigation.navigate('AccountBookDetail', {accountBookId: created.id});
     } catch (error) {
       setPageError(getApiErrorMessage(error, t('accountBooks.create.failed')));
     } finally {
@@ -257,7 +258,10 @@ export function AccountBooksScreen({}: BottomTabScreenProps<AppTabParamList, 'Ac
       [
         {text: t('common.cancel'), style: 'cancel'},
         {
-          text: book.my_role === 'owner' ? t('accountBooks.delete') : t('accountBooks.leave'),
+          text:
+            book.my_role === 'owner'
+              ? t('common.confirmDelete')
+              : t('accountBooks.leave'),
           style: book.my_role === 'owner' ? 'destructive' : 'default',
           onPress: () => {
             void (book.my_role === 'owner'
@@ -398,7 +402,7 @@ export function AccountBooksScreen({}: BottomTabScreenProps<AppTabParamList, 'Ac
                   <ActionButton
                     label={t('accountBooks.open')}
                     onPress={() =>
-                      navigationRef.navigate('AccountBookDetail', {
+                      navigation.navigate('AccountBookDetail', {
                         accountBookId: book.id,
                       })
                     }
