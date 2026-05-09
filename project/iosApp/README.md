@@ -1,97 +1,152 @@
-This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
+# Expense Statistics iOS App
 
-# Getting Started
+这是当前项目的 React Native iOS 工程，目录在 `project/iosApp`。
 
-> **Note**: Make sure you have completed the [Set Up Your Environment](https://reactnative.dev/docs/set-up-your-environment) guide before proceeding.
+目前这个工程已经完成了最小可运行基线验证，并且现在已经切回标准 React Native 开发模式：
 
-## Step 1: Start Metro
+- Debug 模式通过 Metro 提供实时 JS 代码
+- 可以在 Xcode 中运行到 iOS 模拟器或真机
+- App 启动后会请求 `http://wlzy.online:8090/healthz`
+- 页面会显示后端返回的健康检查结果
 
-First, you will need to run **Metro**, the JavaScript build tool for React Native.
+## 你现在最关心的：怎么在 Xcode 里运行
 
-To start the Metro dev server, run the following command from the root of your React Native project:
+### 第一次运行前
+
+先进入工程目录：
 
 ```sh
-# Using npm
+cd project/iosApp
+```
+
+如果是第一次拉这个 React Native 工程，先安装依赖：
+
+```sh
+npm install
+cd ios
+pod install
+cd ..
+```
+
+### 在 Xcode 里打开工程
+
+不要打开 `.xcodeproj`，要打开这个文件：
+
+```text
+project/iosApp/ios/ExpenseStatisticsMobile.xcworkspace
+```
+
+你可以在 Finder 里双击它，也可以在终端里执行：
+
+```sh
+open ios/ExpenseStatisticsMobile.xcworkspace
+```
+
+### 正式开发时的推荐启动方式
+
+先在 `project/iosApp` 目录启动 Metro：
+
+```sh
 npm start
-
-# OR using Yarn
-yarn start
 ```
 
-## Step 2: Build and run your app
+保持这个终端不要关。
 
-With Metro running, open a new terminal window/pane from the root of your React Native project, and use one of the following commands to build and run your Android or iOS app:
-
-### Android
+然后再打开 Xcode：
 
 ```sh
-# Using npm
-npm run android
-
-# OR using Yarn
-yarn android
+open ios/ExpenseStatisticsMobile.xcworkspace
 ```
 
-### iOS
+### 在 Xcode 里运行到模拟器或真机
 
-For iOS, remember to install CocoaPods dependencies (this only needs to be run on first clone or after updating native deps).
+1. 打开 `ExpenseStatisticsMobile.xcworkspace`
+2. 等 Xcode 完成索引
+3. 左上角选中 Scheme：`ExpenseStatisticsMobile`
+4. 在 Scheme 右边选择一个模拟器，比如 `iPhone 17`，或者选择你的真机
+5. 点击左上角运行按钮，或者按 `Cmd + R`
+6. 等待编译完成，模拟器会自动启动并安装 App
 
-The first time you create a new project, run the Ruby bundler to install CocoaPods itself:
+如果一切正常，你会看到一个最小页面，页面上会显示：
+
+- `React Native minimum app`
+- `Health Check` 或你当前修改后的文案
+- 请求成功后的后端返回值
+
+## 当前工程的开发模式
+
+当前已经恢复为标准 React Native 开发流：
+
+- `Debug` 运行时连接 Metro
+- 你修改 `App.tsx` 这类 JS/TS 文件后，保存即可触发刷新
+- `Release` 仍然会使用打包进 App 的 JS bundle
+
+这意味着现在开发时应当这样使用：
+
+1. 先执行 `npm start`
+2. 再用 Xcode `Cmd + R`
+3. 修改代码后直接看模拟器或真机自动刷新
+
+## 后续正式开发时的常用命令
+
+在 `project/iosApp` 目录下：
+
+启动 Metro：
 
 ```sh
-bundle install
+npm start
 ```
 
-Then, and every time you update your native dependencies, run:
+命令行启动 iOS：
 
 ```sh
-bundle exec pod install
-```
-
-For more information, please visit [CocoaPods Getting Started guide](https://guides.cocoapods.org/using/getting-started.html).
-
-```sh
-# Using npm
 npm run ios
-
-# OR using Yarn
-yarn ios
 ```
 
-If everything is set up correctly, you should see your new app running in the Android Emulator, iOS Simulator, or your connected device.
+安装/更新 iOS 原生依赖后重新执行：
 
-This is one way to run your app — you can also build it directly from Android Studio or Xcode.
+```sh
+cd ios
+pod install
+cd ..
+```
 
-## Step 3: Modify your app
+## 如果你改了代码但页面没更新
 
-Now that you have successfully run the app, let's make changes!
+先检查这几项：
 
-Open `App.tsx` in your text editor of choice and make some changes. When you save, your app will automatically update and reflect these changes — this is powered by [Fast Refresh](https://reactnative.dev/docs/fast-refresh).
+- Metro 终端是否还在运行
+- 你是否改的是 `project/iosApp` 里的代码，而不是别的目录
+- Xcode 当前跑的是 `Debug`，不是 `Release`
+- 真机和电脑是否在同一个局域网
+- 是否可以在模拟器里按 `R` 触发 reload
 
-When you want to forcefully reload, for example to reset the state of your app, you can perform a full reload:
+如果还是不更新，可以先：
 
-- **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Dev Menu**, accessed via <kbd>Ctrl</kbd> + <kbd>M</kbd> (Windows/Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (macOS).
-- **iOS**: Press <kbd>R</kbd> in iOS Simulator.
+```sh
+npm start -- --reset-cache
+```
 
-## Congratulations! :tada:
+然后重新在 Xcode 里运行一次。
 
-You've successfully run and modified your React Native App. :partying_face:
+## 如果 Xcode 里运行失败，先检查这几项
 
-### Now what?
+- 你打开的是 `.xcworkspace`，不是 `.xcodeproj`
+- 你已经执行过 `npm install`
+- 你已经执行过 `pod install`
+- 当前选中的 Scheme 是 `ExpenseStatisticsMobile`
+- 当前目标设备是 iPhone 模拟器或已经配置好的真机
 
-- If you want to add this new React Native code to an existing application, check out the [Integration guide](https://reactnative.dev/docs/integration-with-existing-apps).
-- If you're curious to learn more about React Native, check out the [docs](https://reactnative.dev/docs/getting-started).
+## 切回“内嵌 bundle 调试模式”
 
-# Troubleshooting
+如果你以后想回到“不启动 Metro 也能直接运行”的模式，请看：
 
-If you're having issues getting the above steps to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
+- `project/iosApp/docs/debug-bundle-mode.md`
 
-# Learn More
+## 当前最小验证页面位置
 
-To learn more about React Native, take a look at the following resources:
+如果你想看页面代码，入口主要在这里：
 
-- [React Native Website](https://reactnative.dev) - learn more about React Native.
-- [Getting Started](https://reactnative.dev/docs/environment-setup) - an **overview** of React Native and how setup your environment.
-- [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
-- [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
-- [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
+- `project/iosApp/App.tsx`
+- `project/iosApp/ios/ExpenseStatisticsMobile/AppDelegate.swift`
+- `project/iosApp/ios/ExpenseStatisticsMobile/Info.plist`

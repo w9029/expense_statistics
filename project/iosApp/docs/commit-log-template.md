@@ -1,11 +1,11 @@
-# Commit Log
+# 提交日志
 
-Use this document to record each implementation commit for the iOS app work.
+用这个文档记录 iOS App 开发过程中的每一次实现提交。
 
-## Template
+## 模板
 
-- Commit:
-- Scope:
-- Summary:
-- Validation:
-- Follow-up:
+- 提交:
+- 范围:
+- 说明:
+- 验证:
+- 后续:
