@@ -6,6 +6,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import {useIsFocused} from '@react-navigation/native';
 import type {
   AccountBookDetail,
   AccountBookMember,
@@ -45,6 +46,7 @@ export function AccountBookDetailScreen({route}: Props) {
   const auth = useAuth();
   const {showToast} = useToast();
   const {t} = useI18n();
+  const isFocused = useIsFocused();
   const [detail, setDetail] = useState<AccountBookDetail | null>(null);
   const [members, setMembers] = useState<AccountBookMember[]>([]);
   const [categories, setCategories] = useState<ExpenseCategory[]>([]);
@@ -163,6 +165,32 @@ export function AccountBookDetailScreen({route}: Props) {
       cancelled = true;
     };
   }, [accountBookId, auth.accessToken, t]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void (async () => {
+      if (!auth.accessToken || !isFocused) {
+        return;
+      }
+
+      try {
+        const nextCategories = await apiClient.listExpenseCategories(
+          auth.accessToken,
+          accountBookId,
+        );
+        if (!cancelled) {
+          setCategories(nextCategories);
+        }
+      } catch {
+        // Ignore silent refresh errors when returning from child screens.
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [accountBookId, auth.accessToken, isFocused]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1082,7 +1110,17 @@ export function AccountBookDetailScreen({route}: Props) {
 
       <PlaceholderCard
         title={t('book.snapshotTitle')}
-        description={t('book.snapshotDescription')}>
+        description={t('book.snapshotDescription')}
+        headerAccessory={
+          <ActionButton
+            label={t('book.manage')}
+            onPress={() =>
+              navigationRef.navigate('ExpenseCategories', {accountBookId})
+            }
+            style={styles.snapshotManageButton}
+            tone="secondary"
+          />
+        }>
         <View style={styles.snapshotSection}>
           <Text style={styles.sectionLabel}>{t('book.merge')}</Text>
           <View style={styles.pillWrap}>
@@ -1196,6 +1234,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 10,
+  },
+  snapshotManageButton: {
+    minHeight: 38,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
   },
   expenseBadge: {
     backgroundColor: colors.surfaceMuted,
