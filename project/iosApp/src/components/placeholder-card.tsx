@@ -6,20 +6,24 @@ type PlaceholderCardProps = PropsWithChildren<{
   title: string;
   description?: string;
   headerAccessory?: ReactNode;
+  hideHeader?: boolean;
 }>;
 
 export function PlaceholderCard({
   children,
   description,
   headerAccessory,
+  hideHeader = false,
   title,
 }: PlaceholderCardProps) {
   return (
     <View style={styles.card}>
-      <View style={styles.header}>
-        <Text style={styles.title}>{title}</Text>
-        {headerAccessory ? <View style={styles.headerAccessory}>{headerAccessory}</View> : null}
-      </View>
+      {!hideHeader ? (
+        <View style={styles.header}>
+          <Text style={styles.title}>{title}</Text>
+          {headerAccessory ? <View style={styles.headerAccessory}>{headerAccessory}</View> : null}
+        </View>
+      ) : null}
       {description ? <Text style={styles.description}>{description}</Text> : null}
       {children}
     </View>

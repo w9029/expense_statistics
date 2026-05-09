@@ -7,19 +7,20 @@ import {
   View,
 } from 'react-native';
 import type {AccountBookSummary} from '@expense-statistics/domain';
-import type {NativeStackScreenProps} from '@react-navigation/native-stack';
+import type {BottomTabScreenProps} from '@react-navigation/bottom-tabs';
 import {ActionButton} from '@/components/action-button';
 import {AppTextInput, FormField} from '@/components/form-field';
 import {InlineBanner} from '@/components/inline-banner';
 import {PlaceholderCard} from '@/components/placeholder-card';
 import {ScreenShell} from '@/components/screen-shell';
+import {useBookSession} from '@/features/account-books/book-session-context';
 import {SFSymbol} from '@/components/sf-symbol';
 import {useAuth} from '@/features/auth/auth-context';
 import {useToast} from '@/features/feedback/toast-context';
 import {useI18n} from '@/features/i18n/i18n-context';
 import {apiClient} from '@/lib/api';
 import {getApiErrorMessage} from '@/lib/api-errors';
-import type {AccountBooksStackParamList} from '@/navigation/types';
+import type {AppTabParamList} from '@/navigation/types';
 import {colors} from '@/theme/colors';
 
 type BookForm = {
@@ -38,8 +39,9 @@ const defaultForm: BookForm = {
 
 export function AccountBooksScreen({
   navigation,
-}: NativeStackScreenProps<AccountBooksStackParamList, 'AccountBooksHome'>) {
+}: BottomTabScreenProps<AppTabParamList, 'AccountBooksTab'>) {
   const auth = useAuth();
+  const {setActiveAccountBookId} = useBookSession();
   const {showToast} = useToast();
   const {t} = useI18n();
   const [accountBooks, setAccountBooks] = useState<AccountBookSummary[]>([]);
@@ -159,7 +161,8 @@ export function AccountBooksScreen({
         });
       }
       showToast(t('accountBooks.create.success'), 'success');
-      navigation.navigate('AccountBookDetail', {accountBookId: created.id});
+      setActiveAccountBookId(created.id);
+      navigation.navigate('ExpensesTab', {accountBookId: created.id});
     } catch (error) {
       setPageError(getApiErrorMessage(error, t('accountBooks.create.failed')));
     } finally {
@@ -213,6 +216,7 @@ export function AccountBooksScreen({
           default_account_book_id: null,
         });
       }
+      setActiveAccountBookId(current => (current === book.id ? null : current));
       showToast(t('accountBooks.delete.success'), 'success');
     } catch (error) {
       setPageError(getApiErrorMessage(error, t('accountBooks.delete.failed')));
@@ -240,6 +244,7 @@ export function AccountBooksScreen({
           default_account_book_id: null,
         });
       }
+      setActiveAccountBookId(current => (current === book.id ? null : current));
       showToast(t('accountBooks.leave.success'), 'success');
     } catch (error) {
       setPageError(getApiErrorMessage(error, t('accountBooks.leave.failed')));
@@ -401,11 +406,10 @@ export function AccountBooksScreen({
                 <View style={styles.actions}>
                   <ActionButton
                     label={t('accountBooks.open')}
-                    onPress={() =>
-                      navigation.navigate('AccountBookDetail', {
-                        accountBookId: book.id,
-                      })
-                    }
+                    onPress={() => {
+                      setActiveAccountBookId(book.id);
+                      navigation.navigate('ExpensesTab', {accountBookId: book.id});
+                    }}
                     style={styles.flexButton}
                   />
                   <ActionButton

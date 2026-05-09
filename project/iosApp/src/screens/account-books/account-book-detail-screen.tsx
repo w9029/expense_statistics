@@ -13,13 +13,14 @@ import type {
   ExpenseCategory,
   ExpenseSummary,
 } from '@expense-statistics/domain';
-import type {NativeStackScreenProps} from '@react-navigation/native-stack';
+import type {BottomTabScreenProps} from '@react-navigation/bottom-tabs';
 import {ActionButton} from '@/components/action-button';
 import {AppTextInput, FormField} from '@/components/form-field';
 import {InlineBanner} from '@/components/inline-banner';
 import {PlaceholderCard} from '@/components/placeholder-card';
 import {ScreenShell} from '@/components/screen-shell';
 import {SFSymbol} from '@/components/sf-symbol';
+import {useBookSession} from '@/features/account-books/book-session-context';
 import {useAuth} from '@/features/auth/auth-context';
 import {useToast} from '@/features/feedback/toast-context';
 import {useI18n} from '@/features/i18n/i18n-context';
@@ -29,10 +30,10 @@ import {normalizeSelectedIDsForQuery} from '@/lib/category-filters';
 import {createDefaultExpenseListFilters, ExpenseDatePreset, ExpenseListFilters} from '@/lib/expense-list';
 import {formatMoney, shortID, trailingNaturalDateRange} from '@/lib/ledger';
 import {navigationRef} from '@/lib/navigation';
-import type {AccountBooksStackParamList} from '@/navigation/types';
+import type {AppTabParamList} from '@/navigation/types';
 import {colors} from '@/theme/colors';
 
-type Props = NativeStackScreenProps<AccountBooksStackParamList, 'AccountBookDetail'>;
+type Props = BottomTabScreenProps<AppTabParamList, 'ExpensesTab'>;
 
 type MetadataForm = {
   name: string;
@@ -42,8 +43,9 @@ type MetadataForm = {
 type MetadataErrors = Partial<Record<keyof MetadataForm, string>>;
 
 export function AccountBookDetailScreen({route}: Props) {
-  const {accountBookId} = route.params;
+  const accountBookId = route.params?.accountBookId ?? '';
   const auth = useAuth();
+  const {setActiveAccountBookId} = useBookSession();
   const {showToast} = useToast();
   const {t} = useI18n();
   const isFocused = useIsFocused();
@@ -149,43 +151,9 @@ export function AccountBookDetailScreen({route}: Props) {
     1,
     Math.ceil(expensePageMeta.total / expensePageMeta.pageSize || 1),
   );
-  const bookTabs = useMemo(
-    () => [
-      {
-        key: 'expenses',
-        label: t('nav.expenses'),
-        active: true,
-        onPress: () => undefined,
-      },
-      {
-        key: 'categories',
-        label: t('nav.categories'),
-        active: false,
-        onPress: () =>
-          navigationRef.navigate('AppTabs', {
-            screen: 'AccountBooksTab',
-            params: {
-              screen: 'ExpenseCategories',
-              params: {accountBookId},
-            },
-          }),
-      },
-      {
-        key: 'analytics',
-        label: t('nav.analytics'),
-        active: false,
-        onPress: () =>
-          navigationRef.navigate('AppTabs', {
-            screen: 'AccountBooksTab',
-            params: {
-              screen: 'Analytics',
-              params: {accountBookId},
-            },
-          }),
-      },
-    ],
-    [accountBookId, t],
-  );
+  useEffect(() => {
+    setActiveAccountBookId(accountBookId);
+  }, [accountBookId, setActiveAccountBookId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -476,6 +444,9 @@ export function AccountBookDetailScreen({route}: Props) {
                     default_account_book_id: null,
                   });
                 }
+                setActiveAccountBookId(current =>
+                  current === accountBookId ? null : current,
+                );
                 showToast(t('book.bookDeleted'), 'success');
                 navigationRef.navigate('AppTabs');
               } catch (error) {
@@ -512,6 +483,9 @@ export function AccountBookDetailScreen({route}: Props) {
                   default_account_book_id: null,
                 });
               }
+              setActiveAccountBookId(current =>
+                current === accountBookId ? null : current,
+              );
               showToast(t('book.left'), 'success');
               navigationRef.navigate('AppTabs');
             } catch (error) {
@@ -612,10 +586,18 @@ export function AccountBookDetailScreen({route}: Props) {
 
     return (
       <PlaceholderCard
+        hideHeader
         key={expense.id}
         title=""
-        headerAccessory={
-          canManageExpenses ? (
+        >
+        <View style={styles.expenseTitleRow}>
+          <View style={styles.expenseTitleMain}>
+            <Text numberOfLines={1} style={styles.expenseCardTitle}>
+              {expense.name}
+            </Text>
+            <Text style={styles.expenseCurrencyChip}>{expense.original_currency}</Text>
+          </View>
+          {canManageExpenses ? (
             <View style={styles.headerActionRow}>
               <Pressable
                 onPress={() => handleEditExpense(expense)}
@@ -641,13 +623,7 @@ export function AccountBookDetailScreen({route}: Props) {
                 />
               </Pressable>
             </View>
-          ) : null
-        }>
-        <View style={styles.expenseTitleRow}>
-          <Text numberOfLines={1} style={styles.expenseCardTitle}>
-            {expense.name}
-          </Text>
-          <Text style={styles.expenseCurrencyChip}>{expense.original_currency}</Text>
+          ) : null}
         </View>
 
         <View style={styles.expenseTopRow}>
@@ -745,6 +721,16 @@ export function AccountBookDetailScreen({route}: Props) {
     );
   }
 
+  if (!accountBookId) {
+    return (
+      <ScreenShell title={t('nav.expenses')} description={t('accountBooks.description')}>
+        <PlaceholderCard title={t('nav.expenses')}>
+          <InlineBanner message={t('accountBooks.empty')} tone="info" />
+        </PlaceholderCard>
+      </ScreenShell>
+    );
+  }
+
   return (
     <ScreenShell
       hideHero
@@ -754,8 +740,16 @@ export function AccountBookDetailScreen({route}: Props) {
       {pageError ? <InlineBanner message={pageError} tone="error" /> : null}
 
       <PlaceholderCard
+        hideHeader
         title=""
-        headerAccessory={
+        >
+        <View style={styles.topSummaryRow}>
+          <View style={styles.topSummaryMain}>
+            <Text numberOfLines={1} style={styles.topBookName}>
+              {detail?.name ?? t('book.titleFallback')}
+            </Text>
+            <Text style={styles.topCurrencyChip}>{detail?.base_currency ?? '-'}</Text>
+          </View>
           <View style={styles.headerActionRow}>
             {canEdit ? (
               <Pressable
@@ -776,7 +770,7 @@ export function AccountBookDetailScreen({route}: Props) {
                 onPress={() => {
                   void handleDeleteBook();
                 }}
-                style={styles.iconHeaderButton}>
+                style={styles.dangerIconHeaderButton}>
                 <SFSymbol
                   colorHex={colors.danger}
                   name="trash"
@@ -801,34 +795,6 @@ export function AccountBookDetailScreen({route}: Props) {
                 />
               </Pressable>
             ) : null}
-          </View>
-        }>
-        <View style={styles.bookTabRow}>
-          {bookTabs.map(tab => (
-            <Pressable
-              key={tab.key}
-              onPress={tab.onPress}
-              style={[
-                styles.bookTab,
-                tab.active ? styles.bookTabActive : undefined,
-              ]}>
-              <Text
-                style={[
-                  styles.bookTabText,
-                  tab.active ? styles.bookTabTextActive : undefined,
-                ]}>
-                {tab.label}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-
-        <View style={styles.topSummaryRow}>
-          <View style={styles.topSummaryMain}>
-            <Text numberOfLines={1} style={styles.topBookName}>
-              {detail?.name ?? t('book.titleFallback')}
-            </Text>
-            <Text style={styles.topCurrencyChip}>{detail?.base_currency ?? '-'}</Text>
           </View>
         </View>
 
@@ -1210,42 +1176,17 @@ export function AccountBookDetailScreen({route}: Props) {
 }
 
 const styles = StyleSheet.create({
-  bookTabRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  bookTab: {
-    alignItems: 'center',
-    backgroundColor: colors.surfaceMuted,
-    borderColor: colors.line,
-    borderRadius: 999,
-    borderWidth: 1,
-    justifyContent: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  bookTabActive: {
-    backgroundColor: colors.accent,
-    borderColor: colors.accent,
-  },
-  bookTabText: {
-    color: colors.accentDeep,
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  bookTabTextActive: {
-    color: colors.backgroundSoft,
-  },
   topSummaryRow: {
-    alignItems: 'flex-start',
+    alignItems: 'center',
     flexDirection: 'row',
     gap: 12,
+    justifyContent: 'space-between',
   },
   topSummaryMain: {
     alignItems: 'center',
-    flex: 1,
     flexDirection: 'row',
-    gap: 10,
+    flexShrink: 1,
+    gap: 8,
     minWidth: 0,
   },
   topCurrencyChip: {
@@ -1262,9 +1203,9 @@ const styles = StyleSheet.create({
   },
   topBookName: {
     color: colors.ink,
-    flex: 1,
     fontSize: 22,
     fontWeight: '800',
+    flexShrink: 1,
   },
   metaStrip: {
     flexDirection: 'row',
@@ -1307,6 +1248,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     width: 34,
   },
+  dangerIconHeaderButton: {
+    alignItems: 'center',
+    backgroundColor: colors.dangerSoft,
+    borderColor: colors.danger,
+    borderRadius: 12,
+    borderWidth: 1,
+    height: 34,
+    justifyContent: 'center',
+    width: 34,
+  },
   headerIcon: {
     height: 16,
     width: 16,
@@ -1320,11 +1271,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceMuted,
     borderRadius: 999,
     color: colors.accentDeep,
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '700',
     overflow: 'hidden',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
   },
   filterGroup: {
     gap: 14,
@@ -1489,19 +1440,26 @@ const styles = StyleSheet.create({
     width: 10,
   },
   expenseList: {
-    gap: 12,
+    gap: 10,
   },
   expenseTitleRow: {
     alignItems: 'center',
     flexDirection: 'row',
-    gap: 8,
+    gap: 6,
     justifyContent: 'space-between',
+  },
+  expenseTitleMain: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    flexShrink: 1,
+    gap: 6,
+    minWidth: 0,
   },
   expenseCardTitle: {
     color: colors.ink,
-    flex: 1,
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '700',
+    flexShrink: 1,
   },
   expenseCurrencyChip: {
     backgroundColor: colors.accentSoftMuted,
@@ -1509,16 +1467,16 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     borderWidth: 1,
     color: colors.accentDeep,
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '800',
     overflow: 'hidden',
     paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingVertical: 3,
   },
   expenseTopRow: {
     alignItems: 'flex-start',
     flexDirection: 'row',
-    gap: 10,
+    gap: 8,
     justifyContent: 'space-between',
   },
   expenseMetaWrap: {
@@ -1533,13 +1491,13 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     borderWidth: 1,
     flexDirection: 'row',
-    gap: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    gap: 6,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
   },
   categoryChipText: {
     color: colors.accentDeep,
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '700',
   },
   expenseAmountBlock: {
@@ -1548,32 +1506,33 @@ const styles = StyleSheet.create({
   },
   expenseAmount: {
     color: colors.ink,
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '700',
   },
   expenseConvertedAmount: {
     color: colors.muted,
-    fontSize: 12,
-    marginTop: 4,
+    fontSize: 11,
+    marginTop: 2,
   },
   expenseDescription: {
     color: colors.muted,
     fontSize: 14,
-    lineHeight: 20,
+    lineHeight: 18,
   },
   expenseInfoRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
+    gap: 8,
+    minHeight: 16,
   },
   expenseInfoText: {
     color: colors.muted,
-    fontSize: 12,
+    fontSize: 11,
   },
   childList: {
     borderTopColor: colors.line,
     borderTopWidth: 1,
-    gap: 10,
+    gap: 8,
     marginTop: 4,
     paddingTop: 10,
   },

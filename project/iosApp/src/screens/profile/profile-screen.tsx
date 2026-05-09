@@ -6,6 +6,7 @@ import {AppTextInput, FormField} from '@/components/form-field';
 import {InlineBanner} from '@/components/inline-banner';
 import {PlaceholderCard} from '@/components/placeholder-card';
 import {ScreenShell} from '@/components/screen-shell';
+import {useBookSession} from '@/features/account-books/book-session-context';
 import {useAuth} from '@/features/auth/auth-context';
 import {useToast} from '@/features/feedback/toast-context';
 import {useI18n} from '@/features/i18n/i18n-context';
@@ -41,8 +42,10 @@ function normalizeProfileForm(userName?: string | null, preferredCurrency?: stri
 
 export function ProfileScreen() {
   const auth = useAuth();
+  const {setActiveAccountBookId} = useBookSession();
   const {showToast} = useToast();
   const {language, setLanguage, supportedLanguages, t} = useI18n();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [form, setForm] = useState<ProfileForm>(emptyProfileForm);
   const [errors, setErrors] = useState<ValidationErrors>({});
   const [isSavingProfile, setIsSavingProfile] = useState(false);
@@ -158,6 +161,20 @@ export function ProfileScreen() {
       setPageError(getApiErrorMessage(error, t('profile.defaultBook.updateFailed')));
     } finally {
       setIsSavingDefaultBook(false);
+    }
+  }
+
+  async function handleLogout() {
+    if (isLoggingOut) {
+      return;
+    }
+
+    setIsLoggingOut(true);
+    try {
+      setActiveAccountBookId(null);
+      await auth.logout();
+    } finally {
+      setIsLoggingOut(false);
     }
   }
 
@@ -282,6 +299,19 @@ export function ProfileScreen() {
 
           {isSavingDefaultBook ? <InlineBanner message={t('profile.defaultBook.saving')} tone="info" /> : null}
           {pageError ? <InlineBanner message={pageError} tone="error" /> : null}
+        </PlaceholderCard>
+
+        <PlaceholderCard
+          title={t('profile.session.title')}
+          description={t('profile.session.description')}>
+          <ActionButton
+            disabled={isLoggingOut}
+            label={isLoggingOut ? t('profile.loggingOut') : t('profile.logout')}
+            onPress={() => {
+              void handleLogout();
+            }}
+            tone="destructive"
+          />
         </PlaceholderCard>
       </View>
     </ScreenShell>

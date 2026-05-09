@@ -5,22 +5,14 @@ export function getPostAuthRoute(user: User) {
     return {
       name: 'AppTabs' as const,
       params: {
-        screen: 'AccountBooksTab' as const,
-        params: {
-          screen: 'AccountBookDetail' as const,
-          params: {accountBookId: user.default_account_book_id},
-        },
+        screen: 'ExpensesTab' as const,
+        params: {accountBookId: user.default_account_book_id},
       },
     };
   }
 
   return {
     name: 'AppTabs' as const,
-    params: {
-      screen: 'AccountBooksTab' as const,
-      params: {
-        screen: 'AccountBooksHome' as const,
-      },
-    },
+    params: {screen: 'AccountBooksTab' as const},
   };
 }

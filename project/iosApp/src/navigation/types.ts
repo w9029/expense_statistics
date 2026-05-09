@@ -12,15 +12,11 @@ export type PublicStackParamList = {
 };
 
 export type AppTabParamList = {
-  AccountBooksTab: NavigatorScreenParams<AccountBooksStackParamList> | undefined;
+  AccountBooksTab: undefined;
+  ExpensesTab: {accountBookId?: string} | undefined;
+  CategoriesTab: {accountBookId?: string} | undefined;
+  AnalyticsTab: {accountBookId?: string} | undefined;
   Profile: undefined;
-};
-
-export type AccountBooksStackParamList = {
-  AccountBooksHome: undefined;
-  AccountBookDetail: {accountBookId: string};
-  ExpenseCategories: {accountBookId: string};
-  Analytics: {accountBookId: string};
 };
 
 export type RootStackParamList = {
