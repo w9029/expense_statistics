@@ -22,6 +22,7 @@ export type AppTabParamList = {
 export type CategoriesStackParamList = {
   CategoriesHome: {accountBookId: string};
   CategoryCreate: {accountBookId: string; categoryId?: string};
+  Collaboration: {accountBookId: string};
 };
 
 export type RootStackParamList = {
