@@ -12,16 +12,21 @@ export type PublicStackParamList = {
 };
 
 export type AppTabParamList = {
-  AccountBooks: undefined;
+  AccountBooksTab: NavigatorScreenParams<AccountBooksStackParamList> | undefined;
   Profile: undefined;
+};
+
+export type AccountBooksStackParamList = {
+  AccountBooksHome: undefined;
+  AccountBookDetail: {accountBookId: string};
+  ExpenseCategories: {accountBookId: string};
+  Analytics: {accountBookId: string};
 };
 
 export type RootStackParamList = {
   Public: NavigatorScreenParams<PublicStackParamList> | undefined;
-  AppTabs: undefined;
+  AppTabs: NavigatorScreenParams<AppTabParamList> | undefined;
   Invitation: {token?: string} | undefined;
-  AccountBookDetail: {accountBookId: string};
-  ExpenseCategories: {accountBookId: string};
   ExpenseTypePicker: {accountBookId: string};
   NormalExpenseEditor: {accountBookId: string; expenseId?: string};
   MergedExpenseEditor: {accountBookId: string; expenseId?: string};

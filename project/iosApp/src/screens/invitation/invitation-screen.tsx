@@ -91,7 +91,19 @@ export function InvitationScreen({navigation, route}: Props) {
         });
       }
       showToast(t('invite.accepted'), 'success');
-      navigation.replace('AccountBookDetail', {accountBookId: result.account_book_id});
+      navigation.replace('AppTabs');
+      requestAnimationFrame(() => {
+        if (!navigationRef.isReady()) {
+          return;
+        }
+        navigationRef.navigate('AppTabs', {
+          screen: 'AccountBooksTab',
+          params: {
+            screen: 'AccountBookDetail',
+            params: {accountBookId: result.account_book_id},
+          },
+        });
+      });
     } catch (error) {
       const message = getApiErrorMessage(error, t('invite.acceptFailed'));
       setAcceptError(message);

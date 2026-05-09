@@ -29,10 +29,10 @@ import {normalizeSelectedIDsForQuery} from '@/lib/category-filters';
 import {createDefaultExpenseListFilters, ExpenseDatePreset, ExpenseListFilters} from '@/lib/expense-list';
 import {formatMoney, shortID, trailingNaturalDateRange} from '@/lib/ledger';
 import {navigationRef} from '@/lib/navigation';
-import type {RootStackParamList} from '@/navigation/types';
+import type {AccountBooksStackParamList} from '@/navigation/types';
 import {colors} from '@/theme/colors';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'AccountBookDetail'>;
+type Props = NativeStackScreenProps<AccountBooksStackParamList, 'AccountBookDetail'>;
 
 type MetadataForm = {
   name: string;
@@ -149,8 +149,43 @@ export function AccountBookDetailScreen({route}: Props) {
     1,
     Math.ceil(expensePageMeta.total / expensePageMeta.pageSize || 1),
   );
-  const mergeCategories = categories.filter(category => category.is_merge_category);
-  const normalCategories = categories.filter(category => !category.is_merge_category);
+  const bookTabs = useMemo(
+    () => [
+      {
+        key: 'expenses',
+        label: t('nav.expenses'),
+        active: true,
+        onPress: () => undefined,
+      },
+      {
+        key: 'categories',
+        label: t('nav.categories'),
+        active: false,
+        onPress: () =>
+          navigationRef.navigate('AppTabs', {
+            screen: 'AccountBooksTab',
+            params: {
+              screen: 'ExpenseCategories',
+              params: {accountBookId},
+            },
+          }),
+      },
+      {
+        key: 'analytics',
+        label: t('nav.analytics'),
+        active: false,
+        onPress: () =>
+          navigationRef.navigate('AppTabs', {
+            screen: 'AccountBooksTab',
+            params: {
+              screen: 'Analytics',
+              params: {accountBookId},
+            },
+          }),
+      },
+    ],
+    [accountBookId, t],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -522,7 +557,7 @@ export function AccountBookDetailScreen({route}: Props) {
     Alert.alert(t('common.delete'), message, [
       {text: t('common.cancel'), style: 'cancel'},
       {
-        text: t('common.delete'),
+        text: t('common.confirmDelete'),
         style: 'destructive',
         onPress: () => {
           void (async () => {
@@ -578,7 +613,7 @@ export function AccountBookDetailScreen({route}: Props) {
     return (
       <PlaceholderCard
         key={expense.id}
-        title={expense.name}
+        title=""
         headerAccessory={
           canManageExpenses ? (
             <View style={styles.headerActionRow}>
@@ -608,6 +643,13 @@ export function AccountBookDetailScreen({route}: Props) {
             </View>
           ) : null
         }>
+        <View style={styles.expenseTitleRow}>
+          <Text numberOfLines={1} style={styles.expenseCardTitle}>
+            {expense.name}
+          </Text>
+          <Text style={styles.expenseCurrencyChip}>{expense.original_currency}</Text>
+        </View>
+
         <View style={styles.expenseTopRow}>
           <View style={styles.expenseMetaWrap}>
             <View
@@ -662,7 +704,6 @@ export function AccountBookDetailScreen({route}: Props) {
         </View>
 
         <View style={styles.expenseInfoRow}>
-          <Text style={styles.expenseInfoText}>{expense.original_currency}</Text>
           {exchangeRateLabel ? (
             <Text style={styles.expenseInfoText}>{exchangeRateLabel}</Text>
           ) : null}
@@ -708,12 +749,12 @@ export function AccountBookDetailScreen({route}: Props) {
     <ScreenShell
       hideHero
       title={detail?.name ?? t('book.titleFallback')}
-      description={detail?.description ?? t('book.snapshotDescription')}>
+      description={detail?.description ?? undefined}>
       {isLoadingPage ? <InlineBanner message={t('book.loadingBook')} tone="info" /> : null}
       {pageError ? <InlineBanner message={pageError} tone="error" /> : null}
 
       <PlaceholderCard
-        title={detail?.name ?? t('book.titleFallback')}
+        title=""
         headerAccessory={
           <View style={styles.headerActionRow}>
             {canEdit ? (
@@ -762,6 +803,26 @@ export function AccountBookDetailScreen({route}: Props) {
             ) : null}
           </View>
         }>
+        <View style={styles.bookTabRow}>
+          {bookTabs.map(tab => (
+            <Pressable
+              key={tab.key}
+              onPress={tab.onPress}
+              style={[
+                styles.bookTab,
+                tab.active ? styles.bookTabActive : undefined,
+              ]}>
+              <Text
+                style={[
+                  styles.bookTabText,
+                  tab.active ? styles.bookTabTextActive : undefined,
+                ]}>
+                {tab.label}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+
         <View style={styles.topSummaryRow}>
           <View style={styles.topSummaryMain}>
             <Text numberOfLines={1} style={styles.topBookName}>
@@ -1144,53 +1205,37 @@ export function AccountBookDetailScreen({route}: Props) {
           />
         </View>
       </PlaceholderCard>
-
-      <PlaceholderCard
-        title={t('book.snapshotTitle')}
-        description={t('book.snapshotDescription')}
-        headerAccessory={
-          <ActionButton
-            label={t('book.manage')}
-            onPress={() =>
-              navigationRef.navigate('ExpenseCategories', {accountBookId})
-            }
-            style={styles.snapshotManageButton}
-            tone="secondary"
-          />
-        }>
-        <View style={styles.snapshotSection}>
-          <Text style={styles.sectionLabel}>{t('book.merge')}</Text>
-          <View style={styles.pillWrap}>
-            {mergeCategories.map(category => (
-              <View key={category.id} style={styles.categorySummaryChip}>
-                <View
-                  style={[styles.colorDot, {backgroundColor: category.color}]}
-                />
-                <Text style={styles.categorySummaryText}>{category.name}</Text>
-              </View>
-            ))}
-          </View>
-        </View>
-
-        <View style={styles.snapshotSection}>
-          <Text style={styles.sectionLabel}>{t('book.normal')}</Text>
-          <View style={styles.pillWrap}>
-            {normalCategories.map(category => (
-              <View key={category.id} style={styles.categorySummaryChip}>
-                <View
-                  style={[styles.colorDot, {backgroundColor: category.color}]}
-                />
-                <Text style={styles.categorySummaryText}>{category.name}</Text>
-              </View>
-            ))}
-          </View>
-        </View>
-      </PlaceholderCard>
     </ScreenShell>
   );
 }
 
 const styles = StyleSheet.create({
+  bookTabRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  bookTab: {
+    alignItems: 'center',
+    backgroundColor: colors.surfaceMuted,
+    borderColor: colors.line,
+    borderRadius: 999,
+    borderWidth: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  bookTabActive: {
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
+  },
+  bookTabText: {
+    color: colors.accentDeep,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  bookTabTextActive: {
+    color: colors.backgroundSoft,
+  },
   topSummaryRow: {
     alignItems: 'flex-start',
     flexDirection: 'row',
@@ -1270,11 +1315,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 10,
-  },
-  snapshotManageButton: {
-    minHeight: 38,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
   },
   expenseBadge: {
     backgroundColor: colors.surfaceMuted,
@@ -1451,6 +1491,30 @@ const styles = StyleSheet.create({
   expenseList: {
     gap: 12,
   },
+  expenseTitleRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 8,
+    justifyContent: 'space-between',
+  },
+  expenseCardTitle: {
+    color: colors.ink,
+    flex: 1,
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  expenseCurrencyChip: {
+    backgroundColor: colors.accentSoftMuted,
+    borderColor: colors.line,
+    borderRadius: 999,
+    borderWidth: 1,
+    color: colors.accentDeep,
+    fontSize: 12,
+    fontWeight: '800',
+    overflow: 'hidden',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
   expenseTopRow: {
     alignItems: 'flex-start',
     flexDirection: 'row',
@@ -1557,8 +1621,5 @@ const styles = StyleSheet.create({
     color: colors.muted,
     fontSize: 13,
     fontWeight: '700',
-  },
-  snapshotSection: {
-    gap: 10,
   },
 });

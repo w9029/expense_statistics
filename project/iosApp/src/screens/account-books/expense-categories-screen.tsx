@@ -22,10 +22,11 @@ import {useToast} from '@/features/feedback/toast-context';
 import {useI18n} from '@/features/i18n/i18n-context';
 import {apiClient} from '@/lib/api';
 import {getApiErrorMessage} from '@/lib/api-errors';
-import type {RootStackParamList} from '@/navigation/types';
+import {navigationRef} from '@/lib/navigation';
+import type {AccountBooksStackParamList} from '@/navigation/types';
 import {colors} from '@/theme/colors';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'ExpenseCategories'>;
+type Props = NativeStackScreenProps<AccountBooksStackParamList, 'ExpenseCategories'>;
 
 type CategoryForm = {
   name: string;
@@ -106,6 +107,31 @@ export function ExpenseCategoriesScreen({navigation, route}: Props) {
         ...form,
         color: previewColor,
       });
+  const bookTabs = useMemo(
+    () => [
+      {
+        key: 'expenses',
+        label: t('nav.expenses'),
+        active: false,
+        onPress: () =>
+          navigation.navigate('AccountBookDetail', {accountBookId}),
+      },
+      {
+        key: 'categories',
+        label: t('nav.categories'),
+        active: true,
+        onPress: () => undefined,
+      },
+      {
+        key: 'analytics',
+        label: t('nav.analytics'),
+        active: false,
+        onPress: () =>
+          navigation.navigate('Analytics', {accountBookId}),
+      },
+    ],
+    [accountBookId, navigation, t],
+  );
 
   const loadPage = useCallback(async () => {
     if (!auth.accessToken) {
@@ -261,7 +287,7 @@ export function ExpenseCategoriesScreen({navigation, route}: Props) {
     Alert.alert(t('common.delete'), t('categories.deleteConfirm'), [
       {text: t('common.cancel'), style: 'cancel'},
       {
-        text: t('common.delete'),
+        text: t('common.confirmDelete'),
         style: 'destructive',
         onPress: () => {
           void (async () => {
@@ -362,18 +388,42 @@ export function ExpenseCategoriesScreen({navigation, route}: Props) {
         title={t('categories.title')}
         description={t('categories.subtitle')}
         headerAccessory={
-          <Pressable
-            onPress={() => navigation.goBack()}
-            style={styles.iconButton}>
-            <SFSymbol
-              colorHex={colors.accentDeep}
-              name="chevron.left"
-              pointSize={16}
-              style={styles.headerIcon}
-              weight="semibold"
-            />
-          </Pressable>
+          <View style={styles.headerActionRow}>
+            <Pressable
+              onPress={() =>
+                navigationRef.navigate('ExpenseTypePicker', {accountBookId})
+              }
+              style={styles.iconButton}>
+              <SFSymbol
+                colorHex={colors.accentDeep}
+                name="plus"
+                pointSize={16}
+                style={styles.headerIcon}
+                weight="semibold"
+              />
+            </Pressable>
+          </View>
         }>
+        <View style={styles.bookTabRow}>
+          {bookTabs.map(tab => (
+            <Pressable
+              key={tab.key}
+              onPress={tab.onPress}
+              style={[
+                styles.bookTab,
+                tab.active ? styles.bookTabActive : undefined,
+              ]}>
+              <Text
+                style={[
+                  styles.bookTabText,
+                  tab.active ? styles.bookTabTextActive : undefined,
+                ]}>
+                {tab.label}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+
         <View style={styles.metaStrip}>
           <Text style={styles.metaChip}>
             {t('book.titleFallback')}: {detail?.name ?? '-'}
@@ -584,6 +634,32 @@ export function ExpenseCategoriesScreen({navigation, route}: Props) {
 }
 
 const styles = StyleSheet.create({
+  bookTabRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  bookTab: {
+    alignItems: 'center',
+    backgroundColor: colors.surfaceMuted,
+    borderColor: colors.line,
+    borderRadius: 999,
+    borderWidth: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  bookTabActive: {
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
+  },
+  bookTabText: {
+    color: colors.accentDeep,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  bookTabTextActive: {
+    color: colors.backgroundSoft,
+  },
   metaStrip: {
     flexDirection: 'row',
     flexWrap: 'wrap',
