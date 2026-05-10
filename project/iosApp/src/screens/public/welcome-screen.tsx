@@ -3,7 +3,6 @@ import type {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {LanguageSwitcher} from '@/components/language-switcher';
 import {PlaceholderCard} from '@/components/placeholder-card';
 import {ScreenShell} from '@/components/screen-shell';
-import {HealthCard} from '@/features/health/health-card';
 import {useI18n} from '@/features/i18n/i18n-context';
 import type {PublicStackParamList} from '@/navigation/types';
 import {colors} from '@/theme/colors';
@@ -35,7 +34,6 @@ export function WelcomeScreen({navigation}: Props) {
       </PlaceholderCard>
 
       <LanguageSwitcher />
-      <HealthCard />
     </ScreenShell>
   );
 }

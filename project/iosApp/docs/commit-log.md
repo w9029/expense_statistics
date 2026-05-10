@@ -242,8 +242,16 @@
 
 ## 2026-05-11
 
-- 提交: `待提交`
+- 提交: `chore(ios): polish copy and remove dev remnants`
 - 范围: 模块 10 收尾第二轮，聚焦体验与多语言收口
 - 说明: 删除账本页与欢迎页中残留的“模块 0 已完成”等开发阶段提示；将欢迎页和健康检查卡片文案改成正式面向用户的描述；把注册验证码、日期、金额、币种等界面上的硬编码占位统一收回到多语言；补充 `unknownError` 与示例占位文案，并将账本详情/协作/分析中的 `role`、`base`、`categories`、`owner` 等标签改为正式中英日文案；同时把账本页的错误提示提升到页面级统一展示，并顺手修复了 `HealthCard` 的 hook 依赖写法。
 - 验证: 已执行 `npx tsc --noEmit`、`npm run lint -- --quiet`、`npm test -- --runInBand --watchman=false`。
 - 后续: 继续模块 10 的体验收口时，可再做一次更系统的真机空态/错误态回归，并决定是否清理 `messages.ts` 中已不再引用的早期占位 key。
+
+## 2026-05-11
+
+- 提交: `chore(ios): simplify welcome entry copy`
+- 范围: 欢迎页入口文案与开发卡片清理
+- 说明: 将欢迎页主卡片标题从“认证流”调整为更面向用户的入口文案，并移除底部“后端健康检查”区域，避免把开发期使用的健康检查卡片继续暴露在正式入口页面上。
+- 验证: 待执行 `npx tsc --noEmit`、`npm run lint -- --quiet`、`npm test -- --runInBand --watchman=false`。
+- 后续: 如果后续欢迎页还要继续产品化，可以再统一调整标题、副标题和按钮文案的语气。
