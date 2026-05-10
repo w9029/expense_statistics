@@ -8,7 +8,7 @@ const Stack = createNativeStackNavigator<PublicStackParamList>();
 
 export function PublicNavigator() {
   return (
-    <Stack.Navigator>
+    <Stack.Navigator initialRouteName="Login">
       <Stack.Screen
         name="Welcome"
         component={WelcomeScreen}

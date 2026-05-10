@@ -1,5 +1,5 @@
 import {useState} from 'react';
-import {Pressable, StyleSheet, Text, View} from 'react-native';
+import {Alert, Pressable, StyleSheet, Text, View} from 'react-native';
 import type {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {ActionButton} from '@/components/action-button';
 import {AppTextInput, FormField} from '@/components/form-field';
@@ -91,6 +91,14 @@ export function LoginScreen({navigation, route}: Props) {
     }
   }
 
+  function handleForgotPassword() {
+    Alert.alert(
+      t('login.forgotPassword'),
+      t('login.forgotPasswordPending'),
+      [{text: t('common.confirm')}],
+    );
+  }
+
   return (
     <ScreenShell title={t('login.title')} description={t('login.description')}>
       <PlaceholderCard title={t('login.title')}>
@@ -131,14 +139,18 @@ export function LoginScreen({navigation, route}: Props) {
             }}
           />
 
-          <Pressable
-            onPress={() =>
-              navigation.navigate('Register', {redirect: route.params?.redirect})
-            }>
-            <Text style={styles.link}>
-              {t('login.needAccount')} {t('login.createOne')}
-            </Text>
-          </Pressable>
+          <View style={styles.linkRow}>
+            <Pressable onPress={handleForgotPassword} style={styles.linkButton}>
+              <Text style={styles.link}>{t('login.forgotPassword')}</Text>
+            </Pressable>
+            <Pressable
+              onPress={() =>
+                navigation.navigate('Register', {redirect: route.params?.redirect})
+              }
+              style={styles.linkButton}>
+              <Text style={styles.link}>{t('login.createAccount')}</Text>
+            </Pressable>
+          </View>
         </View>
       </PlaceholderCard>
     </ScreenShell>
@@ -148,6 +160,15 @@ export function LoginScreen({navigation, route}: Props) {
 const styles = StyleSheet.create({
   form: {
     gap: 16,
+  },
+  linkRow: {
+    flexDirection: 'row',
+    gap: 12,
+    justifyContent: 'center',
+  },
+  linkButton: {
+    paddingHorizontal: 4,
+    paddingVertical: 2,
   },
   link: {
     color: colors.accent,
