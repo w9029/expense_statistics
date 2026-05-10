@@ -15,7 +15,6 @@ export function WelcomeScreen({navigation}: Props) {
 
   return (
     <ScreenShell
-      eyebrow={t('root.module0Done')}
       title={t('root.welcome')}
       description={t('root.subtitle')}>
       <PlaceholderCard

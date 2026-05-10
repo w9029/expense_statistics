@@ -383,7 +383,7 @@ export function NormalExpenseEditorScreen({embedded = false, navigation, route}:
             label={t('normalExpense.spentAt')}>
             <DateField
               onDateChange={event => updateForm('spent_at', event.nativeEvent.value)}
-              placeholder="2026-05-10"
+              placeholder={t('common.exampleDate')}
               style={styles.dateField}
               value={form.spent_at}
             />
