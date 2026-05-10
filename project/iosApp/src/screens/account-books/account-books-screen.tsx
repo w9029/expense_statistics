@@ -256,23 +256,40 @@ export function AccountBooksScreen({
   }
 
   function confirmDeleteOrLeave(book: AccountBookSummary) {
+    if (book.my_role === 'owner') {
+      Alert.prompt(
+        t('accountBooks.delete'),
+        t('book.bookDeleteConfirm', {name: book.name}),
+        [
+          {text: t('common.cancel'), style: 'cancel'},
+          {
+            text: t('common.confirmDelete'),
+            style: 'destructive',
+            onPress: (typedName?: string) => {
+              if (typedName !== book.name) {
+                if (typedName !== undefined) {
+                  showToast(t('book.nameMismatch'), 'error');
+                }
+                return;
+              }
+
+              void handleDeleteBook(book);
+            },
+          },
+        ],
+      );
+      return;
+    }
+
     Alert.alert(
-      book.my_role === 'owner' ? t('accountBooks.delete') : t('accountBooks.leave'),
-      book.my_role === 'owner'
-        ? t('accountBooks.delete.confirm', {name: book.name})
-        : t('accountBooks.leave.confirm', {name: book.name}),
+      t('accountBooks.leave'),
+      t('accountBooks.leave.confirm', {name: book.name}),
       [
         {text: t('common.cancel'), style: 'cancel'},
         {
-          text:
-            book.my_role === 'owner'
-              ? t('common.confirmDelete')
-              : t('accountBooks.leave'),
-          style: book.my_role === 'owner' ? 'destructive' : 'default',
+          text: t('accountBooks.leave'),
           onPress: () => {
-            void (book.my_role === 'owner'
-              ? handleDeleteBook(book)
-              : handleLeaveBook(book));
+            void handleLeaveBook(book);
           },
         },
       ],
