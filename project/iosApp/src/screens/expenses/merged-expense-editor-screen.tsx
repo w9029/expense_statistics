@@ -599,7 +599,7 @@ export function MergedExpenseEditorScreen({
                   onDateChange={event =>
                     updateParentField('spent_at', event.nativeEvent.value)
                   }
-                  placeholder="2026-05-10"
+                  placeholder={t('common.exampleDate')}
                   style={styles.dateField}
                   value={form.parent.spent_at}
                 />

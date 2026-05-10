@@ -280,10 +280,11 @@ export function AccountBooksScreen({
   }
 
   return (
-    <ScreenShell eyebrow={t('root.module0Done')} title={t('accountBooks.title')} description={t('accountBooks.description')}>
+    <ScreenShell title={t('accountBooks.title')} description={t('accountBooks.description')}>
       {isLoading ? (
         <InlineBanner message={t('accountBooks.loading')} tone="info" />
       ) : null}
+      {pageError ? <InlineBanner message={pageError} tone="error" /> : null}
 
       {isCreatePanelVisible ? (
         <PlaceholderCard
@@ -322,9 +323,6 @@ export function AccountBooksScreen({
                 value={bookForm.description}
               />
             </FormField>
-
-            {pageError ? <InlineBanner message={pageError} tone="error" /> : null}
-
             <View style={styles.formActions}>
               <ActionButton
                 disabled={isCreating}

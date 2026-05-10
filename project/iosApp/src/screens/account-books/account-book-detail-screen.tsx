@@ -966,7 +966,7 @@ export function AccountBookDetailScreen({route}: Props) {
                     autoCapitalize="characters"
                     maxLength={3}
                     onChangeText={text => updateFilter('originalCurrency', text.toUpperCase())}
-                    placeholder="JPY"
+                    placeholder={t('common.exampleCurrency')}
                     value={filters.originalCurrency}
                   />
                 </FormField>
@@ -1017,7 +1017,7 @@ export function AccountBookDetailScreen({route}: Props) {
                   <AppTextInput
                     keyboardType="decimal-pad"
                     onChangeText={text => updateFilter('minAmount', text)}
-                    placeholder="0.00"
+                    placeholder={t('common.exampleAmount')}
                     value={filters.minAmount}
                   />
                 </FormField>
@@ -1045,7 +1045,7 @@ export function AccountBookDetailScreen({route}: Props) {
                         page: 1,
                       }))
                     }
-                    placeholder="2026-01-01"
+                    placeholder={t('common.exampleDateFrom')}
                     style={styles.dateField}
                     value={filters.dateFrom}
                   />
@@ -1062,7 +1062,7 @@ export function AccountBookDetailScreen({route}: Props) {
                         page: 1,
                       }))
                     }
-                    placeholder="2026-01-31"
+                    placeholder={t('common.exampleDateTo')}
                     style={styles.dateField}
                     value={filters.dateTo}
                   />

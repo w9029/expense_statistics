@@ -308,7 +308,7 @@ export function RegisterScreen({navigation, route}: Props) {
                   setCode(text.replace(/\D/g, ''));
                   setVerifyErrors({});
                 }}
-                placeholder="123456"
+                placeholder={t('register.placeholder.code')}
                 value={code}
               />
             </FormField>

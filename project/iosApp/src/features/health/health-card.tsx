@@ -1,4 +1,4 @@
-import {useEffect, useState} from 'react';
+import {useCallback, useEffect, useState} from 'react';
 import {ActivityIndicator, Pressable, StyleSheet, Text, View} from 'react-native';
 import {apiClient} from '@/lib/api';
 import {PlaceholderCard} from '@/components/placeholder-card';
@@ -15,7 +15,7 @@ export function HealthCard() {
   const {t} = useI18n();
   const [healthState, setHealthState] = useState<HealthState>({status: 'idle'});
 
-  async function loadHealth() {
+  const loadHealth = useCallback(async () => {
     setHealthState({status: 'loading'});
 
     try {
@@ -24,18 +24,18 @@ export function HealthCard() {
     } catch (error) {
       setHealthState({
         status: 'error',
-        message: error instanceof Error ? error.message : 'Unknown error',
+        message: error instanceof Error ? error.message : t('common.unknownError'),
       });
     }
-  }
+  }, [t]);
 
   useEffect(() => {
     void loadHealth();
-  }, []);
+  }, [loadHealth]);
 
   return (
     <PlaceholderCard
-      description={t('app.comingSoon')}
+      description={t('root.healthDescription')}
       title={t('root.healthTitle')}>
       {healthState.status === 'loading' ? (
         <View style={styles.stateRow}>
