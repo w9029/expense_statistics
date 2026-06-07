@@ -37,6 +37,7 @@ project/frontend/**/.vite/
 
 config.dev.yaml
 config.prod.yaml
+config.prod.docker.yaml
 
 __pycache__
 
