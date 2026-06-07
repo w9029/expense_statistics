@@ -2,17 +2,21 @@ from __future__ import annotations
 
 import argparse
 import json
+from collections import defaultdict
 from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
+from urllib.parse import urlencode
 from typing import Any
 
 import requests
 from openpyxl import load_workbook
 
-DEFAULT_API_BASE_URL = "http://127.0.0.1:8080/api/v1"
-DEFAULT_SOURCE_PATH = Path(__file__).resolve().parent / "importdata.xlsx"
+# DEFAULT_API_BASE_URL = "http://127.0.0.1:8080/api/v1"
+DEFAULT_API_BASE_URL = "http://wlzy.online:8090/api/v1"
+# DEFAULT_SOURCE_PATH = Path(__file__).resolve().parent / "importdata.xlsx"
+DEFAULT_SOURCE_PATH = "F:\\OneDrive\\记账.xlsx"
 DEFAULT_SHEET_NAME = "日常开销"
 DEFAULT_MERGE_CATEGORY_NAME = "合并消费"
 EXPECTED_HEADERS = ("日期", "消费数额", "消费名称", "消费种类", "币种", "备注")
@@ -98,6 +102,35 @@ class CheckResult:
     normal_count: int
     merged_count: int
     merged_child_count: int
+    daily_total_mismatches: list["DailyTotalMismatch"]
+    importable_entries: list[NormalExpenseEntry | MergedExpenseEntry]
+
+
+@dataclass(frozen=True)
+class ExistingExpenseSummary:
+    spent_at: str
+    name: str
+    original_amount: str
+    original_currency: str
+    expense_type: str
+
+
+@dataclass(frozen=True)
+class DailyTotalMismatch:
+    spent_at: str
+    source_totals: dict[str, str]
+    existing_totals: dict[str, str]
+    status: str
+    unmatched_existing_entries: list[str]
+
+
+@dataclass(frozen=True)
+class ComparableExpense:
+    spent_at: str
+    name: str
+    amount: str
+    currency: str
+    expense_type: str
 
 
 class ExpenseApiClient:
@@ -148,6 +181,39 @@ class ExpenseApiClient:
             f"/account-books/{account_book_id}/expenses/merged",
             body=payload,
         )
+
+    def list_all_expenses(self, account_book_id: str) -> list[ExistingExpenseSummary]:
+        page = 1
+        page_size = 100
+        items: list[ExistingExpenseSummary] = []
+
+        while True:
+            query = urlencode({"page": page, "page_size": page_size})
+            payload = self._request_json(
+                "GET",
+                f"/account-books/{account_book_id}/expenses?{query}",
+            )
+            batch = payload.get("items")
+            if not isinstance(batch, list):
+                raise ApiError("expense list response is missing items")
+
+            for item in batch:
+                items.append(
+                    ExistingExpenseSummary(
+                        spent_at=str(item["spent_at"]),
+                        name=str(item["name"]),
+                        original_amount=str(item["original_amount"]),
+                        original_currency=str(item["original_currency"]),
+                        expense_type=str(item.get("expense_type", "")),
+                    )
+                )
+
+            total = int(payload.get("total", 0))
+            if page * page_size >= total or not batch:
+                break
+            page += 1
+
+        return items
 
     def _request_json(self, method: str, path: str, body: dict[str, Any] | None = None) -> Any:
         self._ensure_token()
@@ -294,6 +360,9 @@ def run_check(
     merged_child_count = sum(
         len(entry.children) for entry in entries if isinstance(entry, MergedExpenseEntry)
     )
+    existing_expenses = client.list_all_expenses(account_book_id)
+    daily_total_mismatches = compare_daily_totals(entries, existing_expenses)
+    importable_entries = select_importable_entries(entries, existing_expenses, daily_total_mismatches)
     return CheckResult(
         categories_by_name=categories_by_name,
         merge_category=merge_category,
@@ -301,6 +370,8 @@ def run_check(
         normal_count=normal_count,
         merged_count=merged_count,
         merged_child_count=merged_child_count,
+        daily_total_mismatches=daily_total_mismatches,
+        importable_entries=importable_entries,
     )
 
 
@@ -570,9 +641,239 @@ def print_check_summary(result: CheckResult) -> None:
     print(f"Merged expenses : {result.merged_count}")
     print(f"Merged children : {result.merged_child_count}")
     print(f"Total API writes: {result.normal_count + result.merged_count}")
+    if not result.daily_total_mismatches:
+        print("Daily total compare: matched")
+        importable_dates = sorted({entry.spent_at for entry in result.importable_entries})
+        print(f"Importable entries: {len(result.importable_entries)}")
+        print(f"Importable dates: {importable_dates if importable_dates else '[]'}")
+        return
+
+    print(f"Daily total compare: {len(result.daily_total_mismatches)} mismatched day(s)")
+    supplementable = [m for m in result.daily_total_mismatches if m.status == "supplementable"]
+    conflicts = [m for m in result.daily_total_mismatches if m.status == "conflict"]
+
+    print(f"Supplementable mismatches: {len(supplementable)}")
+    for mismatch in supplementable:
+        print(
+            f"  {mismatch.spent_at}: "
+            f"source={format_currency_totals(mismatch.source_totals)} "
+            f"existing={format_currency_totals(mismatch.existing_totals)}"
+        )
+
+    print(f"Conflict mismatches: {len(conflicts)}")
+    for mismatch in conflicts:
+        print(
+            f"  {mismatch.spent_at}: "
+            f"source={format_currency_totals(mismatch.source_totals)} "
+            f"existing={format_currency_totals(mismatch.existing_totals)}"
+        )
+        if mismatch.unmatched_existing_entries:
+            print(f"    unmatched_existing={mismatch.unmatched_existing_entries}")
+    importable_dates = sorted({entry.spent_at for entry in result.importable_entries})
+    print(f"Importable entries: {len(result.importable_entries)}")
+    print(f"Importable dates: {importable_dates if importable_dates else '[]'}")
 
 
 def print_validation_failed(exc: ValidationFailed) -> None:
     print(f"Check failed with {len(exc.issues)} issue(s):")
     for issue in sorted(exc.issues, key=lambda item: item.excel_row):
         print(f"  row {issue.excel_row}: {issue.message}")
+
+
+def compare_daily_totals(
+    entries: list[NormalExpenseEntry | MergedExpenseEntry],
+    existing_expenses: list[ExistingExpenseSummary],
+) -> list[DailyTotalMismatch]:
+    source_daily = aggregate_source_daily_totals(entries)
+    existing_daily = aggregate_existing_daily_totals(existing_expenses)
+    source_records = aggregate_source_daily_records(entries)
+    existing_records = aggregate_existing_daily_records(existing_expenses)
+
+    mismatches: list[DailyTotalMismatch] = []
+    all_dates = sorted(set(source_daily.keys()) | set(existing_daily.keys()))
+    for spent_at in all_dates:
+        source_totals = normalize_total_map(source_daily.get(spent_at, {}))
+        existing_totals = normalize_total_map(existing_daily.get(spent_at, {}))
+        if source_totals != existing_totals:
+            unmatched_existing_entries = find_unmatched_existing_entries(
+                source_records.get(spent_at, []),
+                existing_records.get(spent_at, []),
+            )
+            status = "supplementable" if not unmatched_existing_entries else "conflict"
+            mismatches.append(
+                DailyTotalMismatch(
+                    spent_at=spent_at,
+                    source_totals=source_totals,
+                    existing_totals=existing_totals,
+                    status=status,
+                    unmatched_existing_entries=unmatched_existing_entries,
+                )
+            )
+    return mismatches
+
+
+def select_importable_entries(
+    entries: list[NormalExpenseEntry | MergedExpenseEntry],
+    existing_expenses: list[ExistingExpenseSummary],
+    daily_total_mismatches: list[DailyTotalMismatch],
+) -> list[NormalExpenseEntry | MergedExpenseEntry]:
+    supplementable_dates = {
+        mismatch.spent_at
+        for mismatch in daily_total_mismatches
+        if mismatch.status == "supplementable"
+    }
+    if not supplementable_dates:
+        return []
+
+    existing_records = aggregate_existing_daily_records(existing_expenses)
+    remaining_by_date: dict[str, dict[tuple[str, str, str, str], int]] = {}
+    for spent_at in supplementable_dates:
+        counters: dict[tuple[str, str, str, str], int] = defaultdict(int)
+        for record in existing_records.get(spent_at, []):
+            counters[(record.expense_type, record.name, record.currency, record.amount)] += 1
+        remaining_by_date[spent_at] = counters
+
+    importable: list[NormalExpenseEntry | MergedExpenseEntry] = []
+    for entry in entries:
+        spent_at = entry.spent_at
+        if spent_at not in supplementable_dates:
+            continue
+
+        comparable = comparable_from_entry(entry)
+        key = (comparable.expense_type, comparable.name, comparable.currency, comparable.amount)
+        remaining = remaining_by_date[spent_at]
+        if remaining.get(key, 0) > 0:
+            remaining[key] -= 1
+            continue
+        importable.append(entry)
+
+    return importable
+
+
+def aggregate_source_daily_totals(
+    entries: list[NormalExpenseEntry | MergedExpenseEntry],
+) -> dict[str, dict[str, Decimal]]:
+    daily: dict[str, dict[str, Decimal]] = defaultdict(lambda: defaultdict(lambda: Decimal("0.00")))
+    for entry in entries:
+        if isinstance(entry, NormalExpenseEntry):
+            daily[entry.spent_at][entry.currency] += Decimal(entry.amount)
+            continue
+        daily[entry.spent_at][entry.currency] += Decimal(entry.total_amount)
+    return daily
+
+
+def aggregate_existing_daily_totals(
+    expenses: list[ExistingExpenseSummary],
+) -> dict[str, dict[str, Decimal]]:
+    daily: dict[str, dict[str, Decimal]] = defaultdict(lambda: defaultdict(lambda: Decimal("0.00")))
+    for expense in expenses:
+        if expense.expense_type == "merged_child":
+            continue
+        daily[expense.spent_at][expense.original_currency] += Decimal(expense.original_amount)
+    return daily
+
+
+def aggregate_source_daily_records(
+    entries: list[NormalExpenseEntry | MergedExpenseEntry],
+) -> dict[str, list[ComparableExpense]]:
+    daily: dict[str, list[ComparableExpense]] = defaultdict(list)
+    for entry in entries:
+        if isinstance(entry, NormalExpenseEntry):
+            daily[entry.spent_at].append(
+                ComparableExpense(
+                    spent_at=entry.spent_at,
+                    name=entry.name,
+                    amount=entry.amount,
+                    currency=entry.currency,
+                    expense_type="normal",
+                )
+            )
+            continue
+        daily[entry.spent_at].append(
+            ComparableExpense(
+                spent_at=entry.spent_at,
+                name=entry.name,
+                amount=entry.total_amount,
+                currency=entry.currency,
+                expense_type="merged_parent",
+            )
+        )
+    return daily
+
+
+def aggregate_existing_daily_records(
+    expenses: list[ExistingExpenseSummary],
+) -> dict[str, list[ComparableExpense]]:
+    daily: dict[str, list[ComparableExpense]] = defaultdict(list)
+    for expense in expenses:
+        if expense.expense_type == "merged_child":
+            continue
+        daily[expense.spent_at].append(
+            ComparableExpense(
+                spent_at=expense.spent_at,
+                name=expense.name,
+                amount=expense.original_amount,
+                currency=expense.original_currency,
+                expense_type=expense.expense_type,
+            )
+        )
+    return daily
+
+
+def find_unmatched_existing_entries(
+    source_records: list[ComparableExpense],
+    existing_records: list[ComparableExpense],
+) -> list[str]:
+    remaining: dict[tuple[str, str, str, str], int] = defaultdict(int)
+    for record in source_records:
+        remaining[(record.expense_type, record.name, record.currency, record.amount)] += 1
+
+    unmatched: list[str] = []
+    for record in existing_records:
+        key = (record.expense_type, record.name, record.currency, record.amount)
+        if remaining.get(key, 0) > 0:
+            remaining[key] -= 1
+            continue
+        unmatched.append(format_comparable_expense(record))
+    return unmatched
+
+
+def normalize_total_map(totals: dict[str, Decimal]) -> dict[str, str]:
+    normalized: dict[str, str] = {}
+    for currency, amount in sorted(totals.items()):
+        quantized = amount.quantize(Decimal("0.01"))
+        if quantized == Decimal("0.00"):
+            continue
+        normalized[currency] = f"{quantized:.2f}"
+    return normalized
+
+
+def format_currency_totals(totals: dict[str, str]) -> str:
+    if not totals:
+        return "{}"
+    parts = [f"{currency}={amount}" for currency, amount in totals.items()]
+    return "{%s}" % ", ".join(parts)
+
+
+def format_comparable_expense(record: ComparableExpense) -> str:
+    return (
+        f"{record.expense_type}:{record.name}:{record.currency}:{record.amount}"
+    )
+
+
+def comparable_from_entry(entry: NormalExpenseEntry | MergedExpenseEntry) -> ComparableExpense:
+    if isinstance(entry, NormalExpenseEntry):
+        return ComparableExpense(
+            spent_at=entry.spent_at,
+            name=entry.name,
+            amount=entry.amount,
+            currency=entry.currency,
+            expense_type="normal",
+        )
+    return ComparableExpense(
+        spent_at=entry.spent_at,
+        name=entry.name,
+        amount=entry.total_amount,
+        currency=entry.currency,
+        expense_type="merged_parent",
+    )

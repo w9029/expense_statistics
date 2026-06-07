@@ -63,10 +63,14 @@ def main() -> int:
 
     print_check_summary(result)
 
-    entries = result.entries
+    entries = result.importable_entries
     if args.limit > 0:
         entries = entries[: args.limit]
         print(f"Import limit enabled. Only importing first {len(entries)} top-level entries.")
+
+    if not entries:
+        print("No importable entries found. Nothing to import.")
+        return 0
 
     client = ExpenseApiClient(
         api_base_url=args.api_base_url,
