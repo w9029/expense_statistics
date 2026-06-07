@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
+	"sync"
 	"time"
 
 	"expense-statistics-server/internal/modules/exchange"
@@ -17,6 +18,7 @@ type Service struct {
 	clock    clock.Clock
 	exchange *exchange.Service
 	config   config.ExchangeSchedulerConfig
+	mu       sync.Mutex
 }
 
 type Deps struct {
@@ -25,6 +27,8 @@ type Deps struct {
 	Exchange *exchange.Service
 	Config   config.ExchangeSchedulerConfig
 }
+
+const syncRetryInterval = time.Minute
 
 func NewService(deps Deps) *Service {
 	return &Service{
@@ -54,7 +58,7 @@ func (s *Service) Start(ctx context.Context) {
 	}
 
 	if s.config.StartupSync {
-		go s.runSync(ctx, location, "startup")
+		go s.runSyncWithRetry(ctx, location, "startup")
 	}
 
 	go s.loop(ctx, location, hour, minute)
@@ -78,28 +82,42 @@ func (s *Service) loop(ctx context.Context, location *time.Location, hour int, m
 		case <-timer.C:
 		}
 
-		s.runSync(ctx, location, "daily")
+		s.runSyncWithRetry(ctx, location, "daily")
 	}
 }
 
-func (s *Service) runSync(ctx context.Context, location *time.Location, trigger string) {
-	now := s.clock.Now().In(location)
-	rateDate := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, location)
-	runCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
-	defer cancel()
+func (s *Service) runSyncWithRetry(ctx context.Context, location *time.Location, trigger string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
-	upserted, err := s.exchange.SyncLatestRates(
-		runCtx,
-		s.config.BaseCurrency,
-		s.config.TargetCurrencies,
-		rateDate,
-	)
-	if err != nil {
-		s.logger.Error("exchange rate sync failed", "trigger", trigger, "rate_date", rateDate.Format("2006-01-02"), "base_currency", s.config.BaseCurrency, "targets", strings.Join(s.config.TargetCurrencies, ","), "error", err)
-		return
+	for {
+		now := s.clock.Now().In(location)
+		rateDate := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, location)
+		runCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+
+		result, err := s.exchange.SyncScheduledRates(
+			runCtx,
+			s.config.BaseCurrency,
+			s.config.TargetCurrencies,
+			rateDate,
+		)
+		cancel()
+
+		if err == nil {
+			s.logger.Info("exchange rate sync completed", "trigger", trigger, "rate_date", rateDate.Format("2006-01-02"), "base_currency", s.config.BaseCurrency, "targets", strings.Join(s.config.TargetCurrencies, ","), "upserted", result.Upserted, "synced_rate_dates", result.RateDates)
+			return
+		}
+
+		s.logger.Error("exchange rate sync failed", "trigger", trigger, "rate_date", rateDate.Format("2006-01-02"), "base_currency", s.config.BaseCurrency, "targets", strings.Join(s.config.TargetCurrencies, ","), "error", err, "retry_in", syncRetryInterval.String())
+
+		timer := time.NewTimer(syncRetryInterval)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return
+		case <-timer.C:
+		}
 	}
-
-	s.logger.Info("exchange rate sync completed", "trigger", trigger, "rate_date", rateDate.Format("2006-01-02"), "base_currency", s.config.BaseCurrency, "targets", strings.Join(s.config.TargetCurrencies, ","), "upserted", upserted)
 }
 
 func parseDailyRunAt(value string) (int, int, error) {

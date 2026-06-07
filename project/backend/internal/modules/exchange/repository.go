@@ -15,6 +15,58 @@ type Repository struct{ db *gorm.DB }
 
 func NewRepository(database *db.Database) *Repository { return &Repository{db: database.Gorm} }
 
+func (r *Repository) FindCompleteRateDatesInWindow(ctx context.Context, baseCurrency string, targetCurrencies []string, startDate time.Time, endDate time.Time) (map[string]struct{}, error) {
+	rows, err := r.db.WithContext(ctx).Raw(`
+        SELECT rate_date::text AS rate_date
+        FROM exchange_rates
+        WHERE base_currency = ?
+          AND target_currency IN ?
+          AND rate_date BETWEEN ? AND ?
+        GROUP BY rate_date
+        HAVING COUNT(DISTINCT target_currency) = ?
+    `,
+		baseCurrency,
+		targetCurrencies,
+		startDate.Format("2006-01-02"),
+		endDate.Format("2006-01-02"),
+		len(targetCurrencies),
+	).Rows()
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	result := make(map[string]struct{})
+	for rows.Next() {
+		var rateDate string
+		if scanErr := rows.Scan(&rateDate); scanErr != nil {
+			return nil, scanErr
+		}
+		result[rateDate] = struct{}{}
+	}
+	return result, rows.Err()
+}
+
+func (r *Repository) HasAnyRatesInWindow(ctx context.Context, baseCurrency string, targetCurrencies []string, startDate time.Time, endDate time.Time) (bool, error) {
+	var count int64
+	err := r.db.WithContext(ctx).Raw(`
+        SELECT COUNT(*)
+        FROM exchange_rates
+        WHERE base_currency = ?
+          AND target_currency IN ?
+          AND rate_date BETWEEN ? AND ?
+    `,
+		baseCurrency,
+		targetCurrencies,
+		startDate.Format("2006-01-02"),
+		endDate.Format("2006-01-02"),
+	).Scan(&count).Error
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}
+
 func (r *Repository) FindLatestRateInWindow(ctx context.Context, sourceCurrency string, targetCurrency string, startDate time.Time, endDate time.Time) (*ExchangeRateRecord, error) {
 	var record ExchangeRateRecord
 	err := r.db.WithContext(ctx).Raw(`
