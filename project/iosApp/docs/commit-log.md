@@ -271,3 +271,11 @@
 - 说明: 将账本选择页面里 owner 角色的删除账本确认逻辑，从普通确认弹窗调整为必须输入账本名称后才能确认删除，和账本详情页保持一致；非 owner 的“退出账本”仍维持普通二次确认弹窗。
 - 验证: 已执行 `npx tsc --noEmit`、`npm run lint -- --quiet`、`npm test -- --runInBand --watchman=false`。
 - 后续: 如果后续还要继续降低误删风险，可以再统一危险操作弹窗的文案和按钮顺序。
+
+## 2026-06-08
+
+- 提交: `chore(ios): add warm orange app icon set`
+- 范围: iOS App 图标资源
+- 说明: 为 iOS 工程新增一套暖橙色、极简、柱状图意象的 App Icon 主视觉，并按当前 `AppIcon.appiconset` 需要的 iPhone 与 App Store Marketing 尺寸切出 PNG 文件；同时更新 `Contents.json`，让 Xcode 直接识别这组图标资源。
+- 验证: 已核对 `AppIcon.appiconset` 中所需尺寸文件与 `Contents.json` 的文件名映射一致；后续在 Xcode 重新编译后即可在模拟器、真机和归档产物中看到新图标。
+- 后续: 如果你想继续微调风格，可以在保留这套尺寸映射不变的前提下，只替换 1024 主图再批量重切一次。
