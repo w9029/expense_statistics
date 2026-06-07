@@ -24,6 +24,18 @@ func NewService(deps Deps) *Service {
 		apiKey:        strings.TrimSpace(deps.Config.APIKey),
 		historicalURL: strings.TrimSpace(deps.Config.HistoricalURL),
 		latestURL:     strings.TrimSpace(deps.Config.LatestURL),
+		rateWindowDays: func() int {
+			if deps.Config.RateWindowDays <= 0 {
+				return 2
+			}
+			return deps.Config.RateWindowDays
+		}(),
+		backfillLookbackDays: func() int {
+			if deps.Config.BackfillLookbackDays <= 0 {
+				return 90
+			}
+			return deps.Config.BackfillLookbackDays
+		}(),
 		client:        &http.Client{Timeout: timeout},
 	}
 }

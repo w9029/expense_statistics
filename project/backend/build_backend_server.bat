@@ -23,9 +23,9 @@ if errorlevel 1 (
     exit /b 1
 )
 
-copy /y .\internal\platform\config\config.prod.yaml .\release\internal\platform\config\config.prod.yaml >nul
+copy /y .\internal\platform\config\config.prod.docker.yaml .\release\internal\platform\config\config.prod.docker.yaml >nul
 if errorlevel 1 (
-    echo Failed to copy config.prod.yaml.
+    echo Failed to copy config.prod.docker.yaml.
     exit /b 1
 )
 

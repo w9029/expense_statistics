@@ -10,14 +10,19 @@ import (
 	"time"
 )
 
-const rateWindowDays = 2
-
 type Service struct {
-	repo          *Repository
-	apiKey        string
-	historicalURL string
-	latestURL     string
-	client        *http.Client
+	repo                 *Repository
+	apiKey               string
+	historicalURL        string
+	latestURL            string
+	rateWindowDays       int
+	backfillLookbackDays int
+	client               *http.Client
+}
+
+type ScheduledSyncResult struct {
+	Upserted  int
+	RateDates []string
 }
 
 type providerHistoricalResponse struct {
@@ -47,7 +52,7 @@ func (s *Service) ResolveRate(ctx context.Context, sourceCurrency string, target
 		return "1.000000", nil
 	}
 
-	windowStart := rateDate.AddDate(0, 0, -rateWindowDays)
+	windowStart := rateDate.AddDate(0, 0, -s.rateWindowDays)
 	record, err := s.repo.FindLatestRateInWindow(ctx, source, target, windowStart, rateDate)
 	if err == nil {
 		return s.rateFromRecord(*record, source, target)
@@ -100,6 +105,67 @@ func (s *Service) SyncLatestRates(ctx context.Context, baseCurrency string, targ
 		upserted++
 	}
 	return upserted, nil
+}
+
+func (s *Service) SyncScheduledRates(ctx context.Context, baseCurrency string, targetCurrencies []string, rateDate time.Time) (*ScheduledSyncResult, error) {
+	base := strings.ToUpper(strings.TrimSpace(baseCurrency))
+	if !isCurrencyCode(base) {
+		return nil, invalidRequest("base currency must be a 3-letter uppercase code")
+	}
+	targets := normalizeTargetCurrencies(targetCurrencies, base)
+	if len(targets) == 0 {
+		return nil, invalidRequest("at least one target currency is required")
+	}
+
+	today := time.Date(rateDate.Year(), rateDate.Month(), rateDate.Day(), 0, 0, 0, 0, rateDate.Location())
+	windowStart := today.AddDate(0, 0, -s.backfillLookbackDays)
+
+	hasAnyRates, err := s.repo.HasAnyRatesInWindow(ctx, base, targets, windowStart, today)
+	if err != nil {
+		return nil, wrapRepoError("check existing scheduled exchange rates", err)
+	}
+	result := &ScheduledSyncResult{RateDates: make([]string, 0, s.backfillLookbackDays+1)}
+	if !hasAnyRates {
+		count, syncErr := s.SyncLatestRates(ctx, base, targets, today)
+		if syncErr != nil {
+			return nil, syncErr
+		}
+		if count > 0 {
+			result.Upserted += count
+			result.RateDates = append(result.RateDates, today.Format("2006-01-02"))
+		}
+		return result, nil
+	}
+
+	completeDates, err := s.repo.FindCompleteRateDatesInWindow(ctx, base, targets, windowStart, today)
+	if err != nil {
+		return nil, wrapRepoError("list complete scheduled exchange rate dates", err)
+	}
+
+	for current := windowStart; current.Before(today); current = current.AddDate(0, 0, 1) {
+		if _, exists := completeDates[current.Format("2006-01-02")]; exists {
+			continue
+		}
+
+		count, syncErr := s.SyncHistoricalRates(ctx, base, targets, current)
+		if syncErr != nil {
+			return result, syncErr
+		}
+		if count > 0 {
+			result.Upserted += count
+			result.RateDates = append(result.RateDates, current.Format("2006-01-02"))
+		}
+	}
+
+	count, err := s.SyncLatestRates(ctx, base, targets, today)
+	if err != nil {
+		return result, err
+	}
+	if count > 0 {
+		result.Upserted += count
+		result.RateDates = append(result.RateDates, today.Format("2006-01-02"))
+	}
+	return result, nil
 }
 
 func (s *Service) rateFromRecord(record ExchangeRateRecord, sourceCurrency string, targetCurrency string) (string, error) {
@@ -237,6 +303,105 @@ func (s *Service) fetchLatestRatesFromProvider(ctx context.Context, baseCurrency
 	}
 	if len(rates) == 0 {
 		return nil, notFound(fmt.Sprintf("latest exchange rates not found for %s -> %s", baseCurrency, strings.Join(targetCurrencies, ",")))
+	}
+	return rates, nil
+}
+
+func (s *Service) SyncHistoricalRates(ctx context.Context, baseCurrency string, targetCurrencies []string, rateDate time.Time) (int, error) {
+	base := strings.ToUpper(strings.TrimSpace(baseCurrency))
+	if !isCurrencyCode(base) {
+		return 0, invalidRequest("base currency must be a 3-letter uppercase code")
+	}
+	targets := normalizeTargetCurrencies(targetCurrencies, base)
+	if len(targets) == 0 {
+		return 0, invalidRequest("at least one target currency is required")
+	}
+	if strings.TrimSpace(s.apiKey) == "" {
+		return 0, serviceUnavailable("exchange rate provider is not configured")
+	}
+
+	rates, err := s.fetchHistoricalRatesFromProvider(ctx, base, targets, rateDate)
+	if err != nil {
+		return 0, err
+	}
+
+	upserted := 0
+	for _, target := range targets {
+		rate, ok := rates[target]
+		if !ok {
+			continue
+		}
+		if err := s.repo.UpsertRate(ctx, base, target, rate, rateDate); err != nil {
+			return upserted, wrapRepoError("upsert historical exchange rate", err)
+		}
+		upserted++
+	}
+	return upserted, nil
+}
+
+func (s *Service) fetchHistoricalRatesFromProvider(ctx context.Context, baseCurrency string, targetCurrencies []string, rateDate time.Time) (map[string]string, error) {
+	if strings.TrimSpace(s.historicalURL) == "" {
+		return nil, serviceUnavailable("exchange rate provider is not configured")
+	}
+
+	endpoint, err := url.Parse(s.historicalURL)
+	if err != nil {
+		return nil, internalError(fmt.Sprintf("invalid exchange provider url: %v", err))
+	}
+	query := endpoint.Query()
+	query.Set("apikey", s.apiKey)
+	query.Set("currencies", strings.Join(targetCurrencies, ","))
+	query.Set("base_currency", baseCurrency)
+	query.Set("date", rateDate.Format("2006-01-02"))
+	endpoint.RawQuery = query.Encode()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint.String(), nil)
+	if err != nil {
+		return nil, internalError(fmt.Sprintf("build historical exchange rate request: %v", err))
+	}
+
+	resp, err := s.client.Do(req)
+	if err != nil {
+		return nil, serviceUnavailable("exchange rate provider is unavailable")
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusTooManyRequests {
+		return nil, rateLimited("exchange rate sync failed, please retry in 1 minute")
+	}
+	if resp.StatusCode >= http.StatusInternalServerError {
+		return nil, serviceUnavailable("exchange rate provider is unavailable")
+	}
+	if resp.StatusCode != http.StatusOK {
+		message := "failed to fetch historical exchange rates from provider"
+		var providerErr providerErrorResponse
+		if err := json.NewDecoder(resp.Body).Decode(&providerErr); err == nil && strings.TrimSpace(providerErr.Message) != "" {
+			message = providerErr.Message
+		}
+		return nil, serviceUnavailable(message)
+	}
+
+	decoder := json.NewDecoder(resp.Body)
+	decoder.UseNumber()
+	var payload providerHistoricalResponse
+	if err := decoder.Decode(&payload); err != nil {
+		return nil, serviceUnavailable("invalid exchange rate response from provider")
+	}
+
+	rates := make(map[string]string, len(targetCurrencies))
+	for _, target := range targetCurrencies {
+		ratePayload, ok := payload.Data[target]
+		if !ok || strings.TrimSpace(ratePayload.Value.String()) == "" {
+			continue
+		}
+		normalizedRate, err := normalizeExternalRateString(ratePayload.Value.String())
+		if err != nil {
+			return nil, serviceUnavailable("invalid exchange rate value from provider")
+		}
+		rates[target] = normalizedRate
+	}
+	if len(rates) == 0 {
+		return nil, notFound(fmt.Sprintf("historical exchange rates not found for %s -> %s on %s", baseCurrency, strings.Join(targetCurrencies, ","), rateDate.Format("2006-01-02")))
 	}
 	return rates, nil
 }

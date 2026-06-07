@@ -24,6 +24,8 @@ exchange:
   historical_url: "https://api.currencyapi.com/v3/historical"
   latest_url: "https://api.currencyapi.com/v3/latest"
   request_timeout_seconds: 15
+  rate_window_days: 2  # Number of days to look back for exchange rate data when calculating statistics
+  backfill_lookback_days: 90   # Number of days to look back when backfilling exchange rate data for existing expenses
   scheduler:
     enabled: true
     timezone: "Asia/Tokyo"

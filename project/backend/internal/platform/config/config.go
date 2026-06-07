@@ -40,6 +40,8 @@ type ExchangeConfig struct {
 	HistoricalURL         string                  `yaml:"historical_url"`
 	LatestURL             string                  `yaml:"latest_url"`
 	RequestTimeoutSeconds int                     `yaml:"request_timeout_seconds"`
+	RateWindowDays        int                     `yaml:"rate_window_days"`
+	BackfillLookbackDays  int                     `yaml:"backfill_lookback_days"`
 	Scheduler             ExchangeSchedulerConfig `yaml:"scheduler"`
 }
 
@@ -95,6 +97,12 @@ func (c *Config) applyDefaults() {
 	}
 	if c.Exchange.RequestTimeoutSeconds <= 0 {
 		c.Exchange.RequestTimeoutSeconds = 15
+	}
+	if c.Exchange.RateWindowDays <= 0 {
+		c.Exchange.RateWindowDays = 2
+	}
+	if c.Exchange.BackfillLookbackDays <= 0 {
+		c.Exchange.BackfillLookbackDays = 90
 	}
 	if c.Exchange.Scheduler.TimeZone == "" {
 		c.Exchange.Scheduler.TimeZone = c.DB.TimeZone
