@@ -4,7 +4,7 @@ import argparse
 import json
 from collections import defaultdict
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from urllib.parse import urlencode
@@ -13,8 +13,7 @@ from typing import Any
 import requests
 from openpyxl import load_workbook
 
-# DEFAULT_API_BASE_URL = "http://127.0.0.1:8080/api/v1"
-DEFAULT_API_BASE_URL = "http://wlzy.online:8090/api/v1"
+DEFAULT_API_BASE_URL = "http://127.0.0.1:8080/api/v1"
 # DEFAULT_SOURCE_PATH = Path(__file__).resolve().parent / "importdata.xlsx"
 DEFAULT_SOURCE_PATH = "F:\\OneDrive\\记账.xlsx"
 DEFAULT_SHEET_NAME = "日常开销"
@@ -182,13 +181,24 @@ class ExpenseApiClient:
             body=payload,
         )
 
-    def list_all_expenses(self, account_book_id: str) -> list[ExistingExpenseSummary]:
+    def list_all_expenses(
+        self,
+        account_book_id: str,
+        *,
+        date_from: str | None = None,
+        date_to: str | None = None,
+    ) -> list[ExistingExpenseSummary]:
         page = 1
         page_size = 100
         items: list[ExistingExpenseSummary] = []
 
         while True:
-            query = urlencode({"page": page, "page_size": page_size})
+            query_params: dict[str, str | int] = {"page": page, "page_size": page_size}
+            if date_from:
+                query_params["date_from"] = date_from
+            if date_to:
+                query_params["date_to"] = date_to
+            query = urlencode(query_params)
             payload = self._request_json(
                 "GET",
                 f"/account-books/{account_book_id}/expenses?{query}",
@@ -327,6 +337,12 @@ def add_common_args(parser: argparse.ArgumentParser) -> None:
         default=20.0,
         help="HTTP timeout in seconds. Default: 20.",
     )
+    parser.add_argument(
+        "--lookback-days",
+        type=int,
+        default=0,
+        help="Only process Excel entries in the last N natural days. 0 means no limit.",
+    )
 
 
 def run_check(
@@ -340,6 +356,7 @@ def run_check(
     sheet_name: str,
     merge_category_name: str,
     timeout_seconds: float,
+    lookback_days: int,
 ) -> CheckResult:
     client = ExpenseApiClient(
         api_base_url=api_base_url,
@@ -352,6 +369,7 @@ def run_check(
     categories_by_name, merge_category = validate_category_catalog(categories, merge_category_name)
     rows, issues = load_source_rows(Path(source_path), sheet_name)
     entries, entry_issues = build_entries(rows, categories_by_name)
+    entries = filter_entries_by_lookback(entries, lookback_days)
     issues.extend(entry_issues)
     if issues:
         raise ValidationFailed(issues)
@@ -360,7 +378,12 @@ def run_check(
     merged_child_count = sum(
         len(entry.children) for entry in entries if isinstance(entry, MergedExpenseEntry)
     )
-    existing_expenses = client.list_all_expenses(account_book_id)
+    date_from, date_to = derive_entry_date_range(entries)
+    existing_expenses = client.list_all_expenses(
+        account_book_id,
+        date_from=date_from,
+        date_to=date_to,
+    ) if entries else []
     daily_total_mismatches = compare_daily_totals(entries, existing_expenses)
     importable_entries = select_importable_entries(entries, existing_expenses, daily_total_mismatches)
     return CheckResult(
@@ -652,7 +675,7 @@ def print_check_summary(result: CheckResult) -> None:
     supplementable = [m for m in result.daily_total_mismatches if m.status == "supplementable"]
     conflicts = [m for m in result.daily_total_mismatches if m.status == "conflict"]
 
-    print(f"Supplementable mismatches: {len(supplementable)}")
+    print(f"\nSupplementable mismatches: {len(supplementable)}")
     for mismatch in supplementable:
         print(
             f"  {mismatch.spent_at}: "
@@ -660,7 +683,7 @@ def print_check_summary(result: CheckResult) -> None:
             f"existing={format_currency_totals(mismatch.existing_totals)}"
         )
 
-    print(f"Conflict mismatches: {len(conflicts)}")
+    print(f"\nConflict mismatches: {len(conflicts)}")
     for mismatch in conflicts:
         print(
             f"  {mismatch.spent_at}: "
@@ -670,7 +693,7 @@ def print_check_summary(result: CheckResult) -> None:
         if mismatch.unmatched_existing_entries:
             print(f"    unmatched_existing={mismatch.unmatched_existing_entries}")
     importable_dates = sorted({entry.spent_at for entry in result.importable_entries})
-    print(f"Importable entries: {len(result.importable_entries)}")
+    print(f"\nImportable entries: {len(result.importable_entries)}")
     print(f"Importable dates: {importable_dates if importable_dates else '[]'}")
 
 
@@ -877,3 +900,28 @@ def comparable_from_entry(entry: NormalExpenseEntry | MergedExpenseEntry) -> Com
         currency=entry.currency,
         expense_type="merged_parent",
     )
+
+
+def filter_entries_by_lookback(
+    entries: list[NormalExpenseEntry | MergedExpenseEntry],
+    lookback_days: int,
+) -> list[NormalExpenseEntry | MergedExpenseEntry]:
+    if lookback_days <= 0:
+        return entries
+
+    cutoff = date.today() - timedelta(days=lookback_days - 1)
+    filtered: list[NormalExpenseEntry | MergedExpenseEntry] = []
+    for entry in entries:
+        spent_at = datetime.strptime(entry.spent_at, "%Y-%m-%d").date()
+        if spent_at >= cutoff:
+            filtered.append(entry)
+    return filtered
+
+
+def derive_entry_date_range(
+    entries: list[NormalExpenseEntry | MergedExpenseEntry],
+) -> tuple[str | None, str | None]:
+    if not entries:
+        return None, None
+    dates = sorted(entry.spent_at for entry in entries)
+    return dates[0], dates[-1]

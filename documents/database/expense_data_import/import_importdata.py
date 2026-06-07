@@ -53,6 +53,7 @@ def main() -> int:
             sheet_name=args.sheet,
             merge_category_name=args.merge_category_name,
             timeout_seconds=args.timeout,
+            lookback_days=args.lookback_days,
         )
     except ValidationFailed as exc:
         print_validation_failed(exc)
