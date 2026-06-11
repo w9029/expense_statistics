@@ -101,7 +101,7 @@ export function LoginScreen({navigation, route}: Props) {
 
   return (
     <ScreenShell title={t('login.title')} description={t('login.description')}>
-      <PlaceholderCard title={t('login.title')}>
+      <PlaceholderCard title={t('login.logintext')}>
         <View style={styles.form}>
           <FormField error={errors.email} label={t('login.email')}>
             <AppTextInput
